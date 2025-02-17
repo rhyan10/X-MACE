@@ -1,9 +1,3 @@
-###########################################################################################
-# Elementary Block for Building O(3) Equivariant Higher Order Message Passing Neural Network
-# Authors: Ilyes Batatia, Gregor Simm
-# This program is distributed under the MIT License (see MIT.md)
-###########################################################################################
-
 from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
 
@@ -49,12 +43,6 @@ class PermutationInvariantDecoder(torch.nn.Module):
             torch.nn.ELU(),
             torch.nn.Linear(hidden_dim, hidden_dim),
             torch.nn.ELU(),
-#            torch.nn.Linear(hidden_dim, hidden_dim),
-#            torch.nn.ELU(),
-#            torch.nn.Linear(hidden_dim, hidden_dim),
-#            torch.nn.ELU(),
-#            torch.nn.Linear(hidden_dim, hidden_dim),
-#            torch.nn.ELU(),
             torch.nn.Linear(hidden_dim, self.matrix_vals)  # Output layer without activation
         )
 

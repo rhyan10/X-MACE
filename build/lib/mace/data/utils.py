@@ -22,6 +22,7 @@ Stress = np.ndarray  # [6, ], [3,3], [9, ]
 Virials = np.ndarray  # [6, ], [3,3], [9, ]
 Charges = np.ndarray  # [..., 1]
 Nacs = np.ndarray #[...,...,3]
+Socs = np.ndarray
 Cell = np.ndarray  # [3,3]
 Pbc = tuple  # (3,)
 
@@ -42,6 +43,7 @@ class Configuration:
     cell: Optional[Cell] = None
     pbc: Optional[Pbc] = None
     nacs: Optional[Nacs] = None
+    socs: Optional[Socs] = None
     weight: float = 1.0  # weight of config in loss
     energy_weight: float = 1.0  # weight of config energy in loss
     forces_weight: float = 1.0  # weight of config forces in loss
@@ -49,6 +51,7 @@ class Configuration:
     virials_weight: float = 1.0  # weight of config virial in loss
     dipoles_weight: float = 1.0
     nacs_weight: float = 1.0
+    socs_weight: float = 1.0
     config_type: Optional[str] = DEFAULT_CONFIG_TYPE  # config_type of config
 
 
@@ -95,6 +98,7 @@ def config_from_atoms_list(
     dipoles_key="REF_dipoles",
     nacs_key="REF_nacs",
     charges_key="REF_charges",
+    socs_key="REF_socs",
     config_type_weights: Dict[str, float] = None,
 ) -> Configurations:
     """Convert list of ase.Atoms into Configurations"""
@@ -112,6 +116,7 @@ def config_from_atoms_list(
                 virials_key=virials_key,
                 dipoles_key=dipoles_key,
                 nacs_key=nacs_key,
+                socs_key=socs_key,
                 charges_key=charges_key,
                 config_type_weights=config_type_weights,
             )
@@ -127,7 +132,8 @@ def config_from_atoms(
     virials_key="REF_virials",
     dipoles_key="REF_dipoles",
     charges_key="REF_charges",
-    nacs_key="nacs",
+    nacs_key="REF_nacs",
+    socs_key="REF_socs",
     config_type_weights: Dict[str, float] = None,
 ) -> Configuration:
     """Convert ase.Atoms to Configuration"""
@@ -138,6 +144,7 @@ def config_from_atoms(
     stress = atoms.info.get(stress_key, None)  # eV / Ang ^ 3
     virials = atoms.info.get(virials_key, None)
     nacs = atoms.info.get(nacs_key, None)
+    socs = atoms.info.get(socs_key, None)
     dipoles = atoms.info.get(dipoles_key, None)  # Debye
     # Charges default to 0 instead of None if not found
     charges = atoms.arrays.get(charges_key, np.zeros(len(atoms)))  # atomic unit
@@ -186,6 +193,7 @@ def config_from_atoms(
         dipoles=dipoles,
         charges=charges,
         nacs=nacs,
+        socs=socs,
         weight=weight,
         energy_weight=energy_weight,
         forces_weight=forces_weight,
@@ -225,6 +233,7 @@ def load_from_xyz(
     dipoles_key: str = "REF_dipoles",
     charges_key: str = "REF_charges",
     nacs_key: str = 'REF_nacs',
+    socs_key: str = 'REF_socs',
     extract_atomic_energies: bool = False,
     keep_isolated_atoms: bool = False,
 ) -> Tuple[Dict[int, float], Configurations]:
@@ -300,6 +309,7 @@ def load_from_xyz(
         virials_key=virials_key,
         dipoles_key=dipoles_key,
         nacs_key=nacs_key,
+        socs_key=socs_key,
         charges_key=charges_key,
     )
     return atomic_energies_dict, configs

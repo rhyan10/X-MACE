@@ -442,6 +442,7 @@ def run(args: argparse.Namespace) -> None:
             radial_MLP=ast.literal_eval(args.radial_MLP),
             radial_type=args.radial_type,
             compute_nacs=args.compute_nacs,
+            compute_socs=True,
             compute_dipoles=args.compute_dipoles,
         )
     

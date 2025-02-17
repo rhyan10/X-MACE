@@ -475,13 +475,12 @@ class MACELoss(Metric):
             self.delta_es_per_atom.append(
                 (batch.energy - output["energy"]) / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1)
             )
-        if output.get("forces") is not None and batch.forces is not None:
+        if output.get("forces") is not None and (batch.forces != 0).any():
            self.Fs_computed += 1.0
            self.fs.append(batch.forces)
            self.delta_fs.append(batch.forces - output["forces"] )
 
-
-        if output.get("dipoles") is not None and batch.dipole is not None:
+        if output.get("dipoles") is not None and (batch.dipoles != 0).any() :
            self.Mus_computed += 1.0
            self.mus.append(batch.dipoles)
            self.delta_mus.append(batch.dipoles - output["dipoles"])
@@ -489,7 +488,7 @@ class MACELoss(Metric):
                (batch.dipoles - output["dipoles"])
                / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1).unsqueeze(-1)
            )
-        if output.get("nacs") is not None and torch.any(batch.nacs.ne(0)):
+        if output.get("nacs") is not None and (batch.nacs != 0).any():
             self.nacs_computed += 1.0
             self.nacs.append(batch.nacs)
             neg = torch.abs(batch.nacs - output["nacs"]).unsqueeze(-1)

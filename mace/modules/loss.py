@@ -494,7 +494,6 @@ class InvariantsWeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
 
     def forward(self, ref: Batch, pred: TensorDict) -> torch.Tensor:
         loss = 0
-
         if ref["energy"].shape == pred["energy"].shape:
             loss = self.energy_weight * (reconstruction_error_invariants(ref, pred) + mean_squared_error_invariants(ref, pred))
         

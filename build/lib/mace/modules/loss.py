@@ -446,25 +446,22 @@ class WeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
         )
 
     def forward(self, ref: Batch, pred: TensorDict) -> torch.Tensor:
+        loss = 0
 
-        loss = self.energy_weight * mean_squared_error_energy(ref, pred)
-        #print(loss)
-        #if ref["forces"] != None:
-        #    loss += self.forces_weight * mean_squared_error_forces(ref, pred)
-            #print(self.forces_weight * mean_squared_error_forces(ref, pred))
-        #if ref["socs"] != None:
-        #    loss += self.socs_weight * phase_rmse_socs(ref, pred)
-            #print(self.socs_weight * phase_rmse_socs(ref, pred))
+        if ref["energy"].shape == pred["energy"].shape:
+            loss = self.energy_weight * mean_squared_error_energy(ref, pred)
+
+        if ref["forces"].shape == pred["forces"].shape:
+            loss += self.forces_weight * mean_squared_error_forces(ref, pred)
+
+        if ref["nacs"].shape == pred["nacs"].shape:
+            loss += self.nacs_weight * phase_rmse_loss(ref, pred)
         
-        #loss = torch.clamp(loss, max=2000)
-        #if ref["nacs"] != None:
-        #   loss += self.nacs_weight * phase_rmse_loss(ref, pred)
+        if ref["socs"] != None:
+            loss += self.socs_weight * phase_rmse_socs(ref, pred)
 
-        #if ref["dipoles"] != None:
-        #    loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
-
-        #if loss > 10000000:
-        #     loss = loss * 0
+        if ref["dipoles"].shape == pred["dipoles"].shape:
+            loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
 
         return loss
 
@@ -496,18 +493,19 @@ class InvariantsWeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
         )
 
     def forward(self, ref: Batch, pred: TensorDict) -> torch.Tensor:
-        loss = self.energy_weight * (reconstruction_error_invariants(ref, pred) + mean_squared_error_invariants(ref, pred))
+        loss = 0
+
+        if ref["energy"].shape == pred["energy"].shape:
+            loss = self.energy_weight * (reconstruction_error_invariants(ref, pred) + mean_squared_error_invariants(ref, pred))
+        
         if ref["forces"].shape == pred["forces"].shape:
             loss += self.forces_weight * mean_squared_error_forces(ref, pred)
 
-        #if ref["nacs"].shape == pred["nacs"].shape:
-        #   loss += self.nacs_weight * phase_rmse_loss(ref, pred)
+        if ref["nacs"].shape == pred["nacs"].shape:
+          loss += self.nacs_weight * phase_rmse_loss(ref, pred)
 
-        #if ref["dipoles"].shape == pred["dipoles"].shape:
-        #   loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
-
-        # if loss > 10000000:
-        #     loss = loss * 0
+        if ref["dipoles"].shape == pred["dipoles"].shape:
+          loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
 
         return loss
 

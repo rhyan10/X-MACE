@@ -146,7 +146,6 @@ class NonLinearReadoutBlock(torch.nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
-        print(x.shape)
         x = self.non_linearity(self.linear_1(x))
         return self.linear_2(x)  # [n_nodes, 1]
 
@@ -246,8 +245,6 @@ class NonLinearDipoleReadoutBlock(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
-        print(x.shape)
-        print(self.linear_1)
         x = self.equivariant_nonlin(self.linear_1(x))
         return self.linear_2(x)  # [n_nodes, 1]
 

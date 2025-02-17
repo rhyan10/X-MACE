@@ -101,6 +101,7 @@ def run(args: argparse.Namespace) -> None:
             )
             calc = mace_mp(
                 model=args.foundation_model,
+                n_energies=args.n_energies,
                 device=args.device,
                 default_dtype=args.default_dtype,
             )
@@ -112,6 +113,7 @@ def run(args: argparse.Namespace) -> None:
             )
             calc = mace_off(
                 model=model_type,
+                n_energies=args.n_energies,
                 device=args.device,
                 default_dtype=args.default_dtype,
             )

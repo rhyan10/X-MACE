@@ -23,6 +23,7 @@ def mace_mp(
     damping: str = "bj",  # choices: ["zero", "bj", "zerom", "bjm"]
     dispersion_xc: str = "pbe",
     dispersion_cutoff: float = 40.0 * units.Bohr,
+    n_energies: int = 1,
     **kwargs,
 ) -> MACECalculator:
     """
@@ -106,7 +107,7 @@ def mace_mp(
             "Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization."
         )
     mace_calc = MACECalculator(
-        model_paths=model, device=device, default_dtype=default_dtype, **kwargs
+        model_paths=model, device=device, n_energies=n_energies, default_dtype=default_dtype, **kwargs
     )
     d3_calc = None
     if dispersion:
@@ -138,6 +139,7 @@ def mace_off(
     device: str = "",
     default_dtype: str = "float64",
     return_raw_model: bool = False,
+    n_energies: int = 1,
     **kwargs,
 ) -> MACECalculator:
     """
@@ -204,7 +206,7 @@ def mace_off(
             "Using float32 for MACECalculator, which is faster but less accurate. Recommended for MD. Use float64 for geometry optimization."
         )
     mace_calc = MACECalculator(
-        model_paths=model, device=device, default_dtype=default_dtype, **kwargs
+        model_paths=model, device=device, n_energies=n_energies, default_dtype=default_dtype, **kwargs
     )
     return mace_calc
 
@@ -212,6 +214,7 @@ def mace_off(
 def mace_anicc(
     device: str = "cuda",
     model_path: str = None,
+    n_energies: int = 1,
 ) -> MACECalculator:
     """
     Constructs a MACECalculator with a pretrained model based on the ANI (H, C, N, O).
@@ -227,4 +230,4 @@ def mace_anicc(
         print(
             "Using ANI couple cluster model for MACECalculator, see https://doi.org/10.1063/5.0155322"
         )
-    return MACECalculator(model_path, device=device, default_dtype="float64")
+    return MACECalculator(model_path, device=device, n_energies=n_energies, default_dtype="float64")

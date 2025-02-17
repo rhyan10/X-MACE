@@ -1,3 +1,2 @@
 mace
 scripts
-tests

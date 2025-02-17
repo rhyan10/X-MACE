@@ -1,5 +1,4 @@
 LICENSE.md
-README.md
 pyproject.toml
 setup.cfg
 mace/__init__.py
@@ -9,8 +8,6 @@ mace/calculators/__init__.py
 mace/calculators/foundations_models.py
 mace/calculators/lammps_mace.py
 mace/calculators/mace.py
-mace/calculators/sharc_calculator.py
-mace/calculators/sharcinterface.py
 mace/cli/__init__.py
 mace/cli/active_learning_md.py
 mace/cli/create_lammps_model.py
@@ -61,15 +58,3 @@ scripts/__init__.py
 scripts/eval_configs.py
 scripts/preprocess_data.py
 scripts/run_train.py
-tests/__init__.py
-tests/test_calculator.py
-tests/test_cg.py
-tests/test_compile.py
-tests/test_data.py
-tests/test_foundations.py
-tests/test_hessian.py
-tests/test_models.py
-tests/test_modules.py
-tests/test_run_train.py
-tests/test_schedulefree.py
-tests/test_tools.py

@@ -51,7 +51,7 @@ class MACECalculator(Calculator):
         self,
         model_paths: Union[list, str],
         device: str,
-        #n_energies: int,
+        n_energies: int,
         energy_units_to_eV: float = 1.0,
         length_units_to_A: float = 1.0,
         default_dtype="",
@@ -64,7 +64,7 @@ class MACECalculator(Calculator):
         #print(model_paths)
         Calculator.__init__(self, **kwargs)
         self.results = {}
-        #self.n_energies = n_energies
+        self.n_energies = n_energies
         self.model_type = model_type
 
         if model_type == "MACE":
@@ -248,13 +248,13 @@ class MACECalculator(Calculator):
                 compute_stress=compute_stress,
                 training=self.use_compile,
             )
-
+#            print(out.keys())
             if self.model_type in ["MACE", "EnergyDipoleMACE"]:
-                ret_tensors["energies"] = out["decoded_invariants"].detach()
+                ret_tensors["energies"] = out["energy"].detach()
                 ret_tensors["forces"] = out["forces"].detach()
-                ret_tensors["dipoles"] = out["dipoles"].detach()
-                ret_tensors["nacs"] = out["nacs"].detach()
-                ret_tensors["invariant_vals"] = out["invariant_vals"].detach()
+                #ret_tensors["dipoles"] = out["dipoles"].detach()
+                #ret_tensors["nacs"] = out["nacs"].detach()
+                #ret_tensors["invariant_vals"] = out["invariant_vals"].detach()
                 if out["stress"] is not None:
                     ret_tensors["stress"][i] = out["stress"].detach()
             if self.model_type in ["DipoleMACE", "EnergyDipoleMACE"]:
@@ -262,7 +262,7 @@ class MACECalculator(Calculator):
 
         self.results = {}
         if self.model_type in ["MACE", "EnergyDipoleMACE"]:
-            self.results["invariant_vals"] = ret_tensors["invariant_vals"].cpu().numpy()
+            #self.results["invariant_vals"] = ret_tensors["invariant_vals"].cpu().numpy()
 
             self.results["energy"] = (
                 torch.mean(ret_tensors["energies"], dim=0).cpu().numpy()
@@ -277,9 +277,9 @@ class MACECalculator(Calculator):
             self.results["node_energy"] = (
                 torch.mean(ret_tensors["node_energy"], dim=0).cpu().numpy()
             )
-            self.results["dipoles"] = ret_tensors["dipoles"].cpu().numpy()
-            self.results["smooth_nacs"] = ret_tensors["nacs"].cpu().numpy()
-            self.results["forces"] = ret_tensors["forces"].cpu().numpy()
+            #self.results["dipoles"] = ret_tensors["dipoles"].cpu().numpy()
+            #self.results["smooth_nacs"] = ret_tensors["nacs"].cpu().numpy()
+            #self.results["forces"] = ret_tensors["forces"].cpu().numpy()
 
             if self.num_models > 1:
                 self.results["energies"] = (
