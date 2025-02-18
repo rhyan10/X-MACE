@@ -6,7 +6,9 @@ An overview of the main parameters used in the MACE architecture can be found he
 Installation
 
 Ensure you have Python 3.7+ and the necessary dependencies installed. Installation of the library as well as dependecies can be performed using:
+
 pip install .
+
 in an appropriate conda environment
 
 Usage
