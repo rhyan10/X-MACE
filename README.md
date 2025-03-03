@@ -13,7 +13,7 @@ X‑MACE provides researchers with a powerful tool to train models that predict 
 
 Key features include:
 - **Multi-level Energy Learning:** Use the `--n_energies` parameter to specify how many energy levels the model should learn.
-- **Error Analysis:** Generate error tables for energies, forces, NACs, and dipole moments with the `--error_table` option.
+- **Error Analysis:** Generate error tables for energies, forces, NACs, and dipole moments with the `--error_table` option and the associated table `EnergyNacsDipoleMAE`
 - **Transfer Learning Capability:** Leverage pre-trained ground state representations by specifying the `--foundation_model` parameter.
 
 ---
