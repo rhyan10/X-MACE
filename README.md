@@ -1,6 +1,6 @@
 # X‑MACE
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)  
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)   
 [![Python Version](https://img.shields.io/badge/Python-3.7%2B-blue.svg)](https://www.python.org/downloads/)
 
 **X‑MACE** is a deep learning framework designed to model excited‐state potential energy surfaces with high accuracy, especially near conical intersections. It extends the Message Passing Atomic Cluster Expansion (MACE) architecture by integrating Deep Sets to learn smooth representations of inherently non‐smooth energy surfaces. An overview of the main parameters used in the MACE architecture can be found [here](https://github.com/ACEsuit/mace).
