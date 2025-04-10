@@ -34,6 +34,7 @@ class AtomicData(torch_geometric.data.Data):
     forces: torch.Tensor
     energy: torch.Tensor
     stress: torch.Tensor
+    scalar_params: torch.Tensor
     virials: torch.Tensor
     nacs: torch.Tensor
     socs: torch.Tensor
@@ -44,12 +45,14 @@ class AtomicData(torch_geometric.data.Data):
     forces_weight: torch.Tensor
     stress_weight: torch.Tensor
     virials_weight: torch.Tensor
+    scalar_weight: torch.Tensor
 
     def __init__(
         self,
         edge_index: torch.Tensor,  # [2, n_edges]
         node_attrs: torch.Tensor,  # [n_nodes, n_node_feats]
         positions: torch.Tensor,  # [n_nodes, 3]
+        scalar_params: torch.Tensor,
         shifts: torch.Tensor,  # [n_edges, 3],
         unit_shifts: torch.Tensor,  # [n_edges, 3]
         cell: Optional[torch.Tensor],  # [3,3]
@@ -59,6 +62,7 @@ class AtomicData(torch_geometric.data.Data):
         stress_weight: Optional[torch.Tensor],  # [,]
         virials_weight: Optional[torch.Tensor],  # [,]
         dipoles_weight: Optional[torch.tensor],
+        scalar_weight: Optional[torch.tensor],
         nacs_weight: Optional[torch.tensor],
         forces: Optional[torch.Tensor],  # [n_nodes, 3]
         energy: Optional[torch.Tensor],  # [, ]
@@ -106,9 +110,11 @@ class AtomicData(torch_geometric.data.Data):
             "virials_weight": virials_weight,
             "dipoles_weight": dipoles_weight,
             "nacs_weight": nacs_weight,
+            "scalar_weight": scalar_weight,
             "forces": forces,
             "energy": energy,
             "stress": stress,
+            "scalar_params": scalar_params,
             "virials": virials,
             "dipoles": dipoles,
             "nacs": nacs,
@@ -179,9 +185,19 @@ class AtomicData(torch_geometric.data.Data):
             if config.dipoles_weight is not None
             else 1
         )
+        scalar_weight = (
+            torch.tensor(config.scalar_weight, dtype=torch.get_default_dtype())
+            if config.scalar_weight is not None
+            else 1
+        )
         forces = (
             torch.tensor(config.forces, dtype=torch.get_default_dtype())
             if config.forces is not None
+            else None
+        )
+        scalar_params = (
+            torch.tensor(config.scalar_params, dtype=torch.get_default_dtype())
+            if config.scalar_params is not None
             else None
         )
         energy = (
@@ -238,6 +254,7 @@ class AtomicData(torch_geometric.data.Data):
             virials_weight=virials_weight,
             dipoles_weight=dipoles_weight,
             nacs_weight=nacs_weight,
+            scalar_weight=scalar_weight,
             forces=forces,
             energy=energy,
             stress=stress,
@@ -245,6 +262,7 @@ class AtomicData(torch_geometric.data.Data):
             dipoles=dipoles,
             nacs=nacs,
             socs=socs,
+            scalar_params=scalar_params,
             charges=charges,
         )
 

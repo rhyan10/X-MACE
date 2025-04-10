@@ -37,6 +37,7 @@ from .loss import (
 from .models import (
     ExcitedMACE,
     AutoencoderExcitedMACE,
+    EmbeddingXMACE,
 )
 from .radial import BesselBasis, GaussianBasis, PolynomialCutoff, ZBLBasis
 from .symmetric_contraction import SymmetricContraction

@@ -18,7 +18,13 @@ def mean_squared_error_invariants(ref: Batch, pred: TensorDict) -> torch.Tensor:
     return torch.mean(torch.square((ref["energy"] - pred["decoded_invariants"])))
 
 def reconstruction_error_invariants(ref: Batch, pred: TensorDict) -> torch.Tensor:
-    return torch.mean(torch.square(ref["energy"] - pred["decoded_energy"]))
+    return torch.mean(torch.square(ref["energy"] - pred["energy"]))
+
+def oscillator_error(ref: Batch, pred: TensorDict) -> torch.Tensor:
+    return torch.mean(torch.square(ref["oscillator"] - pred["oscillator"]))
+
+def mean_squared_soc_error(ref: Batch, pred: TensorDict) -> torch.Tensor:
+    return torch.mean(torch.square(ref["socs"] - pred["socs"]))
 
 def weighted_mean_squared_error_energy(ref: Batch, pred: TensorDict) -> torch.Tensor:
     # energy: [n_graphs, ]
@@ -68,26 +74,11 @@ def weighted_mean_squared_virials(ref: Batch, pred: TensorDict) -> torch.Tensor:
     )  # []
 
 def phase_rmse_loss(ref: Batch, pred: TensorDict) -> torch.Tensor:
-        # nacs: [n_energies*(n_energies-1)/2), 3]
-    configs_weight = torch.repeat_interleave(
-        ref.weight, ref.ptr[1:] - ref.ptr[:-1]
-    ).unsqueeze(
-        -1
-    )  # [n_atoms, 1]
-    configs_nacs_weight = torch.repeat_interleave(
-        ref.nacs_weight, ref.ptr[1:] - ref.ptr[:-1]
-    ).unsqueeze(
-        -1
-    )
     neg = torch.square(ref["nacs"] - pred["nacs"]).unsqueeze(-1)
     pos = torch.square(ref["nacs"] + pred["nacs"]).unsqueeze(-1)
     vec = torch.cat((pos,neg),dim=-1)
 
-    return torch.mean(
-        configs_weight.unsqueeze(-1)
-        * configs_nacs_weight.unsqueeze(-1)
-        * torch.min(vec, dim=-1)[0]
-    )  # []
+    return torch.mean(torch.min(vec, dim=-1)[0]) 
 
 def mean_squared_error_forces(ref: Batch, pred: TensorDict) -> torch.Tensor:
     # forces: [n_atoms, 3]
@@ -109,24 +100,12 @@ def mean_squared_error_forces(ref: Batch, pred: TensorDict) -> torch.Tensor:
 
 
 def weighted_mean_squared_error_dipole(ref: Batch, pred: TensorDict) -> torch.Tensor:
-    # dipole: [n_graphs, ]
     num_atoms = (ref.ptr[1:] - ref.ptr[:-1]).unsqueeze(-1).unsqueeze(-1)  # [n_graphs,1]
     return torch.mean(torch.square((ref["dipoles"] - pred["dipoles"]) / num_atoms))  # []
 
 def phase_rmse_socs(ref: Batch, pred: TensorDict) -> torch.Tensor:
-    configs_weight = torch.repeat_interleave(
-        ref.weight, ref.ptr[1:] - ref.ptr[:-1]
-    ).unsqueeze(
-        -1
-    )  # [n_atoms, 1]
-    configs_socs_weight = torch.repeat_interleave(
-        ref.nacs_weight, ref.ptr[1:] - ref.ptr[:-1]
-    ).unsqueeze(
-        -1
-    )
-    ref_socs = ref["socs"].reshape(pred["socs"].shape[0], pred["socs"].shape[1], 3)
-    neg = torch.square(ref_socs - pred["socs"]).unsqueeze(-1)
-    pos = torch.square(ref_socs + pred["socs"]).unsqueeze(-1)
+    neg = torch.square(ref["socs"] - pred["socs"]).unsqueeze(-1)
+    pos = torch.square(ref["socs"] + pred["socs"]).unsqueeze(-1)
     vec = torch.cat((pos,neg),dim=-1)
 
     return torch.mean(torch.min(vec, dim=-1)[0])
@@ -166,40 +145,6 @@ def conditional_mse_forces(ref: Batch, pred: TensorDict) -> torch.Tensor:
     se[~(c1 | c2 | c3)] = torch.square(err[~(c1 | c2 | c3)]) * factors[3]
 
     return torch.mean(configs_weight * configs_forces_weight * se)
-
-
-def conditional_huber_forces(
-    ref: Batch, pred: TensorDict, huber_delta: float
-) -> torch.Tensor:
-    # Define the multiplication factors for each condition
-    factors = huber_delta * torch.tensor([1.0, 0.7, 0.4, 0.1])
-
-    # Apply multiplication factors based on conditions
-    c1 = torch.norm(ref["forces"], dim=-1) < 100
-    c2 = (torch.norm(ref["forces"], dim=-1) >= 100) & (
-        torch.norm(ref["forces"], dim=-1) < 200
-    )
-    c3 = (torch.norm(ref["forces"], dim=-1) >= 200) & (
-        torch.norm(ref["forces"], dim=-1) < 300
-    )
-    c4 = ~(c1 | c2 | c3)
-
-    se = torch.zeros_like(pred["forces"])
-
-    se[c1] = torch.nn.functional.huber_loss(
-        ref["forces"][c1], pred["forces"][c1], reduction="none", delta=factors[0]
-    )
-    se[c2] = torch.nn.functional.huber_loss(
-        ref["forces"][c2], pred["forces"][c2], reduction="none", delta=factors[1]
-    )
-    se[c3] = torch.nn.functional.huber_loss(
-        ref["forces"][c3], pred["forces"][c3], reduction="none", delta=factors[2]
-    )
-    se[c4] = torch.nn.functional.huber_loss(
-        ref["forces"][c4], pred["forces"][c4], reduction="none", delta=factors[3]
-    )
-
-    return torch.mean(se)
 
 
 class WeightedEnergyForcesLoss(torch.nn.Module):
@@ -422,7 +367,7 @@ class WeightedEnergyForcesDipoleLoss(torch.nn.Module):
         )
 
 class WeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
-    def __init__(self, energy_weight=1.0, forces_weight=1.0, dipoles_weight=1.0, nacs_weight=1.0, socs_weight=10.0) -> None:
+    def __init__(self, energy_weight=1.0, forces_weight=1.0, dipoles_weight=1.0, nacs_weight=1.0, socs_weight=10.0, oscillator_weight=10.0) -> None:
         super().__init__()
         self.register_buffer(
             "energy_weight",
@@ -444,25 +389,37 @@ class WeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
             "socs_weight",
             torch.tensor(socs_weight, dtype=torch.get_default_dtype()),
         )
+        self.register_buffer(
+            "oscillator_weight",
+            torch.tensor(oscillator_weight, dtype=torch.get_default_dtype()),
+        )
+
+    def is_nonzero(self, vector):
+        """Returns True if the vector (converted to a NumPy array) is not all zeros."""
+        arr = np.array(vector)
+        # Returns False if all elements are 0, True otherwise.
+        return not np.all(arr == 0)
 
     def forward(self, ref: Batch, pred: TensorDict) -> torch.Tensor:
         loss = 0
 
-        if ref["energy"].shape == pred["energy"].shape:
-            loss = self.energy_weight * mean_squared_error_energy(ref, pred)
+        if ref["energy"] is not None and not torch.all(ref["energy"] == 0).item():
+            loss += self.energy_weight * mean_squared_error_energy(ref, pred)
 
-        if ref["forces"].shape == pred["forces"].shape:
+        if ref["forces"] is not None and not torch.all(ref["forces"] == 0).item():
             loss += self.forces_weight * mean_squared_error_forces(ref, pred)
 
-        if ref["nacs"].shape == pred["nacs"].shape:
+        if ref["nacs"] is not None and not torch.all(ref["nacs"] == 0).item():
             loss += self.nacs_weight * phase_rmse_loss(ref, pred)
-        
-        if ref["socs"] != None:
-            loss += self.socs_weight * phase_rmse_socs(ref, pred)
 
-        if ref["dipoles"].shape == pred["dipoles"].shape:
-            loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
+        if ref["socs"] is not None and not torch.all(ref["socs"] == 0).item():
+            loss += self.socs_weight * mean_squared_soc_error(ref, pred) * 0
 
+        if ref["dipoles"] is not None and not torch.all(ref["dipoles"] == 0).item():
+            loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) 
+
+        if ref["oscillator"] is not None and not torch.all(ref["oscillator"] == 0).item():
+            loss += self.oscillator_weight * oscillator_error(ref, pred)
         return loss
 
 
@@ -494,6 +451,7 @@ class InvariantsWeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
 
     def forward(self, ref: Batch, pred: TensorDict) -> torch.Tensor:
         loss = 0
+
         if ref["energy"].shape == pred["energy"].shape:
             loss = self.energy_weight * (reconstruction_error_invariants(ref, pred) + mean_squared_error_invariants(ref, pred))
         

@@ -252,8 +252,9 @@ class MACECalculator(Calculator):
             if self.model_type in ["MACE", "EnergyDipoleMACE"]:
                 ret_tensors["energies"] = out["energy"].detach()
                 ret_tensors["forces"] = out["forces"].detach()
-                #ret_tensors["dipoles"] = out["dipoles"].detach()
-                #ret_tensors["nacs"] = out["nacs"].detach()
+                ret_tensors["dipoles"] = out["dipoles"].detach()
+                ret_tensors["nacs"] = out["nacs"].detach()
+                ret_tensors["socs"] = out["socs"].detach()
                 #ret_tensors["invariant_vals"] = out["invariant_vals"].detach()
                 if out["stress"] is not None:
                     ret_tensors["stress"][i] = out["stress"].detach()

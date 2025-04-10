@@ -29,7 +29,7 @@ def compute_forces(
         if j < energy.shape[-1] - 1 or training:
             retain = True
         else:
-            retain == False
+            retain = False
 
         gradient = torch.autograd.grad(
             outputs=[energy[:,state]],  # [n_graphs, ]

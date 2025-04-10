@@ -43,6 +43,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default="smooth_nacs",
     )
     parser.add_argument(
+        "--scalar_key",
+        help="Key of reference scalar in training xyz",
+        type=str,
+        default="REF_scalar",
+    )
+    parser.add_argument(
         "--log_dir", help="directory for log files", type=str, default=None
     )
     parser.add_argument(
@@ -86,6 +92,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--n_energies", help="Number of energies", type=int)
 
+    parser.add_argument("--n_nacs", help="Number of non adiabatic couplings", type=int)
+
+    parser.add_argument("--n_socs", help="Number of spin orbit couplings", type=int)
+
+    parser.add_argument("--n_dipoles", help="Number of dipole moments", type=int)
+
     parser.add_argument(
         "--error_table",
         help="Type of error table produced at the end of the training",
@@ -112,7 +124,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default="ExcitedMACE",
         choices=[
             "ExcitedMACE",
-            "AutoencoderExcitedMACE"
+            "AutoencoderExcitedMACE",
+            "EmbeddingXMACE"
         ],
     )
     parser.add_argument(
@@ -418,6 +431,10 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         "--nacs_weight", help="weight of nacs loss", type=float, default=100.0
     )
     
+    parser.add_argument(
+        "--socs_weight", help="weight of nacs loss", type=float, default=100.0
+    )
+
     parser.add_argument(
         "--swa_forces_weight",
         "--stage_two_forces_weight",

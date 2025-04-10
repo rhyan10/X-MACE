@@ -18,7 +18,7 @@ def mean_squared_error_invariants(ref: Batch, pred: TensorDict) -> torch.Tensor:
     return torch.mean(torch.square((ref["energy"] - pred["decoded_invariants"])))
 
 def reconstruction_error_invariants(ref: Batch, pred: TensorDict) -> torch.Tensor:
-    return torch.mean(torch.square(ref["energy"] - pred["decoded_energy"]))
+    return torch.mean(torch.square(ref["energy"] - pred["energy"]))
 
 def weighted_mean_squared_error_energy(ref: Batch, pred: TensorDict) -> torch.Tensor:
     # energy: [n_graphs, ]

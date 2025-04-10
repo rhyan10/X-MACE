@@ -48,6 +48,7 @@ def get_dataset_from_xyz(
     energy_key: str = "REF_energy",
     forces_key: str = "REF_forces",
     stress_key: str = "REF_stress",
+    scalar_key: str = "REF_scalar",
     virials_key: str = "virials",
     dipoles_key: str = "dipoles",
     nacs_key: str = "nacs",
@@ -66,6 +67,7 @@ def get_dataset_from_xyz(
         charges_key=charges_key,
         nacs_key = nacs_key,
         socs_key=socs_key,
+        scalar_key=scalar_key,
         extract_atomic_energies=True,
         keep_isolated_atoms=keep_isolated_atoms,
     )
@@ -81,6 +83,7 @@ def get_dataset_from_xyz(
             dipoles_key=dipoles_key,
             nacs_key = nacs_key,
             charges_key=charges_key,
+            scalar_key=scalar_key,
             socs_key=socs_key,
             extract_atomic_energies=False,
         )
@@ -103,6 +106,7 @@ def get_dataset_from_xyz(
             virials_key=virials_key,
             charges_key=charges_key,
             socs_key=socs_key,
+            scalar_key=scalar_key,
             extract_atomic_energies=False,
         )
         # create list of tuples (config_type, list(Atoms))

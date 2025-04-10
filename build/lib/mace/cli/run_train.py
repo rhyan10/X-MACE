@@ -101,6 +101,7 @@ def run(args: argparse.Namespace) -> None:
             )
             calc = mace_mp(
                 model=args.foundation_model,
+                n_energies=args.n_energies,
                 device=args.device,
                 default_dtype=args.default_dtype,
             )
@@ -112,6 +113,7 @@ def run(args: argparse.Namespace) -> None:
             )
             calc = mace_off(
                 model=model_type,
+                n_energies=args.n_energies,
                 device=args.device,
                 default_dtype=args.default_dtype,
             )
@@ -160,6 +162,7 @@ def run(args: argparse.Namespace) -> None:
             virials_key=args.virials_key,
             dipoles_key=args.dipoles_key,
             charges_key=args.charges_key,
+            scalar_key=args.scalar_key,
             nacs_key=args.nacs_key,
             keep_isolated_atoms=args.keep_isolated_atoms,
         )
@@ -220,7 +223,7 @@ def run(args: argparse.Namespace) -> None:
             else:
                 atomic_energies_dict = get_atomic_energies(args.E0s, None, z_table)
 
-    if args.model == "ExcitedMACE" or args.model == "AutoencoderExcitedMACE":
+    if args.model == "ExcitedMACE" or args.model == "AutoencoderExcitedMACE" or args.model == "EmbeddingXMACE":
         atomic_energies = None
         compute_dipole = True
         compute_energy = True
@@ -313,6 +316,14 @@ def run(args: argparse.Namespace) -> None:
             dipoles_weight=args.dipoles_weight,
             nacs_weight = args.nacs_weight,
         )
+    elif args.model == "EmbeddingXMACE":
+        loss_fn = modules.InvariantsWeightedEnergyForcesNacsDipoleLoss(
+            energy_weight=args.energy_weight,
+            forces_weight=args.forces_weight,
+            dipoles_weight=args.dipoles_weight,
+            nacs_weight = args.nacs_weight,
+        )
+    
     
     if args.compute_avg_num_neighbors:
         avg_num_neighbors = modules.compute_avg_num_neighbors(train_loader)
@@ -432,6 +443,9 @@ def run(args: argparse.Namespace) -> None:
             **model_config,
             pair_repulsion=args.pair_repulsion,
             n_energies=args.n_energies,
+            n_nacs=args.n_nacs,
+            n_dipoles=args.n_dipoles,
+            n_socs=args.n_socs,
             distance_transform=args.distance_transform,
             correlation=args.correlation,
             gate=modules.gate_dict[args.gate],
@@ -464,6 +478,27 @@ def run(args: argparse.Namespace) -> None:
             compute_nacs=args.compute_nacs,
             compute_dipoles=args.compute_dipoles,
         )
+
+    elif args.model == "EmbeddingXMACE":
+        model = modules.EmbeddingXMACE(
+            **model_config,
+            pair_repulsion=args.pair_repulsion,
+            n_energies=args.n_energies,
+            num_permutational_invariant=args.num_permutational_invariant,
+            distance_transform=args.distance_transform,
+            correlation=args.correlation,
+            gate=modules.gate_dict[args.gate],
+            interaction_cls_first=modules.interaction_classes[
+                "RealAgnosticInteractionBlock"
+            ],
+            MLP_irreps=o3.Irreps(args.MLP_irreps),
+            radial_MLP=ast.literal_eval(args.radial_MLP),
+            radial_type=args.radial_type,
+            n_nacs=args.n_nacs,
+            n_socs=args.n_socs,
+            n_dipoles=args.n_dipoles,
+        )
+
     else:
         raise RuntimeError(f"Unknown model: '{args.model}'")
     
@@ -578,6 +613,55 @@ def run(args: argparse.Namespace) -> None:
             amsgrad=args.amsgrad,
             betas=(args.beta, 0.999),
         )    
+
+    if args.model == "EmbeddingXMACE":
+        param_options = dict(
+            params=[
+                {
+                    "name": "embedding",
+                    "params": model.node_embedding.parameters(),
+                    "weight_decay": 0.0,
+                },
+                {
+                    "name": "scalar_embedding",
+                    "params": model.scalar_embedding.parameters(),
+                    "weight_decay": 0.0,
+                },
+                {
+                    "name": "interactions_decay",
+                    "params": list(decay_interactions.values()),
+                    "weight_decay": args.weight_decay,
+                },
+                {
+                    "name": "interactions_no_decay",
+                    "params": list(no_decay_interactions.values()),
+                    "weight_decay": 0.0,
+                },
+                {
+                    "name": "products",
+                    "params": model.products.parameters(),
+                    "weight_decay": args.weight_decay,
+                },
+                {
+                    "name": "readouts",
+                    "params": model.readouts.parameters(),
+                    "weight_decay": 0.0,
+                },
+                {
+                    "name": "decoder",
+                    "params": model.perm_decoder.parameters(),
+                    "weight_decay": 0.0,
+                },
+                {
+                    "name": "encoder",
+                    "params": model.perm_encoder.parameters(),
+                    "weight_decay": 0.0,
+                },
+            ],
+            lr=args.lr,
+            amsgrad=args.amsgrad,
+            betas=(args.beta, 0.999),
+        )  
 
     optimizer: torch.optim.Optimizer
     if args.optimizer == "adamw":

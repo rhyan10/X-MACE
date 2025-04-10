@@ -125,6 +125,8 @@ def valid_err_log(valid_loss, eval_metrics, logger, log_errors, epoch=None):
         error_f = eval_metrics["rmse_f"] * 1e3
         error_mu = eval_metrics["rmse_mu_per_atom"] * 1e3
         error_nacs = eval_metrics["rmse_nacs_per_atom"] * 1e3
+        error_socs = eval_metrics["rmse_socs_per_atom"] * 1e3
+        error_oscillator = eval_metrics["rmse_oscillator_per_atom"] * 1e3
         logging.info(
             f"{inintial_phrase}: loss={valid_loss:8.4f}, RMSE_E_per_atom={error_e:8.1f} meV, RMSE_F={error_f:8.1f} meV / A, RMSE_Mu_per_atom={error_mu:8.2f} mDebye, RMSE_Nacs_per_atom={error_nacs:8.2f}",
         )
@@ -373,7 +375,7 @@ def take_step(
         decoded_energy = model.perm_decoder(encoded_energy) + output["e0s"] + output["pair_energy"]
         output["encoded_energy"] = encoded_energy
         output["decoded_energy"] = decoded_energy
-
+    
     loss = loss_fn(pred=output, ref=batch)
     loss.backward()
     if max_grad_norm is not None:
@@ -463,6 +465,14 @@ class MACELoss(Metric):
         self.add_state("nacs", default=[], dist_reduce_fx="cat")
         self.add_state("delta_nacs", default=[], dist_reduce_fx="cat")
         self.add_state("delta_nacs_per_atom", default=[], dist_reduce_fx="cat")
+        self.add_state("socs_computed", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("socs", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_socs", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_socs_per_atom", default=[], dist_reduce_fx="cat")
+        self.add_state("oscillator_computed", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("oscillator", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_oscillator", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_oscillator_per_atom", default=[], dist_reduce_fx="cat")
 
     def update(self, batch, output):  # pylint: disable=arguments-differ
         loss = self.loss_fn(pred=output, ref=batch)
@@ -496,6 +506,20 @@ class MACELoss(Metric):
             vec = torch.cat((pos,neg),dim=-1)
             val = torch.min(vec, dim=-1)[0]
             self.delta_nacs.append(val)
+        if output.get("socs") is not None and (batch.socs != 0).any():
+            self.socs_computed += 1.0
+            self.socs.append(batch.socs)
+            neg = torch.abs(batch.socs - output["socs"]).unsqueeze(-1)
+            #pos = torch.abs(batch.socs + output["socs"]).unsqueeze(-1)
+            #vec = torch.cat((pos,neg),dim=-1)
+            #val = torch.min(vec, dim=-1)[0]
+            self.delta_socs.append(neg)
+        if output.get("oscillator") is not None and (batch.oscillator != 0).any():
+            self.oscillator_computed += 1.0
+            self.oscillator.append(batch.oscillator)
+            print(output["oscillator"])
+            print(batch.oscillator)
+            self.delta_oscillator.append(batch.oscillator - output["oscillator"])
 
     def convert(self, delta: Union[torch.Tensor, List[torch.Tensor]]) -> np.ndarray:
         if isinstance(delta, list):
@@ -554,5 +578,21 @@ class MACELoss(Metric):
             aux["rmse_mu_per_atom"] = compute_rmse(delta_mus_per_atom)
             aux["rel_rmse_mu"] = compute_rel_rmse(delta_mus, mus)
             aux["q95_mu"] = compute_q95(delta_mus)
+        if self.socs_computed:
+            socs = self.convert(self.socs)
+            delta_socs = self.convert(self.delta_socs)
+            aux["mae_socs"] = compute_mae(delta_socs)
+            aux["rel_mae_socs"] = compute_rel_mae(delta_socs, socs)
+            aux["rmse_socs"] = compute_rmse(delta_socs)
+            aux["rel_rmse_socs"] = compute_rel_rmse(delta_socs, socs)
+            aux["q95_socs"] = compute_q95(delta_socs)
+        if self.oscillator_computed:
+            oscillator = self.convert(self.oscillator)
+            delta_oscillator = self.convert(self.delta_oscillator)
+            aux["mae_oscillator"] = compute_mae(delta_oscillator)
+            aux["rel_mae_oscillator"] = compute_rel_mae(delta_oscillator, oscillator)
+            aux["rmse_oscillator"] = compute_rmse(delta_oscillator)
+            aux["rel_rmse_oscillator"] = compute_rel_rmse(delta_oscillator, oscillator)
+            aux["q95_oscillator"] = compute_q95(delta_oscillator)
 
         return aux["loss"], aux
