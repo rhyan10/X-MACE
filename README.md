@@ -49,7 +49,7 @@ It is also highly recommended to create a python environment beforehand, This ca
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-repo/x-mace.git
+git clone https://github.com/rhyan10/x-mace.git
 cd x-mace
 
 # Create and activate a new Python virtual environment using conda
