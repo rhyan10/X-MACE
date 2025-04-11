@@ -41,7 +41,7 @@ Detailed documentation is in progress. In the meantime, usage examples provided 
 Ensure that Python 3.7+ is installed in your environment. To install X‑MACE and its dependencies clone the github repo and install locally. The installation should only take a few minutes on a normal computer. The following commands illustate this:
 
 ```bash
-git clone https://github.com/your-repo/x-mace.git
+git clone [https://github.com/your-repo/x-mace.git](https://github.com/rhyan10/X-MACE.git)
 cd x-mace
 pip install .
 ```
@@ -49,7 +49,7 @@ It is also highly recommended to create a python environment beforehand, This ca
 
 ```bash
 # Clone the repository
-git clone https://github.com/rhyan10/x-mace.git
+git clone [https://github.com/rhyan10/x-mace.git](https://github.com/rhyan10/X-MACE.git)
 cd x-mace
 
 # Create and activate a new Python virtual environment using conda
