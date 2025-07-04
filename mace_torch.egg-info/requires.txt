@@ -1,0 +1,13 @@
+torch>=1.12
+e3nn==0.4.4
+numpy
+opt_einsum
+ase
+torch-ema
+prettytable
+matscipy
+matplotlib
+pandas
+
+[wandb]
+wandb

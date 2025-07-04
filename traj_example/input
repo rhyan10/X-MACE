@@ -1,0 +1,29 @@
+printlevel 2
+
+geomfile "geo"
+
+nstates 4 0 6 0 3
+actstates 4 0 6 0 3 
+state 2 mch #starting state
+coeff auto
+rngseed 16955
+
+ezero   -1950.0987894089985
+tmax 10000.000000
+stepsize 0.5000
+nsubsteps 25
+integrator fvv
+
+unit bohr
+method tsh
+surf diagonal
+coupling ktdc
+nogradcorrect
+ekincorrect parallel_vel
+reflect_frustrated parallel_vel
+decoherence_scheme edc
+hopping_procedure sharc
+spinorbit
+soc_scaling 1
+output_format ascii
+output_dat_steps 1
