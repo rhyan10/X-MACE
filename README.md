@@ -9,7 +9,7 @@
 
 ## Overview
 
-X‑MACE provides researchers with a powerful tool to train models that predict excited-state properties. The framework is tailored to handle multiple energy levels, forces, non-adiabatic couplings (NACs), and dipole moments, making it ideal for studying systems where excited-state dynamics are crucial.
+The framework is tailored to handle multiple energy levels, forces, non-adiabatic couplings (NACs), and dipole moments, making it useful for studying systems where excited-state dynamics are crucial.
 
 Key features include:
 - **Multi-level Energy Learning:** Use the `--n_energies` parameter to specify how many energy levels the model should learn.
