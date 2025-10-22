@@ -1,0 +1,1453 @@
+2025-10-22 09:19:39.974 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:19:39.974 INFO: MACE version: 0.3.6
+2025-10-22 09:19:40.016 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:19:40.038 INFO: 
+2025-10-22 09:19:40.038 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:19:55.913 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:19:55.913 INFO: MACE version: 0.3.6
+2025-10-22 09:19:55.949 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:19:55.971 INFO: 
+2025-10-22 09:19:55.971 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:19:56.953 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:19:56.955 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:19:56.955 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:19:56.955 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:19:56.962 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:19:57.144 INFO: 
+2025-10-22 09:19:57.144 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:19:57.315 INFO: Average number of neighbors: 15.6
+2025-10-22 09:19:57.315 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:19:57.361 INFO: Building model
+2025-10-22 09:19:57.361 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:19:57.361 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:19:57.361 INFO: 8 radial and 5 basis functions
+2025-10-22 09:19:57.361 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:19:57.361 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:19:58.153 INFO: Total number of parameters: 945439
+2025-10-22 09:19:58.153 INFO: 
+2025-10-22 09:19:58.153 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:19:58.153 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:19:58.153 INFO: Batch size: 100
+2025-10-22 09:19:58.153 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:19:58.153 INFO: Number of gradient updates: 769
+2025-10-22 09:19:58.153 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:19:58.153 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:19:58.154 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:19:58.154 INFO: 
+2025-10-22 09:19:58.154 INFO: ===========TRAINING===========
+2025-10-22 09:19:58.154 INFO: Started training, reporting errors on validation set
+2025-10-22 09:19:58.154 INFO: Loss metrics on validation set
+2025-10-22 09:24:09.817 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:24:09.817 INFO: MACE version: 0.3.6
+2025-10-22 09:24:09.859 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:24:09.881 INFO: 
+2025-10-22 09:24:09.881 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:24:10.864 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:24:10.865 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:24:10.865 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:24:10.865 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:24:10.873 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:24:11.051 INFO: 
+2025-10-22 09:24:11.051 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:24:11.211 INFO: Average number of neighbors: 15.6
+2025-10-22 09:24:11.211 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:24:11.257 INFO: Building model
+2025-10-22 09:24:11.257 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:24:11.258 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:24:11.258 INFO: 8 radial and 5 basis functions
+2025-10-22 09:24:11.258 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:24:11.258 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:24:12.022 INFO: Total number of parameters: 940831
+2025-10-22 09:24:12.022 INFO: 
+2025-10-22 09:24:12.022 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:24:12.022 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:24:12.022 INFO: Batch size: 100
+2025-10-22 09:24:12.022 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:24:12.022 INFO: Number of gradient updates: 769
+2025-10-22 09:24:12.022 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:24:12.022 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:24:12.024 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:24:12.024 INFO: 
+2025-10-22 09:24:12.024 INFO: ===========TRAINING===========
+2025-10-22 09:24:12.024 INFO: Started training, reporting errors on validation set
+2025-10-22 09:24:12.024 INFO: Loss metrics on validation set
+2025-10-22 09:24:27.220 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:24:27.221 INFO: MACE version: 0.3.6
+2025-10-22 09:24:27.262 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:24:27.284 INFO: 
+2025-10-22 09:24:27.284 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:24:28.268 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:24:28.270 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:24:28.270 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:24:28.270 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:24:28.278 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:24:28.463 INFO: 
+2025-10-22 09:24:28.463 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:24:28.628 INFO: Average number of neighbors: 15.6
+2025-10-22 09:24:28.628 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:24:28.673 INFO: Building model
+2025-10-22 09:24:28.674 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:24:28.674 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:24:28.674 INFO: 8 radial and 5 basis functions
+2025-10-22 09:24:28.674 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:24:28.674 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:24:29.437 INFO: Total number of parameters: 940831
+2025-10-22 09:24:29.437 INFO: 
+2025-10-22 09:24:29.437 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:24:29.437 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:24:29.437 INFO: Batch size: 100
+2025-10-22 09:24:29.437 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:24:29.437 INFO: Number of gradient updates: 769
+2025-10-22 09:24:29.437 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:24:29.437 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:24:29.439 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:24:29.439 INFO: 
+2025-10-22 09:24:29.439 INFO: ===========TRAINING===========
+2025-10-22 09:24:29.439 INFO: Started training, reporting errors on validation set
+2025-10-22 09:24:29.439 INFO: Loss metrics on validation set
+2025-10-22 09:26:34.455 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:26:34.455 INFO: MACE version: 0.3.6
+2025-10-22 09:26:34.497 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:26:34.519 INFO: 
+2025-10-22 09:26:34.519 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:26:35.505 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:26:35.506 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:26:35.506 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:26:35.506 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:26:35.514 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:26:35.693 INFO: 
+2025-10-22 09:26:35.693 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:26:35.854 INFO: Average number of neighbors: 15.6
+2025-10-22 09:26:35.855 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:26:35.901 INFO: Building model
+2025-10-22 09:26:35.901 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:26:35.901 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:26:35.901 INFO: 8 radial and 5 basis functions
+2025-10-22 09:26:35.901 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:26:35.901 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:26:36.661 INFO: Total number of parameters: 938425
+2025-10-22 09:26:36.661 INFO: 
+2025-10-22 09:26:36.661 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:26:36.661 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:26:36.661 INFO: Batch size: 100
+2025-10-22 09:26:36.661 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:26:36.661 INFO: Number of gradient updates: 769
+2025-10-22 09:26:36.661 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:26:36.661 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:26:36.662 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:26:36.662 INFO: 
+2025-10-22 09:26:36.662 INFO: ===========TRAINING===========
+2025-10-22 09:26:36.662 INFO: Started training, reporting errors on validation set
+2025-10-22 09:26:36.663 INFO: Loss metrics on validation set
+2025-10-22 09:28:19.307 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:28:19.307 INFO: MACE version: 0.3.6
+2025-10-22 09:28:19.349 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:28:19.370 INFO: 
+2025-10-22 09:28:19.371 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:28:20.352 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:28:20.354 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:28:20.354 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:28:20.354 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:28:20.362 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:28:20.544 INFO: 
+2025-10-22 09:28:20.544 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:28:20.709 INFO: Average number of neighbors: 15.6
+2025-10-22 09:28:20.709 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:28:20.755 INFO: Building model
+2025-10-22 09:28:20.755 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:28:20.755 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:28:20.755 INFO: 8 radial and 5 basis functions
+2025-10-22 09:28:20.756 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:28:20.756 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:28:21.514 INFO: Total number of parameters: 938425
+2025-10-22 09:28:21.514 INFO: 
+2025-10-22 09:28:21.514 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:28:21.514 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:28:21.514 INFO: Batch size: 100
+2025-10-22 09:28:21.514 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:28:21.514 INFO: Number of gradient updates: 769
+2025-10-22 09:28:21.514 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:28:21.514 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:28:21.515 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:28:21.515 INFO: 
+2025-10-22 09:28:21.515 INFO: ===========TRAINING===========
+2025-10-22 09:28:21.515 INFO: Started training, reporting errors on validation set
+2025-10-22 09:28:21.515 INFO: Loss metrics on validation set
+2025-10-22 09:29:30.129 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:29:30.129 INFO: MACE version: 0.3.6
+2025-10-22 09:29:30.158 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:29:30.180 INFO: 
+2025-10-22 09:29:30.180 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:29:31.161 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:29:31.162 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:29:31.162 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:29:31.162 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:29:31.170 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:29:31.352 INFO: 
+2025-10-22 09:29:31.352 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:29:31.519 INFO: Average number of neighbors: 15.6
+2025-10-22 09:29:31.519 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:29:31.565 INFO: Building model
+2025-10-22 09:29:31.565 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:29:31.565 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:29:31.566 INFO: 8 radial and 5 basis functions
+2025-10-22 09:29:31.566 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:29:31.566 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:29:32.322 INFO: Total number of parameters: 940831
+2025-10-22 09:29:32.322 INFO: 
+2025-10-22 09:29:32.322 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:29:32.322 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:29:32.322 INFO: Batch size: 100
+2025-10-22 09:29:32.322 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:29:32.322 INFO: Number of gradient updates: 769
+2025-10-22 09:29:32.322 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:29:32.322 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:29:32.323 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:29:32.323 INFO: 
+2025-10-22 09:29:32.323 INFO: ===========TRAINING===========
+2025-10-22 09:29:32.323 INFO: Started training, reporting errors on validation set
+2025-10-22 09:29:32.323 INFO: Loss metrics on validation set
+2025-10-22 09:29:47.530 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:29:47.530 INFO: MACE version: 0.3.6
+2025-10-22 09:29:47.559 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:29:47.581 INFO: 
+2025-10-22 09:29:47.581 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:29:48.561 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:29:48.563 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:29:48.563 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:29:48.563 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:29:48.571 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:29:48.749 INFO: 
+2025-10-22 09:29:48.749 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:29:48.921 INFO: Average number of neighbors: 15.6
+2025-10-22 09:29:48.921 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:29:48.965 INFO: Building model
+2025-10-22 09:29:48.965 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:29:48.965 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:29:48.965 INFO: 8 radial and 5 basis functions
+2025-10-22 09:29:48.965 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:29:48.965 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:29:49.734 INFO: Total number of parameters: 940831
+2025-10-22 09:29:49.734 INFO: 
+2025-10-22 09:29:49.734 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:29:49.734 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:29:49.734 INFO: Batch size: 100
+2025-10-22 09:29:49.734 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:29:49.734 INFO: Number of gradient updates: 769
+2025-10-22 09:29:49.734 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:29:49.734 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:29:49.735 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:29:49.735 INFO: 
+2025-10-22 09:29:49.735 INFO: ===========TRAINING===========
+2025-10-22 09:29:49.735 INFO: Started training, reporting errors on validation set
+2025-10-22 09:29:49.735 INFO: Loss metrics on validation set
+2025-10-22 09:30:52.195 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:30:52.195 INFO: MACE version: 0.3.6
+2025-10-22 09:30:52.223 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:30:52.245 INFO: 
+2025-10-22 09:30:52.245 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:30:53.225 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:30:53.227 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:30:53.227 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:30:53.227 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:30:53.234 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:30:53.413 INFO: 
+2025-10-22 09:30:53.413 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:30:53.574 INFO: Average number of neighbors: 15.6
+2025-10-22 09:30:53.574 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:30:53.619 INFO: Building model
+2025-10-22 09:30:53.619 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:30:53.619 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:30:53.620 INFO: 8 radial and 5 basis functions
+2025-10-22 09:30:53.620 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:30:53.620 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:30:54.381 INFO: Total number of parameters: 940831
+2025-10-22 09:30:54.381 INFO: 
+2025-10-22 09:30:54.381 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:30:54.381 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:30:54.381 INFO: Batch size: 100
+2025-10-22 09:30:54.381 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:30:54.382 INFO: Number of gradient updates: 769
+2025-10-22 09:30:54.382 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:30:54.382 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:30:54.383 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:30:54.383 INFO: 
+2025-10-22 09:30:54.383 INFO: ===========TRAINING===========
+2025-10-22 09:30:54.383 INFO: Started training, reporting errors on validation set
+2025-10-22 09:30:54.383 INFO: Loss metrics on validation set
+2025-10-22 09:31:18.103 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:31:18.103 INFO: MACE version: 0.3.6
+2025-10-22 09:31:18.131 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:31:18.153 INFO: 
+2025-10-22 09:31:18.153 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:31:19.131 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:31:19.133 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:31:19.133 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:31:19.133 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:31:19.140 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:31:19.320 INFO: 
+2025-10-22 09:31:19.320 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:31:19.498 INFO: Average number of neighbors: 15.6
+2025-10-22 09:31:19.498 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:31:19.544 INFO: Building model
+2025-10-22 09:31:19.544 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:31:19.544 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:31:19.544 INFO: 8 radial and 5 basis functions
+2025-10-22 09:31:19.544 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:31:19.544 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:31:20.298 INFO: Total number of parameters: 940831
+2025-10-22 09:31:20.306 INFO: 
+2025-10-22 09:31:20.306 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:31:20.306 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:31:20.306 INFO: Batch size: 100
+2025-10-22 09:31:20.306 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:31:20.306 INFO: Number of gradient updates: 769
+2025-10-22 09:31:20.306 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:31:20.306 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:31:20.307 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:31:20.307 INFO: 
+2025-10-22 09:31:20.308 INFO: ===========TRAINING===========
+2025-10-22 09:31:20.308 INFO: Started training, reporting errors on validation set
+2025-10-22 09:31:20.308 INFO: Loss metrics on validation set
+2025-10-22 09:32:02.583 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:32:02.583 INFO: MACE version: 0.3.6
+2025-10-22 09:32:02.612 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:32:02.634 INFO: 
+2025-10-22 09:32:02.634 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:32:03.615 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:32:03.616 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:32:03.616 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:32:03.616 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:32:03.623 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:32:03.801 INFO: 
+2025-10-22 09:32:03.801 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:32:03.990 INFO: Average number of neighbors: 15.6
+2025-10-22 09:32:03.990 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:32:04.036 INFO: Building model
+2025-10-22 09:32:04.037 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:32:04.037 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:32:04.037 INFO: 8 radial and 5 basis functions
+2025-10-22 09:32:04.037 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:32:04.037 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:32:04.798 INFO: Total number of parameters: 940831
+2025-10-22 09:32:04.798 INFO: 
+2025-10-22 09:32:04.798 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:32:04.798 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:32:04.798 INFO: Batch size: 100
+2025-10-22 09:32:04.798 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:32:04.798 INFO: Number of gradient updates: 769
+2025-10-22 09:32:04.798 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:32:04.798 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:32:04.799 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:32:04.799 INFO: 
+2025-10-22 09:32:04.799 INFO: ===========TRAINING===========
+2025-10-22 09:32:04.799 INFO: Started training, reporting errors on validation set
+2025-10-22 09:32:04.799 INFO: Loss metrics on validation set
+2025-10-22 09:32:24.754 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:32:24.754 INFO: MACE version: 0.3.6
+2025-10-22 09:32:24.796 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:32:24.818 INFO: 
+2025-10-22 09:32:24.818 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:32:25.801 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:32:25.802 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:32:25.802 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:32:25.802 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:32:25.810 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:32:25.991 INFO: 
+2025-10-22 09:32:25.991 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:32:26.155 INFO: Average number of neighbors: 15.6
+2025-10-22 09:32:26.155 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:32:26.202 INFO: Building model
+2025-10-22 09:32:26.202 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:32:26.202 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:32:26.202 INFO: 8 radial and 5 basis functions
+2025-10-22 09:32:26.202 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:32:26.202 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:32:26.967 INFO: Total number of parameters: 940831
+2025-10-22 09:32:26.967 INFO: 
+2025-10-22 09:32:26.967 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:32:26.967 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:32:26.967 INFO: Batch size: 100
+2025-10-22 09:32:26.967 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:32:26.967 INFO: Number of gradient updates: 769
+2025-10-22 09:32:26.967 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:32:26.967 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:32:26.968 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:32:26.968 INFO: 
+2025-10-22 09:32:26.968 INFO: ===========TRAINING===========
+2025-10-22 09:32:26.969 INFO: Started training, reporting errors on validation set
+2025-10-22 09:32:26.969 INFO: Loss metrics on validation set
+2025-10-22 09:35:53.979 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:35:53.979 INFO: MACE version: 0.3.6
+2025-10-22 09:35:54.021 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:35:54.043 INFO: 
+2025-10-22 09:35:54.043 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:35:55.022 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:35:55.024 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:35:55.024 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:35:55.024 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:35:55.031 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:35:55.209 INFO: 
+2025-10-22 09:35:55.209 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:35:55.372 INFO: Average number of neighbors: 15.6
+2025-10-22 09:35:55.372 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:35:55.418 INFO: Building model
+2025-10-22 09:35:55.418 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:35:55.418 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:35:55.418 INFO: 8 radial and 5 basis functions
+2025-10-22 09:35:55.418 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:35:55.418 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:35:56.184 INFO: Total number of parameters: 940831
+2025-10-22 09:35:56.184 INFO: 
+2025-10-22 09:35:56.184 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:35:56.184 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:35:56.184 INFO: Batch size: 100
+2025-10-22 09:35:56.184 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:35:56.184 INFO: Number of gradient updates: 769
+2025-10-22 09:35:56.184 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:35:56.184 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:35:56.185 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:35:56.185 INFO: 
+2025-10-22 09:35:56.185 INFO: ===========TRAINING===========
+2025-10-22 09:35:56.185 INFO: Started training, reporting errors on validation set
+2025-10-22 09:35:56.185 INFO: Loss metrics on validation set
+2025-10-22 09:36:42.029 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:36:42.029 INFO: MACE version: 0.3.6
+2025-10-22 09:36:42.071 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:36:42.094 INFO: 
+2025-10-22 09:36:42.094 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:36:43.076 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:36:43.078 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:36:43.078 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:36:43.078 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:36:43.085 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:36:43.264 INFO: 
+2025-10-22 09:36:43.264 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:36:43.425 INFO: Average number of neighbors: 15.6
+2025-10-22 09:36:43.425 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:36:43.471 INFO: Building model
+2025-10-22 09:36:43.471 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:36:43.471 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:36:43.471 INFO: 8 radial and 5 basis functions
+2025-10-22 09:36:43.471 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:36:43.471 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:36:44.231 INFO: Total number of parameters: 940831
+2025-10-22 09:36:44.231 INFO: 
+2025-10-22 09:36:44.231 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:36:44.231 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:36:44.231 INFO: Batch size: 100
+2025-10-22 09:36:44.231 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:36:44.231 INFO: Number of gradient updates: 769
+2025-10-22 09:36:44.231 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:36:44.231 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:36:44.232 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:36:44.232 INFO: 
+2025-10-22 09:36:44.232 INFO: ===========TRAINING===========
+2025-10-22 09:36:44.232 INFO: Started training, reporting errors on validation set
+2025-10-22 09:36:44.232 INFO: Loss metrics on validation set
+2025-10-22 09:37:41.651 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:37:41.651 INFO: MACE version: 0.3.6
+2025-10-22 09:37:41.693 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:37:41.715 INFO: 
+2025-10-22 09:37:41.715 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:37:42.693 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:37:42.695 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:37:42.695 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:37:42.695 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:37:42.702 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:37:42.880 INFO: 
+2025-10-22 09:37:42.880 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:37:43.041 INFO: Average number of neighbors: 15.6
+2025-10-22 09:37:43.041 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:37:43.088 INFO: Building model
+2025-10-22 09:37:43.088 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:37:43.088 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:37:43.088 INFO: 8 radial and 5 basis functions
+2025-10-22 09:37:43.088 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:37:43.088 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:37:43.855 INFO: Total number of parameters: 940831
+2025-10-22 09:37:43.855 INFO: 
+2025-10-22 09:37:43.855 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:37:43.855 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:37:43.855 INFO: Batch size: 100
+2025-10-22 09:37:43.856 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:37:43.856 INFO: Number of gradient updates: 769
+2025-10-22 09:37:43.856 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:37:43.856 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:37:43.857 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:37:43.857 INFO: 
+2025-10-22 09:37:43.857 INFO: ===========TRAINING===========
+2025-10-22 09:37:43.857 INFO: Started training, reporting errors on validation set
+2025-10-22 09:37:43.857 INFO: Loss metrics on validation set
+2025-10-22 09:38:03.269 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:38:03.269 INFO: MACE version: 0.3.6
+2025-10-22 09:38:03.298 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:38:03.320 INFO: 
+2025-10-22 09:38:03.320 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:38:04.301 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:38:04.302 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:38:04.303 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:38:04.303 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:38:04.310 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:38:04.488 INFO: 
+2025-10-22 09:38:04.488 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:38:04.651 INFO: Average number of neighbors: 15.6
+2025-10-22 09:38:04.651 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:38:04.697 INFO: Building model
+2025-10-22 09:38:04.697 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:38:04.697 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:38:04.697 INFO: 8 radial and 5 basis functions
+2025-10-22 09:38:04.697 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:38:04.697 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:38:05.455 INFO: Total number of parameters: 940831
+2025-10-22 09:38:05.455 INFO: 
+2025-10-22 09:38:05.455 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:38:05.455 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:38:05.455 INFO: Batch size: 100
+2025-10-22 09:38:05.455 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:38:05.455 INFO: Number of gradient updates: 769
+2025-10-22 09:38:05.455 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:38:05.455 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:38:05.456 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:38:05.456 INFO: 
+2025-10-22 09:38:05.456 INFO: ===========TRAINING===========
+2025-10-22 09:38:05.456 INFO: Started training, reporting errors on validation set
+2025-10-22 09:38:05.456 INFO: Loss metrics on validation set
+2025-10-22 09:38:38.168 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:38:38.168 INFO: MACE version: 0.3.6
+2025-10-22 09:38:38.196 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:38:38.218 INFO: 
+2025-10-22 09:38:38.218 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:38:39.204 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:38:39.206 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:38:39.206 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:38:39.206 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:38:39.214 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:38:39.393 INFO: 
+2025-10-22 09:38:39.393 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:38:39.549 INFO: Average number of neighbors: 15.6
+2025-10-22 09:38:39.549 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:38:39.595 INFO: Building model
+2025-10-22 09:38:39.595 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:38:39.595 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:38:39.595 INFO: 8 radial and 5 basis functions
+2025-10-22 09:38:39.596 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:38:39.596 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:38:40.360 INFO: Total number of parameters: 940831
+2025-10-22 09:38:40.367 INFO: 
+2025-10-22 09:38:40.367 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:38:40.367 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:38:40.367 INFO: Batch size: 100
+2025-10-22 09:38:40.367 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:38:40.367 INFO: Number of gradient updates: 769
+2025-10-22 09:38:40.367 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:38:40.367 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:38:40.369 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:38:40.369 INFO: 
+2025-10-22 09:38:40.369 INFO: ===========TRAINING===========
+2025-10-22 09:38:40.369 INFO: Started training, reporting errors on validation set
+2025-10-22 09:38:40.369 INFO: Loss metrics on validation set
+2025-10-22 09:39:32.940 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:39:32.940 INFO: MACE version: 0.3.6
+2025-10-22 09:39:32.967 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:39:32.990 INFO: 
+2025-10-22 09:39:32.990 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:39:33.969 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:39:33.971 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:39:33.971 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:39:33.971 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:39:33.979 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:39:34.160 INFO: 
+2025-10-22 09:39:34.160 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:39:34.315 INFO: Average number of neighbors: 15.6
+2025-10-22 09:39:34.315 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:39:34.361 INFO: Building model
+2025-10-22 09:39:34.361 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:39:34.361 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:39:34.362 INFO: 8 radial and 5 basis functions
+2025-10-22 09:39:34.362 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:39:34.362 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:39:35.140 INFO: Total number of parameters: 940831
+2025-10-22 09:39:35.140 INFO: 
+2025-10-22 09:39:35.140 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:39:35.140 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:39:35.140 INFO: Batch size: 100
+2025-10-22 09:39:35.140 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:39:35.140 INFO: Number of gradient updates: 769
+2025-10-22 09:39:35.140 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:39:35.141 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:39:35.142 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:39:35.142 INFO: 
+2025-10-22 09:39:35.142 INFO: ===========TRAINING===========
+2025-10-22 09:39:35.142 INFO: Started training, reporting errors on validation set
+2025-10-22 09:39:35.142 INFO: Loss metrics on validation set
+2025-10-22 09:39:42.587 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:39:42.587 INFO: MACE version: 0.3.6
+2025-10-22 09:39:42.615 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:39:42.637 INFO: 
+2025-10-22 09:39:42.637 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:39:43.619 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:39:43.621 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:39:43.621 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:39:43.621 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:39:43.629 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:39:43.808 INFO: 
+2025-10-22 09:39:43.808 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:39:43.963 INFO: Average number of neighbors: 15.6
+2025-10-22 09:39:43.963 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:39:44.009 INFO: Building model
+2025-10-22 09:39:44.010 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:39:44.010 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:39:44.010 INFO: 8 radial and 5 basis functions
+2025-10-22 09:39:44.010 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:39:44.010 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:39:44.766 INFO: Total number of parameters: 940831
+2025-10-22 09:39:44.766 INFO: 
+2025-10-22 09:39:44.767 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:39:44.767 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:39:44.767 INFO: Batch size: 100
+2025-10-22 09:39:44.767 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:39:44.767 INFO: Number of gradient updates: 769
+2025-10-22 09:39:44.767 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:39:44.767 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:39:44.768 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:39:44.768 INFO: 
+2025-10-22 09:39:44.768 INFO: ===========TRAINING===========
+2025-10-22 09:39:44.768 INFO: Started training, reporting errors on validation set
+2025-10-22 09:39:44.768 INFO: Loss metrics on validation set
+2025-10-22 09:47:29.842 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:47:29.842 INFO: MACE version: 0.3.6
+2025-10-22 09:47:29.869 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:47:29.891 INFO: 
+2025-10-22 09:47:29.891 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:47:30.871 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:47:30.872 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:47:30.872 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:47:30.872 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:47:30.879 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:47:31.058 INFO: 
+2025-10-22 09:47:31.058 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:47:31.213 INFO: Average number of neighbors: 15.6
+2025-10-22 09:47:31.213 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:47:31.259 INFO: Building model
+2025-10-22 09:47:31.259 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:47:31.260 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:47:31.260 INFO: 8 radial and 5 basis functions
+2025-10-22 09:47:31.260 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:47:31.260 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:47:32.018 INFO: Total number of parameters: 940831
+2025-10-22 09:47:32.018 INFO: 
+2025-10-22 09:47:32.018 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:47:32.018 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:47:32.018 INFO: Batch size: 100
+2025-10-22 09:47:32.018 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:47:32.018 INFO: Number of gradient updates: 769
+2025-10-22 09:47:32.018 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:47:32.018 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:47:32.019 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:47:32.019 INFO: 
+2025-10-22 09:47:32.019 INFO: ===========TRAINING===========
+2025-10-22 09:47:32.019 INFO: Started training, reporting errors on validation set
+2025-10-22 09:47:32.019 INFO: Loss metrics on validation set
+2025-10-22 09:48:26.719 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:48:26.719 INFO: MACE version: 0.3.6
+2025-10-22 09:48:26.746 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:48:26.768 INFO: 
+2025-10-22 09:48:26.768 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:48:27.753 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:48:27.755 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:48:27.755 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:48:27.755 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:48:27.763 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:48:27.939 INFO: 
+2025-10-22 09:48:27.939 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:48:28.093 INFO: Average number of neighbors: 15.6
+2025-10-22 09:48:28.093 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:48:28.139 INFO: Building model
+2025-10-22 09:48:28.139 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:48:28.139 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:48:28.139 INFO: 8 radial and 5 basis functions
+2025-10-22 09:48:28.139 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:48:28.139 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:48:48.980 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:48:48.980 INFO: MACE version: 0.3.6
+2025-10-22 09:48:49.007 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:48:49.029 INFO: 
+2025-10-22 09:48:49.029 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:48:50.011 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:48:50.012 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:48:50.012 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:48:50.012 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:48:50.019 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:48:50.199 INFO: 
+2025-10-22 09:48:50.199 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:48:50.359 INFO: Average number of neighbors: 15.6
+2025-10-22 09:48:50.359 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:48:50.405 INFO: Building model
+2025-10-22 09:48:50.405 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:48:50.405 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:48:50.405 INFO: 8 radial and 5 basis functions
+2025-10-22 09:48:50.405 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:48:50.405 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:48:51.163 INFO: Total number of parameters: 938895
+2025-10-22 09:48:51.163 INFO: 
+2025-10-22 09:48:51.163 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:48:51.163 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:48:51.163 INFO: Batch size: 100
+2025-10-22 09:48:51.163 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:48:51.163 INFO: Number of gradient updates: 769
+2025-10-22 09:48:51.163 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:48:51.163 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:49:08.689 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:49:08.689 INFO: MACE version: 0.3.6
+2025-10-22 09:49:08.716 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:49:08.738 INFO: 
+2025-10-22 09:49:08.738 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:49:09.720 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:49:09.722 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:49:09.722 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:49:09.722 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:49:09.730 INFO: Atomic Energies used (z: eV): {1: 0.0, 6: 0.0, 7: 0.0, 8: 0.0}
+2025-10-22 09:49:09.907 INFO: 
+2025-10-22 09:49:09.907 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:49:10.070 INFO: Average number of neighbors: 15.6
+2025-10-22 09:49:10.070 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:49:10.116 INFO: Building model
+2025-10-22 09:49:10.116 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:49:10.116 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:49:10.116 INFO: 8 radial and 5 basis functions
+2025-10-22 09:49:10.116 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:49:10.116 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:49:10.874 INFO: Total number of parameters: 940831
+2025-10-22 09:49:10.874 INFO: 
+2025-10-22 09:49:10.874 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:49:10.874 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:49:10.875 INFO: Batch size: 100
+2025-10-22 09:49:10.875 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:49:10.875 INFO: Number of gradient updates: 769
+2025-10-22 09:49:10.875 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:49:10.875 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:49:10.876 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:49:10.876 INFO: 
+2025-10-22 09:49:10.876 INFO: ===========TRAINING===========
+2025-10-22 09:49:10.876 INFO: Started training, reporting errors on validation set
+2025-10-22 09:49:10.876 INFO: Loss metrics on validation set
+2025-10-22 09:49:37.141 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:49:37.141 INFO: MACE version: 0.3.6
+2025-10-22 09:49:37.169 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:49:37.190 INFO: 
+2025-10-22 09:49:37.190 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:49:52.957 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:49:52.957 INFO: MACE version: 0.3.6
+2025-10-22 09:49:52.984 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:49:53.006 INFO: 
+2025-10-22 09:49:53.006 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:49:54.003 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:49:54.005 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:49:54.005 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:49:54.005 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:49:54.012 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:49:54.197 INFO: 
+2025-10-22 09:49:54.197 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:49:54.356 INFO: Average number of neighbors: 15.6
+2025-10-22 09:49:54.356 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:49:54.401 INFO: Building model
+2025-10-22 09:49:54.402 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:49:54.402 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:49:54.402 INFO: 8 radial and 5 basis functions
+2025-10-22 09:49:54.402 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:49:54.402 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:49:55.156 INFO: Total number of parameters: 940831
+2025-10-22 09:49:55.156 INFO: 
+2025-10-22 09:49:55.156 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:49:55.156 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:49:55.157 INFO: Batch size: 100
+2025-10-22 09:49:55.157 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:49:55.157 INFO: Number of gradient updates: 769
+2025-10-22 09:49:55.157 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:49:55.157 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:49:55.158 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:49:55.158 INFO: 
+2025-10-22 09:49:55.158 INFO: ===========TRAINING===========
+2025-10-22 09:49:55.158 INFO: Started training, reporting errors on validation set
+2025-10-22 09:49:55.158 INFO: Loss metrics on validation set
+2025-10-22 09:52:04.661 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:52:04.661 INFO: MACE version: 0.3.6
+2025-10-22 09:52:04.702 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:52:04.725 INFO: 
+2025-10-22 09:52:04.725 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:52:05.727 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:52:05.728 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:52:05.728 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:52:05.728 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:52:05.736 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:52:05.914 INFO: 
+2025-10-22 09:52:05.914 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:52:06.075 INFO: Average number of neighbors: 15.6
+2025-10-22 09:52:06.075 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:52:06.120 INFO: Building model
+2025-10-22 09:52:06.120 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:52:06.120 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:52:06.120 INFO: 8 radial and 5 basis functions
+2025-10-22 09:52:06.120 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:52:06.120 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:52:06.877 INFO: Total number of parameters: 940831
+2025-10-22 09:52:06.877 INFO: 
+2025-10-22 09:52:06.877 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:52:06.877 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:52:06.877 INFO: Batch size: 100
+2025-10-22 09:52:06.877 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:52:06.877 INFO: Number of gradient updates: 769
+2025-10-22 09:52:06.877 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:52:06.877 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:52:06.878 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:52:06.878 INFO: 
+2025-10-22 09:52:06.878 INFO: ===========TRAINING===========
+2025-10-22 09:52:06.878 INFO: Started training, reporting errors on validation set
+2025-10-22 09:52:06.878 INFO: Loss metrics on validation set
+2025-10-22 09:52:24.050 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:52:24.050 INFO: MACE version: 0.3.6
+2025-10-22 09:52:24.089 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:52:24.111 INFO: 
+2025-10-22 09:52:24.111 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:52:25.108 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:52:25.110 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:52:25.110 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:52:25.110 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:52:25.117 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:52:25.296 INFO: 
+2025-10-22 09:52:25.297 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:52:25.461 INFO: Average number of neighbors: 15.6
+2025-10-22 09:52:25.461 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:52:25.507 INFO: Building model
+2025-10-22 09:52:25.507 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 09:52:25.507 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:52:25.507 INFO: 8 radial and 5 basis functions
+2025-10-22 09:52:25.507 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:52:25.507 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:52:26.265 INFO: Total number of parameters: 940831
+2025-10-22 09:52:26.265 INFO: 
+2025-10-22 09:52:26.265 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:52:26.265 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:52:26.265 INFO: Batch size: 100
+2025-10-22 09:52:26.265 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:52:26.265 INFO: Number of gradient updates: 769
+2025-10-22 09:52:26.265 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:52:26.265 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:52:26.266 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:52:26.266 INFO: 
+2025-10-22 09:52:26.266 INFO: ===========TRAINING===========
+2025-10-22 09:52:26.266 INFO: Started training, reporting errors on validation set
+2025-10-22 09:52:26.266 INFO: Loss metrics on validation set
+2025-10-22 09:52:51.560 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:52:51.560 INFO: MACE version: 0.3.6
+2025-10-22 09:52:51.601 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:52:51.623 INFO: 
+2025-10-22 09:52:51.623 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:52:52.621 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:52:52.622 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:52:52.622 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:52:52.622 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:52:52.630 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:52:52.811 INFO: 
+2025-10-22 09:52:52.811 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:52:52.975 INFO: Average number of neighbors: 15.6
+2025-10-22 09:52:52.975 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:52:53.021 INFO: Building model
+2025-10-22 09:52:53.021 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 09:52:53.021 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:52:53.021 INFO: 8 radial and 5 basis functions
+2025-10-22 09:52:53.021 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:52:53.021 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:52:53.783 INFO: Total number of parameters: 160927
+2025-10-22 09:52:53.783 INFO: 
+2025-10-22 09:52:53.783 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:52:53.783 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:52:53.783 INFO: Batch size: 100
+2025-10-22 09:52:53.783 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:52:53.783 INFO: Number of gradient updates: 769
+2025-10-22 09:52:53.783 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:52:53.783 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:52:53.784 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:52:53.784 INFO: 
+2025-10-22 09:52:53.784 INFO: ===========TRAINING===========
+2025-10-22 09:52:53.784 INFO: Started training, reporting errors on validation set
+2025-10-22 09:52:53.784 INFO: Loss metrics on validation set
+2025-10-22 09:53:57.732 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:53:57.732 INFO: MACE version: 0.3.6
+2025-10-22 09:53:57.773 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:53:57.796 INFO: 
+2025-10-22 09:53:57.796 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:53:58.792 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:53:58.794 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:53:58.794 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:53:58.794 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:53:58.802 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:53:58.981 INFO: 
+2025-10-22 09:53:58.981 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:53:59.145 INFO: Average number of neighbors: 15.6
+2025-10-22 09:53:59.145 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:53:59.190 INFO: Building model
+2025-10-22 09:53:59.190 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 09:53:59.190 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:53:59.190 INFO: 8 radial and 5 basis functions
+2025-10-22 09:53:59.190 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:53:59.190 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:53:59.916 INFO: Total number of parameters: 104448
+2025-10-22 09:53:59.916 INFO: 
+2025-10-22 09:53:59.916 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:53:59.916 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:53:59.916 INFO: Batch size: 100
+2025-10-22 09:53:59.916 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:53:59.916 INFO: Number of gradient updates: 769
+2025-10-22 09:53:59.916 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:53:59.916 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:53:59.917 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:53:59.917 INFO: 
+2025-10-22 09:53:59.917 INFO: ===========TRAINING===========
+2025-10-22 09:53:59.917 INFO: Started training, reporting errors on validation set
+2025-10-22 09:53:59.917 INFO: Loss metrics on validation set
+2025-10-22 09:54:44.307 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 09:54:44.307 INFO: MACE version: 0.3.6
+2025-10-22 09:54:44.349 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 09:54:44.370 INFO: 
+2025-10-22 09:54:44.370 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 09:54:45.371 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 09:54:45.372 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 09:54:45.372 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 09:54:45.372 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 09:54:45.379 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 09:54:45.559 INFO: 
+2025-10-22 09:54:45.560 INFO: ===========MODEL DETAILS===========
+2025-10-22 09:54:45.722 INFO: Average number of neighbors: 15.6
+2025-10-22 09:54:45.722 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 09:54:45.768 INFO: Building model
+2025-10-22 09:54:45.768 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 09:54:45.768 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 09:54:45.768 INFO: 8 radial and 5 basis functions
+2025-10-22 09:54:45.768 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 09:54:45.768 INFO: Distance transform for radial basis functions: None
+2025-10-22 09:54:46.486 INFO: Total number of parameters: 104448
+2025-10-22 09:54:46.486 INFO: 
+2025-10-22 09:54:46.486 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 09:54:46.486 INFO: Using ADAM as parameter optimizer
+2025-10-22 09:54:46.486 INFO: Batch size: 100
+2025-10-22 09:54:46.486 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 09:54:46.486 INFO: Number of gradient updates: 769
+2025-10-22 09:54:46.486 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 09:54:46.486 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 09:54:46.487 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 09:54:46.487 INFO: 
+2025-10-22 09:54:46.487 INFO: ===========TRAINING===========
+2025-10-22 09:54:46.487 INFO: Started training, reporting errors on validation set
+2025-10-22 09:54:46.487 INFO: Loss metrics on validation set
+2025-10-22 10:04:52.847 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:04:52.847 INFO: MACE version: 0.3.6
+2025-10-22 10:04:52.888 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:04:52.910 INFO: 
+2025-10-22 10:04:52.910 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:04:53.909 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:04:53.911 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:04:53.911 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:04:53.911 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:04:53.918 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 10:04:54.107 INFO: 
+2025-10-22 10:04:54.107 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:04:54.272 INFO: Average number of neighbors: 15.6
+2025-10-22 10:04:54.272 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:04:54.319 INFO: Building model
+2025-10-22 10:04:54.319 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:04:54.319 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:04:54.319 INFO: 8 radial and 5 basis functions
+2025-10-22 10:04:54.319 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:04:54.319 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:05:18.040 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:05:18.040 INFO: MACE version: 0.3.6
+2025-10-22 10:05:18.081 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:05:18.102 INFO: 
+2025-10-22 10:05:18.102 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:05:19.106 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:05:19.107 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:05:19.107 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:05:19.107 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:05:19.115 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 10:05:19.298 INFO: 
+2025-10-22 10:05:19.298 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:05:19.472 INFO: Average number of neighbors: 15.6
+2025-10-22 10:05:19.472 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:05:19.518 INFO: Building model
+2025-10-22 10:05:19.518 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:05:19.518 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:05:19.518 INFO: 8 radial and 5 basis functions
+2025-10-22 10:05:19.518 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:05:19.518 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:05:56.675 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:05:56.675 INFO: MACE version: 0.3.6
+2025-10-22 10:05:56.715 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:05:56.737 INFO: 
+2025-10-22 10:05:56.737 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:05:57.737 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:05:57.739 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:05:57.739 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:05:57.739 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:05:57.746 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 10:05:57.927 INFO: 
+2025-10-22 10:05:57.927 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:05:58.091 INFO: Average number of neighbors: 15.6
+2025-10-22 10:05:58.092 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:05:58.139 INFO: Building model
+2025-10-22 10:05:58.139 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:05:58.139 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:05:58.139 INFO: 8 radial and 5 basis functions
+2025-10-22 10:05:58.139 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:05:58.139 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:06:38.152 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:06:38.152 INFO: MACE version: 0.3.6
+2025-10-22 10:06:38.179 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:06:38.201 INFO: 
+2025-10-22 10:06:38.201 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:06:39.198 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:06:39.200 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:06:39.200 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:06:39.200 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:06:39.207 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 10:06:39.388 INFO: 
+2025-10-22 10:06:39.388 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:06:39.547 INFO: Average number of neighbors: 15.6
+2025-10-22 10:06:39.548 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:06:39.594 INFO: Building model
+2025-10-22 10:06:39.594 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:06:39.594 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:06:39.594 INFO: 8 radial and 5 basis functions
+2025-10-22 10:06:39.594 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:06:39.594 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:06:58.661 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:06:58.661 INFO: MACE version: 0.3.6
+2025-10-22 10:06:58.689 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:06:58.710 INFO: 
+2025-10-22 10:06:58.710 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:06:59.709 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:06:59.710 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:06:59.710 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:06:59.710 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:06:59.718 INFO: Atomic Energies used (z: eV): {1: -967.8375379496284, 6: -1244.3625487923791, 7: -138.2625054213755, 8: -829.5750325282529}
+2025-10-22 10:06:59.899 INFO: 
+2025-10-22 10:06:59.899 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:07:00.056 INFO: Average number of neighbors: 15.6
+2025-10-22 10:07:00.057 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:07:00.103 INFO: Building model
+2025-10-22 10:07:00.103 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:07:00.103 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:07:00.103 INFO: 8 radial and 5 basis functions
+2025-10-22 10:07:00.103 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:07:00.103 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:07:00.813 INFO: Total number of parameters: 103296
+2025-10-22 10:07:00.813 INFO: 
+2025-10-22 10:07:00.813 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:07:00.813 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:07:00.813 INFO: Batch size: 100
+2025-10-22 10:07:00.813 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:07:00.813 INFO: Number of gradient updates: 769
+2025-10-22 10:07:00.813 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:07:00.813 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:07:00.814 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:07:00.814 INFO: 
+2025-10-22 10:07:00.814 INFO: ===========TRAINING===========
+2025-10-22 10:07:00.814 INFO: Started training, reporting errors on validation set
+2025-10-22 10:07:00.814 INFO: Loss metrics on validation set
+2025-10-22 10:15:50.383 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:15:50.383 INFO: MACE version: 0.3.6
+2025-10-22 10:15:50.411 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:15:50.433 INFO: 
+2025-10-22 10:15:50.433 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:15:55.226 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:15:55.228 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:15:55.228 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:15:55.228 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:15:55.235 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:15:55.441 INFO: 
+2025-10-22 10:15:55.441 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:15:55.642 INFO: Average number of neighbors: 15.7
+2025-10-22 10:15:55.642 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:15:55.734 INFO: Building model
+2025-10-22 10:15:55.734 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:15:55.734 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:15:55.734 INFO: 8 radial and 5 basis functions
+2025-10-22 10:15:55.734 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:15:55.734 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:15:56.534 INFO: Total number of parameters: 120384
+2025-10-22 10:15:56.534 INFO: 
+2025-10-22 10:15:56.534 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:15:56.534 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:15:56.534 INFO: Batch size: 10
+2025-10-22 10:15:56.534 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:15:56.534 INFO: Number of gradient updates: 8550
+2025-10-22 10:15:56.534 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:15:56.534 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:15:56.535 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:15:56.535 INFO: 
+2025-10-22 10:15:56.535 INFO: ===========TRAINING===========
+2025-10-22 10:15:56.535 INFO: Started training, reporting errors on validation set
+2025-10-22 10:15:56.535 INFO: Loss metrics on validation set
+2025-10-22 10:19:04.397 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:19:04.398 INFO: MACE version: 0.3.6
+2025-10-22 10:19:04.425 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:19:04.447 INFO: 
+2025-10-22 10:19:04.447 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:19:09.240 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:19:09.242 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:19:09.242 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:19:09.242 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:19:09.250 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:19:09.452 INFO: 
+2025-10-22 10:19:09.452 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:19:09.652 INFO: Average number of neighbors: 15.7
+2025-10-22 10:19:09.652 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:19:09.745 INFO: Building model
+2025-10-22 10:19:09.745 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:19:09.745 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:19:09.745 INFO: 8 radial and 5 basis functions
+2025-10-22 10:19:09.745 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:19:09.745 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:20:39.917 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:20:39.917 INFO: MACE version: 0.3.6
+2025-10-22 10:20:39.945 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:20:39.966 INFO: 
+2025-10-22 10:20:39.966 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:20:44.754 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:20:44.756 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:20:44.756 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:20:44.756 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:20:44.764 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:20:44.968 INFO: 
+2025-10-22 10:20:44.968 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:20:45.170 INFO: Average number of neighbors: 15.7
+2025-10-22 10:20:45.170 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:20:45.262 INFO: Building model
+2025-10-22 10:20:45.263 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:20:45.263 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:20:45.263 INFO: 8 radial and 5 basis functions
+2025-10-22 10:20:45.263 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:20:45.263 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:21:13.727 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:21:13.727 INFO: MACE version: 0.3.6
+2025-10-22 10:21:13.754 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:21:13.776 INFO: 
+2025-10-22 10:21:13.776 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:21:18.568 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:21:18.570 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:21:18.570 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:21:18.570 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:21:18.578 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:21:18.784 INFO: 
+2025-10-22 10:21:18.784 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:21:18.989 INFO: Average number of neighbors: 15.7
+2025-10-22 10:21:18.989 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:21:19.082 INFO: Building model
+2025-10-22 10:21:19.083 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:21:19.083 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:21:19.083 INFO: 8 radial and 5 basis functions
+2025-10-22 10:21:19.083 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:21:19.083 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:22:59.527 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:22:59.527 INFO: MACE version: 0.3.6
+2025-10-22 10:22:59.554 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:22:59.576 INFO: 
+2025-10-22 10:22:59.576 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:23:04.372 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:23:04.374 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:23:04.374 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:23:04.374 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:23:04.382 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:23:04.601 INFO: 
+2025-10-22 10:23:04.601 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:23:04.805 INFO: Average number of neighbors: 15.7
+2025-10-22 10:23:04.805 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:23:04.901 INFO: Building model
+2025-10-22 10:23:04.901 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:23:04.901 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:23:04.901 INFO: 8 radial and 5 basis functions
+2025-10-22 10:23:04.901 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:23:04.901 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:23:22.585 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:23:22.585 INFO: MACE version: 0.3.6
+2025-10-22 10:23:22.613 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:23:22.635 INFO: 
+2025-10-22 10:23:22.635 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:23:27.427 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:23:27.429 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:23:27.429 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:23:27.429 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:23:27.437 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:23:27.643 INFO: 
+2025-10-22 10:23:27.643 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:23:27.844 INFO: Average number of neighbors: 15.7
+2025-10-22 10:23:27.844 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:23:27.936 INFO: Building model
+2025-10-22 10:23:27.936 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:23:27.936 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:23:27.936 INFO: 8 radial and 5 basis functions
+2025-10-22 10:23:27.936 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:23:27.936 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:23:28.711 INFO: Total number of parameters: 120384
+2025-10-22 10:23:28.711 INFO: 
+2025-10-22 10:23:28.711 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:23:28.711 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:23:28.711 INFO: Batch size: 10
+2025-10-22 10:23:28.711 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:23:28.711 INFO: Number of gradient updates: 8550
+2025-10-22 10:23:28.711 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:23:28.711 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:23:28.712 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:23:28.712 INFO: 
+2025-10-22 10:23:28.712 INFO: ===========TRAINING===========
+2025-10-22 10:23:28.712 INFO: Started training, reporting errors on validation set
+2025-10-22 10:23:28.712 INFO: Loss metrics on validation set
+2025-10-22 10:24:04.087 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:24:04.087 INFO: MACE version: 0.3.6
+2025-10-22 10:24:04.116 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:24:04.138 INFO: 
+2025-10-22 10:24:04.138 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:24:08.929 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:24:08.931 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:24:08.931 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:24:08.931 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:24:08.939 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:24:09.146 INFO: 
+2025-10-22 10:24:09.146 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:24:09.366 INFO: Average number of neighbors: 15.7
+2025-10-22 10:24:09.366 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:24:09.459 INFO: Building model
+2025-10-22 10:24:09.459 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:24:09.459 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:24:09.459 INFO: 8 radial and 5 basis functions
+2025-10-22 10:24:09.459 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:24:09.459 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:24:10.235 INFO: Total number of parameters: 120384
+2025-10-22 10:24:10.235 INFO: 
+2025-10-22 10:24:10.235 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:24:10.235 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:24:10.235 INFO: Batch size: 10
+2025-10-22 10:24:10.235 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:24:10.235 INFO: Number of gradient updates: 8550
+2025-10-22 10:24:10.235 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:24:10.235 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:24:10.236 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:24:10.236 INFO: 
+2025-10-22 10:24:10.236 INFO: ===========TRAINING===========
+2025-10-22 10:24:10.236 INFO: Started training, reporting errors on validation set
+2025-10-22 10:24:10.236 INFO: Loss metrics on validation set
+2025-10-22 10:24:46.854 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:24:46.854 INFO: MACE version: 0.3.6
+2025-10-22 10:24:46.883 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:24:46.905 INFO: 
+2025-10-22 10:24:46.905 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:24:51.698 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:24:51.700 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:24:51.700 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:24:51.700 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:24:51.707 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:24:51.914 INFO: 
+2025-10-22 10:24:51.914 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:24:52.138 INFO: Average number of neighbors: 15.7
+2025-10-22 10:24:52.138 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:24:52.230 INFO: Building model
+2025-10-22 10:24:52.230 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:24:52.230 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:24:52.230 INFO: 8 radial and 5 basis functions
+2025-10-22 10:24:52.230 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:24:52.231 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:24:53.007 INFO: Total number of parameters: 120384
+2025-10-22 10:24:53.007 INFO: 
+2025-10-22 10:24:53.008 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:24:53.008 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:24:53.008 INFO: Batch size: 10
+2025-10-22 10:24:53.008 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:24:53.008 INFO: Number of gradient updates: 8550
+2025-10-22 10:24:53.008 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:24:53.008 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:24:53.008 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:24:53.008 INFO: 
+2025-10-22 10:24:53.008 INFO: ===========TRAINING===========
+2025-10-22 10:24:53.008 INFO: Started training, reporting errors on validation set
+2025-10-22 10:24:53.009 INFO: Loss metrics on validation set
+2025-10-22 10:27:00.683 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:27:00.683 INFO: MACE version: 0.3.6
+2025-10-22 10:27:00.710 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:27:00.732 INFO: 
+2025-10-22 10:27:00.732 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:27:17.943 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:27:17.943 INFO: MACE version: 0.3.6
+2025-10-22 10:27:17.970 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:27:17.992 INFO: 
+2025-10-22 10:27:17.992 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:44:06.609 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:44:06.609 INFO: MACE version: 0.3.6
+2025-10-22 10:44:06.637 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:44:06.659 INFO: 
+2025-10-22 10:44:06.660 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:44:11.463 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:44:11.465 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:44:11.465 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:44:11.465 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:44:11.474 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:44:11.680 INFO: 
+2025-10-22 10:44:11.680 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:44:11.898 INFO: Average number of neighbors: 15.7
+2025-10-22 10:44:11.898 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:44:11.990 INFO: Building model
+2025-10-22 10:44:11.990 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:44:11.990 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:44:11.990 INFO: 8 radial and 5 basis functions
+2025-10-22 10:44:11.991 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:44:11.991 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:44:12.761 INFO: Total number of parameters: 120192
+2025-10-22 10:44:12.761 INFO: 
+2025-10-22 10:44:12.761 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:44:12.761 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:44:12.761 INFO: Batch size: 10
+2025-10-22 10:44:12.761 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:44:12.761 INFO: Number of gradient updates: 8550
+2025-10-22 10:44:12.761 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:44:12.761 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:44:12.762 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:44:12.762 INFO: 
+2025-10-22 10:44:12.762 INFO: ===========TRAINING===========
+2025-10-22 10:44:12.762 INFO: Started training, reporting errors on validation set
+2025-10-22 10:44:12.762 INFO: Loss metrics on validation set
+2025-10-22 10:45:18.520 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:45:18.520 INFO: MACE version: 0.3.6
+2025-10-22 10:45:18.549 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:45:18.570 INFO: 
+2025-10-22 10:45:18.570 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:45:23.364 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:45:23.366 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:45:23.366 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:45:23.366 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:45:23.374 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:45:23.577 INFO: 
+2025-10-22 10:45:23.578 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:45:23.796 INFO: Average number of neighbors: 15.7
+2025-10-22 10:45:23.796 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:45:23.889 INFO: Building model
+2025-10-22 10:45:23.889 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:45:23.889 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:45:23.889 INFO: 8 radial and 5 basis functions
+2025-10-22 10:45:23.889 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:45:23.889 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:45:24.665 INFO: Total number of parameters: 120192
+2025-10-22 10:45:24.665 INFO: 
+2025-10-22 10:45:24.665 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:45:24.665 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:45:24.665 INFO: Batch size: 10
+2025-10-22 10:45:24.665 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:45:24.665 INFO: Number of gradient updates: 8550
+2025-10-22 10:45:24.665 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:45:24.665 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:45:24.666 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:45:24.666 INFO: 
+2025-10-22 10:45:24.666 INFO: ===========TRAINING===========
+2025-10-22 10:45:24.666 INFO: Started training, reporting errors on validation set
+2025-10-22 10:45:24.666 INFO: Loss metrics on validation set
+2025-10-22 10:53:38.267 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:53:38.267 INFO: MACE version: 0.3.6
+2025-10-22 10:53:38.296 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:53:38.318 INFO: 
+2025-10-22 10:53:38.318 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:53:43.107 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:53:43.109 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:53:43.109 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:53:43.109 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:53:43.117 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:53:43.326 INFO: 
+2025-10-22 10:53:43.326 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:53:43.585 INFO: Average number of neighbors: 15.7
+2025-10-22 10:53:43.585 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:53:43.677 INFO: Building model
+2025-10-22 10:53:43.677 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:53:43.677 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:53:43.677 INFO: 8 radial and 5 basis functions
+2025-10-22 10:53:43.677 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:53:43.677 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:53:44.457 INFO: Total number of parameters: 120192
+2025-10-22 10:53:44.457 INFO: 
+2025-10-22 10:53:44.457 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:53:44.457 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:53:44.457 INFO: Batch size: 10
+2025-10-22 10:53:44.457 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:53:44.457 INFO: Number of gradient updates: 8550
+2025-10-22 10:53:44.458 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:53:44.458 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:53:44.458 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:53:44.458 INFO: 
+2025-10-22 10:53:44.458 INFO: ===========TRAINING===========
+2025-10-22 10:53:44.458 INFO: Started training, reporting errors on validation set
+2025-10-22 10:53:44.458 INFO: Loss metrics on validation set
+2025-10-22 10:54:04.008 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:54:04.009 INFO: MACE version: 0.3.6
+2025-10-22 10:54:04.036 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:54:04.058 INFO: 
+2025-10-22 10:54:04.059 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:54:08.852 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:54:08.854 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:54:08.854 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:54:08.854 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:54:08.862 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:54:09.069 INFO: 
+2025-10-22 10:54:09.069 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:54:09.293 INFO: Average number of neighbors: 15.7
+2025-10-22 10:54:09.293 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:54:09.386 INFO: Building model
+2025-10-22 10:54:09.386 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:54:09.386 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:54:09.386 INFO: 8 radial and 5 basis functions
+2025-10-22 10:54:09.386 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:54:09.386 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:54:10.159 INFO: Total number of parameters: 120192
+2025-10-22 10:54:10.159 INFO: 
+2025-10-22 10:54:10.159 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:54:10.159 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:54:10.159 INFO: Batch size: 10
+2025-10-22 10:54:10.159 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:54:10.159 INFO: Number of gradient updates: 8550
+2025-10-22 10:54:10.159 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:54:10.159 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:54:10.160 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:54:10.160 INFO: 
+2025-10-22 10:54:10.160 INFO: ===========TRAINING===========
+2025-10-22 10:54:10.160 INFO: Started training, reporting errors on validation set
+2025-10-22 10:54:10.160 INFO: Loss metrics on validation set
+2025-10-22 10:55:33.655 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 10:55:33.655 INFO: MACE version: 0.3.6
+2025-10-22 10:55:33.682 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 10:55:33.706 INFO: 
+2025-10-22 10:55:33.706 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 10:55:38.501 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 10:55:38.503 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 10:55:38.503 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 10:55:38.503 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 10:55:38.511 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 10:55:38.715 INFO: 
+2025-10-22 10:55:38.715 INFO: ===========MODEL DETAILS===========
+2025-10-22 10:55:38.937 INFO: Average number of neighbors: 15.7
+2025-10-22 10:55:38.937 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 10:55:39.030 INFO: Building model
+2025-10-22 10:55:39.030 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 10:55:39.030 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 10:55:39.030 INFO: 8 radial and 5 basis functions
+2025-10-22 10:55:39.030 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 10:55:39.030 INFO: Distance transform for radial basis functions: None
+2025-10-22 10:55:39.715 INFO: Total number of parameters: 103040
+2025-10-22 10:55:39.715 INFO: 
+2025-10-22 10:55:39.716 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 10:55:39.716 INFO: Using ADAM as parameter optimizer
+2025-10-22 10:55:39.716 INFO: Batch size: 10
+2025-10-22 10:55:39.716 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 10:55:39.716 INFO: Number of gradient updates: 8550
+2025-10-22 10:55:39.716 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 10:55:39.716 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 10:55:39.716 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 10:55:39.716 INFO: 
+2025-10-22 10:55:39.716 INFO: ===========TRAINING===========
+2025-10-22 10:55:39.717 INFO: Started training, reporting errors on validation set
+2025-10-22 10:55:39.717 INFO: Loss metrics on validation set

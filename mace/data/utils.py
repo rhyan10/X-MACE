@@ -182,6 +182,9 @@ def config_from_atoms(
     if nacs is None:
         nacs = np.zeros(3)
         nacs_weight = 0.0
+    if socs is None:
+        socs = np.zeros(3)
+        socs_weight = 0.0
 
     return Configuration(
         atomic_numbers=atomic_numbers,

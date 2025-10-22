@@ -50,7 +50,7 @@ def get_dataset_from_xyz(
     stress_key: str = "REF_stress",
     virials_key: str = "virials",
     dipoles_key: str = "dipoles",
-    nacs_key: str = "nacs",
+    nacs_key: str = "REF_nacs",
     charges_key: str = "charges",
     socs_key: str = 'REF_socs',
 ) -> Tuple[SubsetCollection, Optional[Dict[int, float]]]:
@@ -540,6 +540,7 @@ def create_error_table(
             "MAE F",
             "MAE Mu",
             "MAE nacs",
+            "MAE socs",
         ]
 
     for name in sorted(all_data_loaders, key=custom_key):
@@ -700,8 +701,8 @@ def create_error_table(
                     name,
                     f"{metrics['mae_e']*1000:8.1f}",
                     f"{metrics['mae_f']*1000:8.1f}",
-                    f"{metrics['mae_mu']*1000:8.1f}",
                     f"{metrics['mae_nacs']*1000:8.1f}",
+                    f"{metrics['mae_socs']*1000:8.1f}",
                 ]
             )
     return table

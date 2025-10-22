@@ -462,6 +462,7 @@ class ExcitedMACE(torch.nn.Module):
         compute_nacs: bool,
         compute_dipoles: bool,
         compute_socs: bool,
+        soc_num: int,
         interaction_cls: Type[InteractionBlock],
         interaction_cls_first: Type[InteractionBlock],
         num_interactions: int,
@@ -539,7 +540,7 @@ class ExcitedMACE(torch.nn.Module):
         self.compute_socs = compute_socs
         self.compute_dipoles = compute_dipoles
         self.compute_nacs = compute_nacs
-        self.soc_indices = 45
+        self.soc_indices = soc_num
 
         # Use the appropriate self connection at the first layer for proper E0
         use_sc_first = False
@@ -702,7 +703,6 @@ class ExcitedMACE(torch.nn.Module):
 
         soc_contributions = torch.stack(node_socs_list, dim=1)
         total_socs = torch.sum(soc_contributions, dim=1)
-        total_socs = total_socs.reshape(total_socs.shape[0], int(total_socs.shape[1]/3), 3)
 
         # Concatenate node features
         node_feats_out = torch.cat(node_feats_list, dim=-1)
@@ -732,6 +732,7 @@ class ExcitedMACE(torch.nn.Module):
             compute_stress=compute_stress,
             compute_hessian=compute_hessian,
         )
+
         return {
             "energy": total_energy,
             "node_energy": node_energy,

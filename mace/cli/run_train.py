@@ -117,7 +117,7 @@ def run(args: argparse.Namespace) -> None:
                 device=args.device,
                 default_dtype=args.default_dtype,
             )
-            model_foundation = calc.models[0]
+            model_foundation = calc.model
         else:
             model_foundation = torch.load(args.foundation_model, map_location=device)
             logging.info(
@@ -307,7 +307,8 @@ def run(args: argparse.Namespace) -> None:
             forces_weight=args.forces_weight,
             dipoles_weight=args.dipoles_weight,
             nacs_weight = args.nacs_weight,
-        )
+            socs_weight = args.socs_weight
+    )
     elif args.model == "AutoencoderExcitedMACE":
         loss_fn = modules.InvariantsWeightedEnergyForcesNacsDipoleLoss(
             energy_weight=args.energy_weight,
@@ -444,8 +445,9 @@ def run(args: argparse.Namespace) -> None:
             radial_MLP=ast.literal_eval(args.radial_MLP),
             radial_type=args.radial_type,
             compute_nacs=args.compute_nacs,
-            compute_socs=True,
-            compute_dipoles=args.compute_dipoles,
+            compute_socs=args.compute_socs,
+            soc_num=args.soc_num,
+            nac_num=args.nac_num,
         )
     
     elif args.model == "AutoencoderExcitedMACE":
@@ -634,10 +636,11 @@ def run(args: argparse.Namespace) -> None:
             )
         elif args.loss == "energy_forces_dipole_nacs":
             loss_fn_energy = modules.WeightedEnergyForcesNacsDipoleLoss(
-                energy_weight=args.swa_energy_weight,
-                forces_weight=args.swa_forces_weight,
-                dipole_weight=args.swa_dipoles_weight,
-                nacs_weight=args.swa_nacs_weight
+                energy_weight=args.energy_weight,
+                forces_weight=args.forces_weight,
+                dipole_weight=args.dipoles_weight,
+                nacs_weight=args.nacs_weight,
+                socs_weight=args.socs_weight
             )
         logging.info(loss_fn_energy)
         swa = tools.SWAContainer(
@@ -815,32 +818,32 @@ def run(args: argparse.Namespace) -> None:
         for param in model.parameters():
             param.requires_grad = False
 
-        table_train_valid = create_error_table(
-            table_type=args.error_table,
-            all_data_loaders=train_valid_data_loader,
-            model_type=args.model,
-            model=model_to_evaluate,
-            loss_fn=loss_fn,
-            output_args=output_args,
-            log_wandb=args.wandb,
-            device=device,
-            distributed=args.distributed,
-        )
-        logging.info("Error-table on TRAIN and VALID:\n" + str(table_train_valid))
+        # table_train_valid = create_error_table(
+        #     table_type=args.error_table,
+        #     all_data_loaders=train_valid_data_loader,
+        #     model_type=args.model,
+        #     model=model_to_evaluate,
+        #     loss_fn=loss_fn,
+        #     output_args=output_args,
+        #     log_wandb=args.wandb,
+        #     device=device,
+        #     distributed=args.distributed,
+        # )
+        # logging.info("Error-table on TRAIN and VALID:\n" + str(table_train_valid))
 
-        if test_data_loader:
-            table_test = create_error_table(
-                table_type=args.error_table,
-                all_data_loaders=test_data_loader,
-                model_type=args.model,
-                model=model_to_evaluate,
-                loss_fn=loss_fn,
-                output_args=output_args,
-                log_wandb=args.wandb,
-                device=device,
-                distributed=args.distributed,
-            )
-            logging.info("Error-table on TEST:\n" + str(table_test))
+        # if test_data_loader:
+        #     table_test = create_error_table(
+        #         table_type=args.error_table,
+        #         all_data_loaders=test_data_loader,
+        #         model_type=args.model,
+        #         model=model_to_evaluate,
+        #         loss_fn=loss_fn,
+        #         output_args=output_args,
+        #         log_wandb=args.wandb,
+        #         device=device,
+        #         distributed=args.distributed,
+        #     )
+        #     logging.info("Error-table on TEST:\n" + str(table_test))
 
         if rank == 0:
             # Save entire model

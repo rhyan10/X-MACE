@@ -1,6 +1,6 @@
 from abc import abstractmethod
 from typing import Callable, List, Optional, Tuple, Union
-
+import time
 import numpy as np
 import torch.nn.functional
 from e3nn import nn, o3
@@ -114,10 +114,10 @@ class LinearNodeEmbeddingBlock(torch.nn.Module):
 
 @compile_mode("script")
 class LinearReadoutBlock(torch.nn.Module):
-    def __init__(self, irreps_in: o3.Irreps, n_energies: int, compute_nacs: bool):
+    def __init__(self, irreps_in: o3.Irreps, n_energies: int, compute_nacs: bool, nac_indices: int):
         super().__init__()
         if compute_nacs == True:
-            self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=o3.Irreps(str(int(n_energies)))+"x0e + "+ str(int(n_energies*(n_energies-1)/2)) + "x1o")
+            self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=o3.Irreps(str(int(n_energies))+"x0e + "+ str(int(nac_indices)) + "x1o"))
         else:
             self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=o3.Irreps(str(n_energies)+"x0e"))
 
@@ -128,7 +128,7 @@ class LinearReadoutBlock(torch.nn.Module):
 @compile_mode("script")
 class NonLinearReadoutBlock(torch.nn.Module):
     def __init__(
-        self, irreps_in: o3.Irreps, MLP_irreps: o3.Irreps, gate: Optional[Callable], n_energies: int, compute_nacs: bool
+        self, irreps_in: o3.Irreps, MLP_irreps: o3.Irreps, gate: Optional[Callable], n_energies: int, compute_nacs: bool, nac_indices: int
     ):
         super().__init__()
         self.hidden_irreps = MLP_irreps
@@ -137,7 +137,7 @@ class NonLinearReadoutBlock(torch.nn.Module):
         self.irreps_in = irreps_in
         if compute_nacs == True:
             self.linear_2 = o3.Linear(
-                irreps_in=self.hidden_irreps, irreps_out=o3.Irreps(str(int(n_energies))+"x0e + " + str(int(n_energies*(n_energies-1)/2)) + "x1o")
+                irreps_in=self.hidden_irreps, irreps_out=o3.Irreps(str(int(n_energies))+"x0e + " + str(int(nac_indices)) + "x1o")
             )
         else:
             self.linear_2 = o3.Linear(
@@ -153,7 +153,7 @@ class NonLinearReadoutBlock(torch.nn.Module):
 class LinearSocReadoutBlock(torch.nn.Module):
     def __init__(self, irreps_in: o3.Irreps, socs_indices: int):
         super().__init__()
-        self.irreps_out = o3.Irreps(str(socs_indices) + "x1o")
+        self.irreps_out = o3.Irreps(str(socs_indices) + "x0e")
         self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=self.irreps_out)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
@@ -167,7 +167,7 @@ class NonLinearSocReadoutBlock(torch.nn.Module):
         super().__init__()
         self.irreps_in = irreps_in
         self.hidden_irreps = MLP_irreps
-        self.irreps_out = o3.Irreps(str(socs_indices) + "x1o")
+        self.irreps_out = o3.Irreps(str(socs_indices) + "x0e")
 
         irreps_scalars = o3.Irreps(
             [(mul, ir) for mul, ir in MLP_irreps if ir.l == 0 and ir in self.irreps_out]
@@ -195,12 +195,12 @@ class NonLinearSocReadoutBlock(torch.nn.Module):
 
 @compile_mode("script")
 class LinearDipoleReadoutBlock(torch.nn.Module):
-    def __init__(self, irreps_in: o3.Irreps, n_energies: int, compute_nacs: bool):
+    def __init__(self, irreps_in: o3.Irreps, n_energies: int, compute_nacs: bool, nac_indices: int):
         super().__init__()
         if compute_nacs == True:
-            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e + " + str(n_energies + int(n_energies*(n_energies-1))) + "x1o")
+            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e + " + str(int(nac_indices)) + "x1o")
         else:
-            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e + " + str(n_energies + int(n_energies*(n_energies-1)/2)) + "x1o")
+            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e")
         self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=self.irreps_out)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
@@ -215,15 +215,16 @@ class NonLinearDipoleReadoutBlock(torch.nn.Module):
         MLP_irreps: o3.Irreps,
         gate: Callable,
         n_energies: int,
-        compute_nacs: bool
+        compute_nacs: bool,
+        nac_indices: int
     ):
         super().__init__()
         self.irreps_in = irreps_in
         self.hidden_irreps = MLP_irreps
         if compute_nacs == True:
-            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e + " + str(n_energies + int(n_energies*(n_energies-1))) + "x1o")
+            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e + " + str(int(nac_indices)) + "x1o")
         else:
-            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e +" + str(n_energies + int(n_energies*(n_energies-1)/2)) + "x1o")
+            self.irreps_out = o3.Irreps(str(int(n_energies))+"x0e")
         irreps_scalars = o3.Irreps(
             [(mul, ir) for mul, ir in MLP_irreps if ir.l == 0 and ir in self.irreps_out]
         )

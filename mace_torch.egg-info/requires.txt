@@ -1,5 +1,5 @@
 torch>=1.12
-e3nn==0.4.4
+e3nn==0.5.1
 numpy
 opt_einsum
 ase

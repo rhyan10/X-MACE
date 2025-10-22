@@ -463,6 +463,11 @@ class MACELoss(Metric):
         self.add_state("nacs", default=[], dist_reduce_fx="cat")
         self.add_state("delta_nacs", default=[], dist_reduce_fx="cat")
         self.add_state("delta_nacs_per_atom", default=[], dist_reduce_fx="cat")
+        self.add_state("socs_computed", default=torch.tensor(0.0), dist_reduce_fx="sum")
+        self.add_state("socs", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_socs", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_socs_per_atom", default=[], dist_reduce_fx="cat")
+
 
     def update(self, batch, output):  # pylint: disable=arguments-differ
         loss = self.loss_fn(pred=output, ref=batch)
@@ -475,13 +480,12 @@ class MACELoss(Metric):
             self.delta_es_per_atom.append(
                 (batch.energy - output["energy"]) / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1)
             )
-        if output.get("forces") is not None and batch.forces is not None:
+        if output.get("forces") is not None and (batch.forces != 0).any():
            self.Fs_computed += 1.0
            self.fs.append(batch.forces)
            self.delta_fs.append(batch.forces - output["forces"] )
 
-
-        if output.get("dipoles") is not None and batch.dipole is not None:
+        if output.get("dipoles") is not None and (batch.dipoles != 0).any() :
            self.Mus_computed += 1.0
            self.mus.append(batch.dipoles)
            self.delta_mus.append(batch.dipoles - output["dipoles"])
@@ -489,7 +493,7 @@ class MACELoss(Metric):
                (batch.dipoles - output["dipoles"])
                / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1).unsqueeze(-1)
            )
-        if output.get("nacs") is not None and torch.any(batch.nacs.ne(0)):
+        if output.get("nacs") is not None and (batch.nacs != 0).any():
             self.nacs_computed += 1.0
             self.nacs.append(batch.nacs)
             neg = torch.abs(batch.nacs - output["nacs"]).unsqueeze(-1)
@@ -497,6 +501,14 @@ class MACELoss(Metric):
             vec = torch.cat((pos,neg),dim=-1)
             val = torch.min(vec, dim=-1)[0]
             self.delta_nacs.append(val)
+        # if output.get("socs") is not None and (batch.socs != 0).any():
+        #     self.socs_computed += 1.0
+        #     self.socs.append(batch.socs)
+        #     neg = torch.abs(batch.socs - output["socs"]).unsqueeze(-1)
+        #     pos = torch.abs(batch.socs + output["socs"]).unsqueeze(-1)
+        #     vec = torch.cat((pos,neg),dim=-1)
+        #     val = torch.min(vec, dim=-1)[0]
+        #     self.delta_socs.append(val)
 
     def convert(self, delta: Union[torch.Tensor, List[torch.Tensor]]) -> np.ndarray:
         if isinstance(delta, list):
@@ -530,20 +542,14 @@ class MACELoss(Metric):
             aux["rmse_nacs"] = compute_rmse(delta_nacs)
             aux["rel_rmse_nacs"] = compute_rel_rmse(delta_nacs, nacs)
             aux["q95_nacs"] = compute_q95(delta_nacs)
-        if self.stress_computed:
-            delta_stress = self.convert(self.delta_stress)
-            delta_stress_per_atom = self.convert(self.delta_stress_per_atom)
-            aux["mae_stress"] = compute_mae(delta_stress)
-            aux["rmse_stress"] = compute_rmse(delta_stress)
-            aux["rmse_stress_per_atom"] = compute_rmse(delta_stress_per_atom)
-            aux["q95_stress"] = compute_q95(delta_stress)
-        if self.virials_computed:
-            delta_virials = self.convert(self.delta_virials)
-            delta_virials_per_atom = self.convert(self.delta_virials_per_atom)
-            aux["mae_virials"] = compute_mae(delta_virials)
-            aux["rmse_virials"] = compute_rmse(delta_virials)
-            aux["rmse_virials_per_atom"] = compute_rmse(delta_virials_per_atom)
-            aux["q95_virials"] = compute_q95(delta_virials)
+        # if self.socs_computed:
+        #     socs = self.convert(self.socs)
+        #     delta_socs = self.convert(self.delta_socs)
+        #     aux["mae_socs"] = compute_mae(delta_socs)
+        #     aux["rel_mae_socs"] = compute_rel_mae(delta_socs, socs)
+        #     aux["rmse_socs"] = compute_rmse(delta_socs)
+        #     aux["rel_rmse_socs"] = compute_rel_rmse(delta_socs, socs)
+        #     aux["q95_socs"] = compute_q95(delta_socs)
         if self.Mus_computed:
             mus = self.convert(self.mus)
             delta_mus = self.convert(self.delta_mus)

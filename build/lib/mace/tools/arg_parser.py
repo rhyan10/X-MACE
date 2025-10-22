@@ -263,6 +263,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         type=bool,
         default=True,
     )
+    parser.add_argument(
+        "--compute_socs",
+        help="Select True to compute socs",
+        type=bool,
+        default=True,
+    )
     # Dataset
     parser.add_argument(
         "--train_file",
@@ -417,7 +423,12 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--nacs_weight", help="weight of nacs loss", type=float, default=100.0
     )
-    
+    parser.add_argument(
+        "--socs_weight", help="weight of socs loss", type=float, default=100.0
+    )    
+    parser.add_argument(
+        "--soc_num", help="Number of socs", type=int
+    )   
     parser.add_argument(
         "--swa_forces_weight",
         "--stage_two_forces_weight",

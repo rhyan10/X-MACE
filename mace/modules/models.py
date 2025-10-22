@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from e3nn import o3
 from e3nn.util.jit import compile_mode
-
+import time
 from mace.data import AtomicData
 from mace.modules.radial import ZBLBasis
 from mace.tools.scatter import scatter_sum
@@ -460,8 +460,9 @@ class ExcitedMACE(torch.nn.Module):
         n_energies: int,
         max_ell: int,
         compute_nacs: bool,
-        compute_dipoles: bool,
         compute_socs: bool,
+        soc_num: int,
+        nac_num: int,
         interaction_cls: Type[InteractionBlock],
         interaction_cls_first: Type[InteractionBlock],
         num_interactions: int,
@@ -490,8 +491,6 @@ class ExcitedMACE(torch.nn.Module):
         )
 
         self.n_energies = n_energies
-        self.n_nacs = int(n_energies*(n_energies-1)/2)
-        self.n_dipoles = int(n_energies + int(n_energies*(n_energies-1)/2))
 
         if isinstance(correlation, int):
             correlation = [correlation] * num_interactions
@@ -537,9 +536,9 @@ class ExcitedMACE(torch.nn.Module):
         self.interactions = torch.nn.ModuleList([inter])
 
         self.compute_socs = compute_socs
-        self.compute_dipoles = compute_dipoles
         self.compute_nacs = compute_nacs
-        self.soc_indices = 45
+        self.soc_indices = soc_num
+        self.nac_indices = nac_num
 
         # Use the appropriate self connection at the first layer for proper E0
         use_sc_first = False
@@ -556,15 +555,11 @@ class ExcitedMACE(torch.nn.Module):
         )
 
         self.products = torch.nn.ModuleList([prod])
-
         self.readouts = torch.nn.ModuleList()
+        self.socs_readouts = torch.nn.ModuleList()
         if self.compute_socs:
-            self.socs_readouts = torch.nn.ModuleList()
             self.socs_readouts.append(LinearSocReadoutBlock(hidden_irreps, self.soc_indices))
-        if compute_dipoles:
-            self.readouts.append(LinearDipoleReadoutBlock(hidden_irreps, n_energies, compute_nacs))
-        else:
-            self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
+        self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs, self.nac_indices))
 
         for i in range(num_interactions - 1):
             if i == num_interactions - 2:
@@ -593,19 +588,17 @@ class ExcitedMACE(torch.nn.Module):
             )
             self.products.append(prod)
             if i == num_interactions - 2:
-                if compute_dipoles:
-                    self.readouts.append(NonLinearDipoleReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs))
-                else:
-                    self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs))
+                self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs, self.nac_indices))
                 if self.compute_socs:
                     self.socs_readouts.append(NonLinearSocReadoutBlock(hidden_irreps_out, MLP_irreps, gate, self.soc_indices))
-            else:
-                if compute_dipoles:
-                    self.readouts.append(LinearDipoleReadoutBlock(hidden_irreps, n_energies, compute_nacs))
                 else:
-                    self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
+                    self.socs_readouts.append(None)
+            else:
+                self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
                 if self.compute_socs:
                     self.socs_readouts.append(LinearSocReadoutBlock(hidden_irreps, self.soc_indices))
+                else:
+                    self.socs_readouts.append(None)
 
     def forward(
         self,
@@ -649,9 +642,7 @@ class ExcitedMACE(torch.nn.Module):
         node_energies_list = [node_e0.unsqueeze(-1).expand(-1, self.n_energies), pair_node_energy.unsqueeze(-1).expand(-1, self.n_energies)]
         node_feats_list = []
         node_nacs_list = []
-        node_dipoles_list = []
         node_socs_list = []
-        dipoles_contributions = []
         for j, (interaction, product, readout, soc_readout) in enumerate(zip(
             self.interactions, self.products, self.readouts, self.socs_readouts,
         )):
@@ -672,37 +663,28 @@ class ExcitedMACE(torch.nn.Module):
             node_output = readout(node_feats).squeeze(-1)
 
             node_energies = torch.transpose(node_output[:, :self.n_energies], 0, 1)
-            if self.compute_nacs and self.compute_dipoles:
-                node_nacs = node_output[:, self.n_energies:self.n_energies + 3*self.n_nacs]
-                node_dipoles = node_output[:, self.n_energies + 3*self.n_nacs:]
-            elif self.compute_nacs:
-                node_nacs = node_output[:, self.n_energies:self.n_energies + 3*self.n_nacs]
-                node_dipoles = None
-            elif self.compute_dipoles:
-                node_dipoles = node_output[:, self.n_energies:]
-                node_nacs = None
-            node_nacs_list.append(node_nacs.reshape(node_nacs.shape[0], int(self.n_energies*(self.n_energies-1)/2), 3))
-            node_dipoles_list.append(node_dipoles)
-            dipoles = scatter_sum(
-                src=torch.transpose(node_dipoles, 0, 1), index=data["batch"], dim=-1, dim_size=num_graphs
-            )  # [n_graphs,]
-            dipoles_contributions.append(torch.transpose(dipoles, 0, 1))
+            if self.compute_nacs:
+                node_nacs = node_output[:, self.n_energies:self.n_energies + 3*self.nac_indices]
+                node_nacs_list.append(node_nacs.reshape(node_nacs.shape[0], self.nac_indices, 3))
             energy = scatter_sum(
                 src=node_energies, index=data["batch"], dim=-1, dim_size=num_graphs
             )  # [n_graphs,]
             energies.append(torch.transpose(energy, 0, 1))
             node_energies_list.append(torch.transpose(node_energies, 0, 1))
 
-            soc_output = soc_readout(node_feats)
-            soc_output = scatter_sum(
-                src=soc_output, index=data["batch"], dim=0, dim_size=num_graphs
-            )  # [n_graphs,]
+            if self.compute_socs:
+                soc_output = soc_readout(node_feats)
+                soc_output = scatter_sum(
+                    src=soc_output, index=data["batch"], dim=0, dim_size=num_graphs
+                )  # [n_graphs,]
 
-            node_socs_list.append(soc_output)
+                node_socs_list.append(soc_output)
 
-        soc_contributions = torch.stack(node_socs_list, dim=1)
-        total_socs = torch.sum(soc_contributions, dim=1)
-        total_socs = total_socs.reshape(total_socs.shape[0], int(total_socs.shape[1]/3), 3)
+        if self.compute_socs:
+            soc_contributions = torch.stack(node_socs_list, dim=1)
+            total_socs = torch.sum(soc_contributions, dim=1)
+        else:
+            total_socs = torch.tensor([])
 
         # Concatenate node features
         node_feats_out = torch.cat(node_feats_list, dim=-1)
@@ -713,12 +695,11 @@ class ExcitedMACE(torch.nn.Module):
         node_energy_contributions = torch.stack(node_energies_list, dim=1)
         node_energy = torch.sum(node_energy_contributions, dim=1)  # [n_nodes, ]
 
-        dipole_contributions = torch.stack(dipoles_contributions, dim=1)
-        total_dipoles = torch.sum(dipole_contributions, dim=1)  # [n_graphs, ]
-        total_dipoles = total_dipoles.reshape(total_dipoles.shape[0], int(total_dipoles.shape[1]/3), 3)
-
-        nacs_contributions = torch.stack(node_nacs_list, dim=1)
-        total_nacs = torch.sum(nacs_contributions, dim=1)  # [n_graphs, ]
+        if self.compute_nacs:
+            nacs_contributions = torch.stack(node_nacs_list, dim=1)
+            total_nacs = torch.sum(nacs_contributions, dim=1)  # [n_graphs, ]
+        else:
+            total_nacs = torch.tensor([])
 
         # Outputs
         forces, virials, stress, hessian = get_outputs(
@@ -732,13 +713,14 @@ class ExcitedMACE(torch.nn.Module):
             compute_stress=compute_stress,
             compute_hessian=compute_hessian,
         )
+
         return {
             "energy": total_energy,
             "node_energy": node_energy,
             "contributions": contributions,
             "nacs": total_nacs,
             "socs": total_socs,
-            "dipoles": total_dipoles,
+            "dipoles": torch.tensor([]),
             "forces": forces,
             "virials": virials,
             "stress": stress,
@@ -839,9 +821,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         )
         self.interactions = torch.nn.ModuleList([inter])
 
-        self.compute_dipoles = compute_dipoles
-        self.compute_nacs = compute_nacs
-
         # Use the appropriate self connection at the first layer for proper E0
         use_sc_first = False
         if "Residual" in str(interaction_cls_first):
@@ -858,10 +837,7 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         self.products = torch.nn.ModuleList([prod])
 
         self.readouts = torch.nn.ModuleList()
-        if compute_dipoles:
-            self.readouts.append(LinearDipoleReadoutBlock(hidden_irreps, n_energies, compute_nacs))
-        else:
-            self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
+        self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
 
         self.invariant_readouts = torch.nn.ModuleList()
         self.invariant_readouts.append(LinearReadoutBlock(hidden_irreps, num_permutational_invariant, compute_nacs=False))
@@ -893,15 +869,9 @@ class AutoencoderExcitedMACE(torch.nn.Module):
             )
             self.products.append(prod)
             if i == num_interactions - 2:
-                if compute_dipoles:
-                    self.readouts.append(NonLinearDipoleReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs))
-                else:
-                    self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs))
+                self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, False))
             else:
-                if compute_dipoles:
-                    self.readouts.append(LinearDipoleReadoutBlock(hidden_irreps, n_energies, compute_nacs))
-                else:
-                    self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
+                self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, False))
 
             self.invariant_readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, num_permutational_invariant, compute_nacs=False))
 
@@ -947,9 +917,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         energies = [e0.unsqueeze(-1).expand(-1, self.n_energies), pair_energy.unsqueeze(-1).expand(-1, self.n_energies)]
         node_energies_list = [node_e0.unsqueeze(-1).expand(-1, self.n_energies), pair_node_energy.unsqueeze(-1).expand(-1, self.n_energies)]
         node_feats_list = []
-        node_nacs_list = []
-        node_dipoles_list = []
-        dipoles_contributions = []
         invariant_contributions = []
 
         for interaction, product, readout, invariant_readout in zip(
@@ -974,18 +941,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
             node_energies = torch.transpose(node_output[:, :self.n_energies], 0, 1)
             node_invariant_output = torch.transpose(node_invariant_output, 0, 1)
 
-            if self.compute_nacs and self.compute_dipoles:
-                node_nacs = node_output[:, self.n_energies:self.n_energies + 3*self.n_nacs]
-                node_dipoles = node_output[:, self.n_energies + 3*self.n_nacs:]
-            elif self.compute_nacs:
-                node_nacs = node_output[:, self.n_energies:self.n_energies + 3*self.n_nacs]
-                node_dipoles = None
-            elif self.compute_dipoles:
-                node_dipoles = node_output[:, self.n_energies:]
-                node_nacs = None
-
-            node_nacs_list.append(node_nacs.reshape(node_nacs.shape[0], int(self.n_energies*(self.n_energies-1)/2), 3))
-            node_dipoles_list.append(node_dipoles)
             energy = scatter_sum(
                 src=node_energies, index=data["batch"], dim=-1, dim_size=num_graphs
             )  # [n_graphs,]
@@ -994,11 +949,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
                 src=node_invariant_output, index=data["batch"], dim=-1, dim_size=num_graphs
             )  # [n_graphs,]
 
-            dipoles = scatter_sum(
-                src=torch.transpose(node_dipoles, 0, 1), index=data["batch"], dim=-1, dim_size=num_graphs
-            )  # [n_graphs,]
-
-            dipoles_contributions.append(torch.transpose(dipoles, 0, 1))
             energies.append(torch.transpose(energy, 0, 1))
             node_energies_list.append(torch.transpose(node_energies, 0, 1))
             invariant_contributions.append(invariant_energy)
@@ -1010,14 +960,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         invariant_vals = torch.sum(invariant_contributions, dim=1)  # [n_graphs, ]
         invariant_vals = torch.transpose(invariant_vals, 0, 1)
         decoded_vals = self.perm_decoder(invariant_vals) + e0.unsqueeze(-1).expand(-1, self.n_energies) + pair_energy.unsqueeze(-1).expand(-1, self.n_energies)
-
-        dipole_contributions = torch.stack(dipoles_contributions, dim=1)
-        total_dipoles = torch.sum(dipole_contributions, dim=1)  # [n_graphs, ]
-        total_dipoles = total_dipoles.reshape(total_dipoles.shape[0], int(total_dipoles.shape[1]/3), 3)
-
-        nacs_contributions = torch.stack(node_nacs_list, dim=1)
-        total_nacs = torch.sum(nacs_contributions, dim=1)  # [n_graphs, ]
-
         # Outputs
         forces, virials, stress, hessian = get_outputs(
             energy=decoded_vals,
@@ -1034,9 +976,9 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         return {
             "energy": decoded_vals,
             "invariant_vals": invariant_vals,
-            "decoded_invariants": decoded_vals,
-            "nacs": total_nacs,
-            "dipoles": total_dipoles,
+            "socs": torch.tensor([]),
+            "nacs": torch.tensor([]),
+            "dipoles": torch.tensor([]),
             "forces": forces,
             "virials": virials,
             "stress": stress,

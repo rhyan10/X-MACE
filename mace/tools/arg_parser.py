@@ -259,9 +259,13 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--compute_nacs",
-        help="Select True to compute nacs",
-        type=bool,
-        default=True,
+        action="store_true",
+        help="Compute NACs if this flag is set",
+    )
+    parser.add_argument(
+        "--compute_socs",
+        action="store_true",
+        help="Compute SOCs if this flag is set",
     )
     # Dataset
     parser.add_argument(
@@ -417,7 +421,15 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--nacs_weight", help="weight of nacs loss", type=float, default=100.0
     )
-    
+    parser.add_argument(
+        "--socs_weight", help="weight of socs loss", type=float, default=100.0
+    )    
+    parser.add_argument(
+        "--soc_num", help="Number of socs", type=int
+    )   
+    parser.add_argument(
+        "--nac_num", help="Number of nacs", type=int
+    )   
     parser.add_argument(
         "--swa_forces_weight",
         "--stage_two_forces_weight",

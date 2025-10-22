@@ -146,7 +146,6 @@ class NonLinearReadoutBlock(torch.nn.Module):
 
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
-        print(x.shape)
         x = self.non_linearity(self.linear_1(x))
         return self.linear_2(x)  # [n_nodes, 1]
 
@@ -154,7 +153,7 @@ class NonLinearReadoutBlock(torch.nn.Module):
 class LinearSocReadoutBlock(torch.nn.Module):
     def __init__(self, irreps_in: o3.Irreps, socs_indices: int):
         super().__init__()
-        self.irreps_out = o3.Irreps(str(socs_indices) + "x1o")
+        self.irreps_out = o3.Irreps(str(socs_indices) + "x0e")
         self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=self.irreps_out)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
@@ -168,7 +167,7 @@ class NonLinearSocReadoutBlock(torch.nn.Module):
         super().__init__()
         self.irreps_in = irreps_in
         self.hidden_irreps = MLP_irreps
-        self.irreps_out = o3.Irreps(str(socs_indices) + "x1o")
+        self.irreps_out = o3.Irreps(str(socs_indices) + "x0e")
 
         irreps_scalars = o3.Irreps(
             [(mul, ir) for mul, ir in MLP_irreps if ir.l == 0 and ir in self.irreps_out]
@@ -246,8 +245,6 @@ class NonLinearDipoleReadoutBlock(torch.nn.Module):
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [n_nodes, irreps]  # [..., ]
-        print(x.shape)
-        print(self.linear_1)
         x = self.equivariant_nonlin(self.linear_1(x))
         return self.linear_2(x)  # [n_nodes, 1]
 

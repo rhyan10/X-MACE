@@ -1,4 +1,5 @@
 LICENSE.md
+README.md
 pyproject.toml
 setup.cfg
 mace/__init__.py
@@ -8,6 +9,7 @@ mace/calculators/__init__.py
 mace/calculators/foundations_models.py
 mace/calculators/lammps_mace.py
 mace/calculators/mace.py
+mace/calculators/sharc_calculator.py
 mace/cli/__init__.py
 mace/cli/active_learning_md.py
 mace/cli/create_lammps_model.py
