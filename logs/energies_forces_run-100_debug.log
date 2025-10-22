@@ -6700,3 +6700,1430 @@
 2025-10-22 10:55:47.972 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
 2025-10-22 10:55:48.018 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
 2025-10-22 10:55:48.064 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:16:26.441 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:16:26.441 INFO: MACE version: 0.3.6
+2025-10-22 12:16:26.441 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=8, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:16:26.470 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:16:26.488 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:16:26.489 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:16:26.490 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:16:26.491 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:16:26.492 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:16:26.492 INFO: 
+2025-10-22 12:16:26.492 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:16:31.277 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:16:31.279 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:16:31.279 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:16:31.279 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:16:31.287 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:16:31.491 INFO: 
+2025-10-22 12:16:31.491 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:16:31.707 INFO: Average number of neighbors: 15.7
+2025-10-22 12:16:31.707 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:16:31.760 INFO: Building model
+2025-10-22 12:16:31.760 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:16:31.760 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:16:31.760 INFO: 8 radial and 5 basis functions
+2025-10-22 12:16:31.760 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:16:31.760 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:18:06.818 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:18:06.819 INFO: MACE version: 0.3.6
+2025-10-22 12:18:06.819 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=8, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:18:06.847 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:18:06.864 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:18:06.866 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:18:06.867 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:18:06.867 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:18:06.869 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:18:06.869 INFO: 
+2025-10-22 12:18:06.869 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:18:11.661 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:18:11.663 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:18:11.663 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:18:11.663 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:18:11.671 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:18:11.877 INFO: 
+2025-10-22 12:18:11.877 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:18:12.092 INFO: Average number of neighbors: 15.7
+2025-10-22 12:18:12.092 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:18:12.145 INFO: Building model
+2025-10-22 12:18:12.145 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:18:12.145 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:18:12.145 INFO: 8 radial and 5 basis functions
+2025-10-22 12:18:12.145 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:18:12.145 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:18:58.476 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:18:58.476 INFO: MACE version: 0.3.6
+2025-10-22 12:18:58.477 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=8, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:18:58.504 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:18:58.522 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:18:58.523 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:18:58.525 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:18:58.525 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:18:58.526 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:18:58.526 INFO: 
+2025-10-22 12:18:58.526 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:19:03.314 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:19:03.315 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:19:03.315 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:19:03.316 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:19:03.323 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:19:03.527 INFO: 
+2025-10-22 12:19:03.527 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:19:03.736 INFO: Average number of neighbors: 15.7
+2025-10-22 12:19:03.736 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:19:03.790 INFO: Building model
+2025-10-22 12:19:03.790 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:19:03.790 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:19:03.790 INFO: 8 radial and 5 basis functions
+2025-10-22 12:19:03.790 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:19:03.790 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:19:48.915 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:19:48.915 INFO: MACE version: 0.3.6
+2025-10-22 12:19:48.915 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=8, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:19:48.943 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:19:48.961 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:19:48.962 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:19:48.963 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:19:48.964 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:19:48.965 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:19:48.965 INFO: 
+2025-10-22 12:19:48.965 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:19:53.755 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:19:53.757 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:19:53.757 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:19:53.757 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:19:53.765 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:19:53.972 INFO: 
+2025-10-22 12:19:53.972 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:19:54.178 INFO: Average number of neighbors: 15.7
+2025-10-22 12:19:54.178 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:19:54.232 INFO: Building model
+2025-10-22 12:19:54.232 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:19:54.232 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:19:54.232 INFO: 8 radial and 5 basis functions
+2025-10-22 12:19:54.232 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:19:54.232 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:19:54.983 DEBUG: AutoencoderExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 128x0e | 512 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (perm_encoder): PermutationInvariantEncoder(
+    (elementwise_nn): Sequential(
+      (0): Linear(in_features=1, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+      (7): ELU(alpha=1.0)
+    )
+    (post_aggregation_nn): Sequential(
+      (0): Linear(in_features=16, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+    )
+  )
+  (perm_decoder): PermutationInvariantDecoder(
+    (decoder_nn): Sequential(
+      (0): Linear(in_features=16, out_features=128, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ELU(alpha=1.0)
+      (8): Linear(in_features=128, out_features=15, bias=True)
+    )
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(128x0e -> 128x0e | 16384 weights)
+      (conv_tp): TensorProduct(128x0e x 1x0e+1x1o+1x2e+1x3o -> 128x0e+128x1o+128x2e+128x3o | 512 paths | 512 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 512]
+      (linear): Linear(128x0e+128x1o+128x2e+128x3o -> 128x0e+128x1o+128x2e+128x3o | 65536 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o+128x2e+128x3o x 4x0e -> 128x0e+128x1o+128x2e+128x3o | 262144 paths | 262144 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+      (conv_tp): TensorProduct(128x0e+128x1o x 1x0e+1x1o+1x2e+1x3o -> 256x0e+384x1o+384x2e+256x3o | 1280 paths | 1280 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 1280]
+      (linear): Linear(256x0e+384x1o+384x2e+256x3o -> 128x0e+128x1o+128x2e+128x3o | 163840 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o x 4x0e -> 128x0e | 65536 paths | 65536 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e -> 128x0e | 16384 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 8x0e | 1024 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 8x0e | 1024 weights)
+    )
+  )
+  (invariant_readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 16x0e | 2048 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 16x0e | 2048 weights)
+    )
+  )
+)
+2025-10-22 12:19:54.984 INFO: Total number of parameters: 940831
+2025-10-22 12:19:54.984 INFO: 
+2025-10-22 12:19:54.984 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:19:54.984 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:19:54.985 INFO: Batch size: 100
+2025-10-22 12:19:54.985 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:19:54.985 INFO: Number of gradient updates: 855
+2025-10-22 12:19:54.985 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:19:54.985 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=100.000, dipole_weight=1.000)
+2025-10-22 12:19:54.986 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:19:54.986 INFO: 
+2025-10-22 12:19:54.986 INFO: ===========TRAINING===========
+2025-10-22 12:19:54.986 INFO: Started training, reporting errors on validation set
+2025-10-22 12:19:54.986 INFO: Loss metrics on validation set
+2025-10-22 12:20:11.973 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:20:11.973 INFO: MACE version: 0.3.6
+2025-10-22 12:20:11.973 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:20:12.001 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:20:12.019 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:20:12.020 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:20:12.021 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:20:12.022 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:20:12.023 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:20:12.023 INFO: 
+2025-10-22 12:20:12.023 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:20:16.824 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:20:16.826 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:20:16.826 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:20:16.826 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:20:16.834 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:20:17.039 INFO: 
+2025-10-22 12:20:17.039 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:20:17.232 INFO: Average number of neighbors: 15.7
+2025-10-22 12:20:17.232 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:20:17.285 INFO: Building model
+2025-10-22 12:20:17.285 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:20:17.286 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:20:17.286 INFO: 8 radial and 5 basis functions
+2025-10-22 12:20:17.286 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:20:17.286 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:20:18.048 DEBUG: AutoencoderExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 128x0e | 512 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (perm_encoder): PermutationInvariantEncoder(
+    (elementwise_nn): Sequential(
+      (0): Linear(in_features=1, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+      (7): ELU(alpha=1.0)
+    )
+    (post_aggregation_nn): Sequential(
+      (0): Linear(in_features=16, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+    )
+  )
+  (perm_decoder): PermutationInvariantDecoder(
+    (decoder_nn): Sequential(
+      (0): Linear(in_features=16, out_features=128, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ELU(alpha=1.0)
+      (8): Linear(in_features=128, out_features=7, bias=True)
+    )
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(128x0e -> 128x0e | 16384 weights)
+      (conv_tp): TensorProduct(128x0e x 1x0e+1x1o+1x2e+1x3o -> 128x0e+128x1o+128x2e+128x3o | 512 paths | 512 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 512]
+      (linear): Linear(128x0e+128x1o+128x2e+128x3o -> 128x0e+128x1o+128x2e+128x3o | 65536 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o+128x2e+128x3o x 4x0e -> 128x0e+128x1o+128x2e+128x3o | 262144 paths | 262144 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+      (conv_tp): TensorProduct(128x0e+128x1o x 1x0e+1x1o+1x2e+1x3o -> 256x0e+384x1o+384x2e+256x3o | 1280 paths | 1280 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 1280]
+      (linear): Linear(256x0e+384x1o+384x2e+256x3o -> 128x0e+128x1o+128x2e+128x3o | 163840 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o x 4x0e -> 128x0e | 65536 paths | 65536 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e -> 128x0e | 16384 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 4x0e | 512 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 4x0e | 512 weights)
+    )
+  )
+  (invariant_readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 16x0e | 2048 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 16x0e | 2048 weights)
+    )
+  )
+)
+2025-10-22 12:20:18.049 INFO: Total number of parameters: 938775
+2025-10-22 12:20:18.049 INFO: 
+2025-10-22 12:20:18.049 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:20:18.049 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:20:18.049 INFO: Batch size: 100
+2025-10-22 12:20:18.049 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:20:18.049 INFO: Number of gradient updates: 855
+2025-10-22 12:20:18.049 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:20:18.049 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=100.000, dipole_weight=1.000)
+2025-10-22 12:20:18.050 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:20:18.051 INFO: 
+2025-10-22 12:20:18.051 INFO: ===========TRAINING===========
+2025-10-22 12:20:18.051 INFO: Started training, reporting errors on validation set
+2025-10-22 12:20:18.051 INFO: Loss metrics on validation set
+2025-10-22 12:20:21.278 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:20:44.107 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:20:44.107 INFO: MACE version: 0.3.6
+2025-10-22 12:20:44.107 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:20:44.135 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:20:44.152 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:20:44.154 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:20:44.155 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:20:44.155 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:20:44.156 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:20:44.157 INFO: 
+2025-10-22 12:20:44.157 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:21:03.633 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:21:03.634 INFO: MACE version: 0.3.6
+2025-10-22 12:21:03.634 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='AutoencoderExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=100.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:21:03.661 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:21:03.678 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:21:03.680 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:21:03.681 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:21:03.682 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:21:03.683 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:21:03.683 INFO: 
+2025-10-22 12:21:03.683 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:21:08.481 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:21:08.483 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:21:08.483 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:21:08.483 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:21:08.491 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:21:08.698 INFO: 
+2025-10-22 12:21:08.698 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:21:08.924 INFO: Average number of neighbors: 15.7
+2025-10-22 12:21:08.924 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:21:09.018 INFO: Building model
+2025-10-22 12:21:09.018 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:21:09.018 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:21:09.018 INFO: 8 radial and 5 basis functions
+2025-10-22 12:21:09.018 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:21:09.018 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:21:09.781 DEBUG: AutoencoderExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 128x0e | 512 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (perm_encoder): PermutationInvariantEncoder(
+    (elementwise_nn): Sequential(
+      (0): Linear(in_features=1, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+      (7): ELU(alpha=1.0)
+    )
+    (post_aggregation_nn): Sequential(
+      (0): Linear(in_features=16, out_features=16, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=16, out_features=16, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=16, out_features=16, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=16, out_features=16, bias=True)
+    )
+  )
+  (perm_decoder): PermutationInvariantDecoder(
+    (decoder_nn): Sequential(
+      (0): Linear(in_features=16, out_features=128, bias=True)
+      (1): ELU(alpha=1.0)
+      (2): Linear(in_features=128, out_features=128, bias=True)
+      (3): ELU(alpha=1.0)
+      (4): Linear(in_features=128, out_features=128, bias=True)
+      (5): ELU(alpha=1.0)
+      (6): Linear(in_features=128, out_features=128, bias=True)
+      (7): ELU(alpha=1.0)
+      (8): Linear(in_features=128, out_features=7, bias=True)
+    )
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(128x0e -> 128x0e | 16384 weights)
+      (conv_tp): TensorProduct(128x0e x 1x0e+1x1o+1x2e+1x3o -> 128x0e+128x1o+128x2e+128x3o | 512 paths | 512 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 512]
+      (linear): Linear(128x0e+128x1o+128x2e+128x3o -> 128x0e+128x1o+128x2e+128x3o | 65536 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o+128x2e+128x3o x 4x0e -> 128x0e+128x1o+128x2e+128x3o | 262144 paths | 262144 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+      (conv_tp): TensorProduct(128x0e+128x1o x 1x0e+1x1o+1x2e+1x3o -> 256x0e+384x1o+384x2e+256x3o | 1280 paths | 1280 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 1280]
+      (linear): Linear(256x0e+384x1o+384x2e+256x3o -> 128x0e+128x1o+128x2e+128x3o | 163840 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o x 4x0e -> 128x0e | 65536 paths | 65536 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e -> 128x0e | 16384 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 4x0e | 512 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 4x0e | 512 weights)
+    )
+  )
+  (invariant_readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 16x0e | 2048 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 16x0e | 2048 weights)
+    )
+  )
+)
+2025-10-22 12:21:09.783 INFO: Total number of parameters: 938775
+2025-10-22 12:21:09.783 INFO: 
+2025-10-22 12:21:09.783 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:21:09.783 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:21:09.783 INFO: Batch size: 10
+2025-10-22 12:21:09.783 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:21:09.783 INFO: Number of gradient updates: 8550
+2025-10-22 12:21:09.783 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:21:09.783 INFO: InvariantsWeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=100.000, dipole_weight=1.000)
+2025-10-22 12:21:09.785 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:21:09.785 INFO: 
+2025-10-22 12:21:09.785 INFO: ===========TRAINING===========
+2025-10-22 12:21:09.785 INFO: Started training, reporting errors on validation set
+2025-10-22 12:21:09.785 INFO: Loss metrics on validation set
+2025-10-22 12:21:12.945 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:13.668 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:14.493 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:15.367 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:15.717 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:16.069 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:16.424 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:16.778 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:17.132 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:17.485 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:17.842 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:18.197 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:18.550 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:18.905 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:19.259 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:19.614 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:19.966 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:20.321 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:20.676 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:21.029 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:21.383 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:21.737 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:22.092 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:22.447 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:22.802 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:23.156 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:23.512 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:23.868 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:24.223 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:24.578 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:24.933 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:25.289 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:25.645 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:26.000 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:26.355 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:26.710 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:27.064 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:27.420 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:27.775 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:28.132 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:28.487 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:28.841 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:21:29.198 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:00.361 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:22:00.362 INFO: MACE version: 0.3.6
+2025-10-22 12:22:00.362 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=8, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=1.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=100, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:22:00.389 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:22:00.407 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:22:00.408 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:22:00.410 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:22:00.410 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:22:00.411 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:22:00.411 INFO: 
+2025-10-22 12:22:00.411 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:22:05.196 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:22:05.198 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:22:05.198 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:22:05.198 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:22:05.207 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:22:05.410 INFO: 
+2025-10-22 12:22:05.410 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:22:05.599 INFO: Average number of neighbors: 15.7
+2025-10-22 12:22:05.599 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:22:05.651 INFO: Building model
+2025-10-22 12:22:05.652 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:22:05.652 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:22:05.652 INFO: 8 radial and 5 basis functions
+2025-10-22 12:22:05.652 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:22:05.652 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:22:06.336 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 8x0e | 256 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 8x0e | 256 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+)
+2025-10-22 12:22:06.337 INFO: Total number of parameters: 103296
+2025-10-22 12:22:06.337 INFO: 
+2025-10-22 12:22:06.337 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:22:06.337 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:22:06.337 INFO: Batch size: 100
+2025-10-22 12:22:06.337 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:22:06.337 INFO: Number of gradient updates: 855
+2025-10-22 12:22:06.337 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:22:06.337 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 12:22:06.338 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:22:06.338 INFO: 
+2025-10-22 12:22:06.338 INFO: ===========TRAINING===========
+2025-10-22 12:22:06.338 INFO: Started training, reporting errors on validation set
+2025-10-22 12:22:06.338 INFO: Loss metrics on validation set
+2025-10-22 12:22:27.289 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:22:27.290 INFO: MACE version: 0.3.6
+2025-10-22 12:22:27.290 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=1.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:22:27.317 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:22:27.335 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:22:27.336 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:22:27.337 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:22:27.338 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:22:27.339 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:22:27.339 INFO: 
+2025-10-22 12:22:27.339 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:22:32.138 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:22:32.140 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:22:32.140 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:22:32.140 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:22:32.147 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:22:32.351 INFO: 
+2025-10-22 12:22:32.351 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:22:32.577 INFO: Average number of neighbors: 15.7
+2025-10-22 12:22:32.577 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:22:32.669 INFO: Building model
+2025-10-22 12:22:32.669 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:22:32.669 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:22:32.669 INFO: 8 radial and 5 basis functions
+2025-10-22 12:22:32.669 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:22:32.669 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:22:33.352 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 4x0e | 128 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 4x0e | 128 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+)
+2025-10-22 12:22:33.353 INFO: Total number of parameters: 103040
+2025-10-22 12:22:33.354 INFO: 
+2025-10-22 12:22:33.354 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:22:33.354 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:22:33.354 INFO: Batch size: 10
+2025-10-22 12:22:33.354 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:22:33.354 INFO: Number of gradient updates: 8550
+2025-10-22 12:22:33.354 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:22:33.354 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 12:22:33.354 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:22:33.355 INFO: 
+2025-10-22 12:22:33.355 INFO: ===========TRAINING===========
+2025-10-22 12:22:33.355 INFO: Started training, reporting errors on validation set
+2025-10-22 12:22:33.355 INFO: Loss metrics on validation set
+2025-10-22 12:22:35.580 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:36.002 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:36.567 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.185 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.236 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.286 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.335 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.384 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.431 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.477 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.522 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.569 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.615 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.660 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.705 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.751 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.796 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.842 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.888 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.933 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:37.980 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.026 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.071 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.116 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.162 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.207 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.253 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.298 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.344 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.390 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.436 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.481 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.527 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.572 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.617 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.663 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.708 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.754 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.799 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.845 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.891 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.936 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:38.982 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.028 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.073 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.119 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.164 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.209 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.255 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.300 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.346 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.392 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.437 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.483 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.528 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.574 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.619 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.665 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.710 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.756 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.801 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.847 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.893 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.938 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:39.984 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.030 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.075 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.121 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.166 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.212 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.257 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.303 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.348 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.394 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.440 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.485 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.531 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.577 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.623 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.669 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.714 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.760 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.805 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.851 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.896 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:40.942 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.150 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.151 DEBUG: Saving checkpoint: ./checkpoints/energies_forces_run-100_epoch-0.pt
+2025-10-22 12:22:41.229 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.273 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.319 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.365 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.410 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.455 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.501 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.547 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.592 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.638 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.683 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.729 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.775 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.820 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.866 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.911 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:41.956 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:22:42.002 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:23:38.143 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:23:38.143 INFO: MACE version: 0.3.6
+2025-10-22 12:23:38.144 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=1.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model='medium_off', foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:23:38.171 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:23:38.188 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:23:38.190 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:23:38.191 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:23:38.191 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:23:38.193 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:23:38.193 INFO: Using foundation model mace-off-2023 medium as initial checkpoint. ASL license.
+2025-10-22 12:23:38.370 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:23:38.378 INFO: 
+2025-10-22 12:23:38.378 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:23:43.166 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:23:43.168 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:23:43.168 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:23:43.168 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:23:43.175 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:23:43.379 INFO: 
+2025-10-22 12:23:43.379 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:23:43.480 INFO: Average number of neighbors: 15.7
+2025-10-22 12:23:43.480 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:23:43.574 INFO: Building model
+2025-10-22 12:23:43.574 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:23:43.574 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:23:43.574 INFO: 8 radial and 5 basis functions
+2025-10-22 12:23:43.574 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:23:43.574 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:23:44.292 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 128x0e | 512 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=True)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(128x0e -> 128x0e | 16384 weights)
+      (conv_tp): TensorProduct(128x0e x 1x0e+1x1o+1x2e+1x3o -> 128x0e+128x1o+128x2e+128x3o | 512 paths | 512 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 512]
+      (linear): Linear(128x0e+128x1o+128x2e+128x3o -> 128x0e+128x1o+128x2e+128x3o | 65536 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o+128x2e+128x3o x 4x0e -> 128x0e+128x1o+128x2e+128x3o | 262144 paths | 262144 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+      (conv_tp): TensorProduct(128x0e+128x1o x 1x0e+1x1o+1x2e+1x3o -> 256x0e+384x1o+384x2e+256x3o | 1280 paths | 1280 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 1280]
+      (linear): Linear(256x0e+384x1o+384x2e+256x3o -> 128x0e+128x1o+128x2e+128x3o | 163840 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o x 4x0e -> 128x0e | 65536 paths | 65536 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e -> 128x0e | 16384 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 4x0e | 512 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 4x0e | 512 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+  (scale_shift): ScaleShiftBlock(scale=1.088502, shift=0.000000)
+)
+2025-10-22 12:23:44.294 INFO: Total number of parameters: 863752
+2025-10-22 12:23:44.294 INFO: 
+2025-10-22 12:23:44.294 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:23:44.294 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:23:44.294 INFO: Batch size: 10
+2025-10-22 12:23:44.294 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:23:44.294 INFO: Number of gradient updates: 8550
+2025-10-22 12:23:44.294 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:23:44.294 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 12:23:44.295 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:23:44.295 INFO: 
+2025-10-22 12:23:44.295 INFO: ===========TRAINING===========
+2025-10-22 12:23:44.295 INFO: Started training, reporting errors on validation set
+2025-10-22 12:23:44.295 INFO: Loss metrics on validation set
+2025-10-22 12:23:46.685 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:23:47.168 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:23:47.768 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:16.591 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:24:16.591 INFO: MACE version: 0.3.6
+2025-10-22 12:24:16.591 DEBUG: Configuration: Namespace(config=None, name='energies_forces', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='128x0e', radial_MLP='[64, 64, 64]', hidden_irreps='128x0e + 128x1o', num_channels=128, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=1.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=1, patience=2048, foundation_model='medium_off', foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:24:16.620 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:24:16.638 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:24:16.639 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:24:16.640 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:24:16.641 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:24:16.642 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:24:16.642 INFO: Using foundation model mace-off-2023 medium as initial checkpoint. ASL license.
+2025-10-22 12:24:16.841 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:24:16.848 INFO: 
+2025-10-22 12:24:16.849 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:24:21.634 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:24:21.636 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:24:21.636 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:24:21.636 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:24:21.644 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:24:21.849 INFO: 
+2025-10-22 12:24:21.849 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:24:21.950 INFO: Average number of neighbors: 15.7
+2025-10-22 12:24:21.950 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:24:22.045 INFO: Building model
+2025-10-22 12:24:22.045 INFO: Message passing with 128 channels and max_L=1 (128x0e + 128x1o)
+2025-10-22 12:24:22.045 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:24:22.045 INFO: 8 radial and 5 basis functions
+2025-10-22 12:24:22.045 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:24:22.045 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:24:22.763 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 128x0e | 512 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=True)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(128x0e -> 128x0e | 16384 weights)
+      (conv_tp): TensorProduct(128x0e x 1x0e+1x1o+1x2e+1x3o -> 128x0e+128x1o+128x2e+128x3o | 512 paths | 512 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 512]
+      (linear): Linear(128x0e+128x1o+128x2e+128x3o -> 128x0e+128x1o+128x2e+128x3o | 65536 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o+128x2e+128x3o x 4x0e -> 128x0e+128x1o+128x2e+128x3o | 262144 paths | 262144 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+      (conv_tp): TensorProduct(128x0e+128x1o x 1x0e+1x1o+1x2e+1x3o -> 256x0e+384x1o+384x2e+256x3o | 1280 paths | 1280 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 1280]
+      (linear): Linear(256x0e+384x1o+384x2e+256x3o -> 128x0e+128x1o+128x2e+128x3o | 163840 weights)
+      (skip_tp): FullyConnectedTensorProduct(128x0e+128x1o x 4x0e -> 128x0e | 65536 paths | 65536 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e+128x1o -> 128x0e+128x1o | 32768 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x128 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x128 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(128x0e -> 128x0e | 16384 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(128x0e+128x1o -> 4x0e | 512 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(128x0e -> 128x0e | 16384 weights)
+      (non_linearity): Activation [x] (128x0e -> 128x0e)
+      (linear_2): Linear(128x0e -> 4x0e | 512 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+  (scale_shift): ScaleShiftBlock(scale=1.088502, shift=0.000000)
+)
+2025-10-22 12:24:22.764 INFO: Total number of parameters: 863752
+2025-10-22 12:24:22.764 INFO: 
+2025-10-22 12:24:22.764 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:24:22.764 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:24:22.764 INFO: Batch size: 10
+2025-10-22 12:24:22.764 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:24:22.764 INFO: Number of gradient updates: 85
+2025-10-22 12:24:22.764 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:24:22.764 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=1.000, dipole_weight=1.000)
+2025-10-22 12:24:22.765 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:24:22.765 INFO: 
+2025-10-22 12:24:22.765 INFO: ===========TRAINING===========
+2025-10-22 12:24:22.765 INFO: Started training, reporting errors on validation set
+2025-10-22 12:24:22.765 INFO: Loss metrics on validation set
+2025-10-22 12:24:25.167 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:25.650 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:26.251 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:26.903 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.024 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.146 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.269 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.392 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.515 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.637 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.760 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:27.883 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.006 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.129 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.252 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.375 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.498 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.621 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.744 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.867 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:28.989 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.113 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.236 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.359 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.482 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.605 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.728 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.851 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:29.975 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.098 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.220 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.343 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.466 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.590 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.713 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.836 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:30.959 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.082 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.205 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.329 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.452 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.576 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.699 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.822 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:31.945 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.068 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.192 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.316 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.439 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.562 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.685 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.808 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:32.932 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.055 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.178 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.301 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.424 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.548 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.671 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.794 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:33.918 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.041 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.164 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.287 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.411 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.534 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.657 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.780 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:34.904 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.027 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.151 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.274 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.398 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.521 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.644 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.767 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:35.891 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.014 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.138 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.261 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.384 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.508 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.632 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.756 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:36.879 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:37.003 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:37.426 DEBUG: Saving info: ./results/energies_forces_run-100_train.txt
+2025-10-22 12:24:37.427 DEBUG: Saving checkpoint: ./checkpoints/energies_forces_run-100_epoch-0.pt
+2025-10-22 12:24:37.477 INFO: Training complete
+2025-10-22 12:24:37.478 INFO: 
+2025-10-22 12:24:37.478 INFO: ===========RESULTS===========
+2025-10-22 12:24:37.478 INFO: Computing metrics for training, validation, and test sets
+2025-10-22 12:24:37.478 INFO: Loading checkpoint: ./checkpoints/energies_forces_run-100_epoch-0.pt
+2025-10-22 12:24:37.494 INFO: Loaded Stage one model from epoch 0 for evaluation
+2025-10-22 12:24:37.494 INFO: Saving model to checkpoints/energies_forces_run-100.model
+2025-10-22 12:24:37.544 INFO: Compiling model, saving metadata to energies_forces_compiled.model
+2025-10-22 12:24:37.862 INFO: Done

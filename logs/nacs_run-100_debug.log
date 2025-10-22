@@ -2955,3 +2955,961 @@
 2025-10-22 11:49:32.886 DEBUG: Saving info: ./results/nacs_run-100_train.txt
 2025-10-22 11:49:33.226 DEBUG: Saving info: ./results/nacs_run-100_train.txt
 2025-10-22 11:49:33.566 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:27.308 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:25:27.308 INFO: MACE version: 0.3.6
+2025-10-22 12:25:27.308 DEBUG: Configuration: Namespace(config=None, name='nacs', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=True, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=0.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=6, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=1, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:25:27.335 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:25:27.353 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:25:27.354 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:25:27.356 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:25:27.356 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:25:27.357 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:25:27.357 INFO: 
+2025-10-22 12:25:27.357 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:25:32.146 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:25:32.148 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:25:32.148 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:25:32.148 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:25:32.155 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:25:32.360 INFO: 
+2025-10-22 12:25:32.360 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:25:32.578 INFO: Average number of neighbors: 15.7
+2025-10-22 12:25:32.578 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:25:32.671 INFO: Building model
+2025-10-22 12:25:32.671 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:25:32.671 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:25:32.671 INFO: 8 radial and 5 basis functions
+2025-10-22 12:25:32.671 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:25:32.671 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:25:33.360 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 4x0e+6x1o | 320 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 4x0e+6x1o | 128 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+)
+2025-10-22 12:25:33.361 INFO: Total number of parameters: 103232
+2025-10-22 12:25:33.361 INFO: 
+2025-10-22 12:25:33.361 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:25:33.361 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:25:33.361 INFO: Batch size: 10
+2025-10-22 12:25:33.361 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:25:33.361 INFO: Number of gradient updates: 85
+2025-10-22 12:25:33.361 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:25:33.361 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=0.000, dipole_weight=1.000)
+2025-10-22 12:25:33.362 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:25:33.362 INFO: 
+2025-10-22 12:25:33.362 INFO: ===========TRAINING===========
+2025-10-22 12:25:33.362 INFO: Started training, reporting errors on validation set
+2025-10-22 12:25:33.362 INFO: Loss metrics on validation set
+2025-10-22 12:25:35.621 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:36.045 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:36.611 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.230 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.282 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.334 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.385 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.436 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.487 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.537 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.584 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.631 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.677 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.724 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.770 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.816 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.863 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.909 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:37.956 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.002 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.049 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.095 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.142 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.188 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.235 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.281 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.328 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.374 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.420 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.467 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.513 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.560 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.607 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.653 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.699 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.746 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.792 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.839 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.885 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.931 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:38.978 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.025 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.072 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.118 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.165 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.211 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.258 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.304 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.351 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.398 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.444 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.490 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.537 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.583 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.630 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.676 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.722 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.769 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.815 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.861 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.907 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:39.955 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.001 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.048 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.095 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.141 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.188 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.235 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.281 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.327 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.373 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.420 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.466 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.513 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.559 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.606 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.653 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.699 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.746 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.792 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.838 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.885 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.932 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:40.978 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:41.024 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:41.071 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:41.290 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:25:41.291 DEBUG: Saving checkpoint: ./checkpoints/nacs_run-100_epoch-0.pt
+2025-10-22 12:25:41.299 INFO: Training complete
+2025-10-22 12:25:41.299 INFO: 
+2025-10-22 12:25:41.299 INFO: ===========RESULTS===========
+2025-10-22 12:25:41.299 INFO: Computing metrics for training, validation, and test sets
+2025-10-22 12:25:41.299 INFO: Loading checkpoint: ./checkpoints/nacs_run-100_epoch-0.pt
+2025-10-22 12:25:41.312 INFO: Loaded Stage one model from epoch 0 for evaluation
+2025-10-22 12:25:41.312 INFO: Saving model to checkpoints/nacs_run-100.model
+2025-10-22 12:25:41.359 INFO: Compiling model, saving metadata to nacs_compiled.model
+2025-10-22 12:25:41.677 INFO: Done
+2025-10-22 12:25:52.449 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:25:52.449 INFO: MACE version: 0.3.6
+2025-10-22 12:25:52.450 DEBUG: Configuration: Namespace(config=None, name='nacs', seed=100, work_dir='.', nacs_key='REF_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=True, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=0.0, nacs_weight=100.0, socs_weight=0.0, soc_num=None, nac_num=6, swa_forces_weight=100.0, energy_weight=0.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:25:52.477 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:25:52.495 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:25:52.496 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:25:52.497 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:25:52.498 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:25:52.499 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:25:52.499 INFO: 
+2025-10-22 12:25:52.499 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:25:57.295 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:25:57.297 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:25:57.297 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:25:57.297 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:25:57.305 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:25:57.508 INFO: 
+2025-10-22 12:25:57.508 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:25:57.725 INFO: Average number of neighbors: 15.7
+2025-10-22 12:25:57.725 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:25:57.818 INFO: Building model
+2025-10-22 12:25:57.818 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:25:57.818 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:25:57.818 INFO: 8 radial and 5 basis functions
+2025-10-22 12:25:57.818 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:25:57.818 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:25:58.511 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 4x0e+6x1o | 320 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 4x0e+6x1o | 128 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+)
+2025-10-22 12:25:58.512 INFO: Total number of parameters: 103232
+2025-10-22 12:25:58.512 INFO: 
+2025-10-22 12:25:58.512 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:25:58.512 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:25:58.513 INFO: Batch size: 10
+2025-10-22 12:25:58.513 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:25:58.513 INFO: Number of gradient updates: 8550
+2025-10-22 12:25:58.513 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:25:58.513 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=0.000, forces_weight=0.000, dipole_weight=1.000)
+2025-10-22 12:25:58.513 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:25:58.513 INFO: 
+2025-10-22 12:25:58.513 INFO: ===========TRAINING===========
+2025-10-22 12:25:58.513 INFO: Started training, reporting errors on validation set
+2025-10-22 12:25:58.513 INFO: Loss metrics on validation set
+2025-10-22 12:26:00.755 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:01.180 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:01.747 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.368 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.422 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.474 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.526 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.573 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.620 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.666 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.711 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.757 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.803 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.848 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.894 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.940 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:02.986 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.033 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.079 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.125 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.170 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.217 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.263 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.309 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.355 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.401 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.446 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.492 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.538 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.584 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.630 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.675 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.721 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.767 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.812 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.858 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.906 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.951 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:03.997 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.044 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.090 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.136 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.182 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.228 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.273 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.319 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.365 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.411 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.457 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.502 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.548 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.594 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.640 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.686 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.732 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.778 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.823 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.869 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.915 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:04.960 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.006 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.053 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.099 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.145 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.191 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.237 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.283 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.329 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.375 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.421 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.466 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.512 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.559 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.604 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.650 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.696 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.742 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.788 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.834 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.879 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.925 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:05.971 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.017 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.063 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.109 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.155 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.368 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.369 DEBUG: Saving checkpoint: ./checkpoints/nacs_run-100_epoch-0.pt
+2025-10-22 12:26:06.433 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.478 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.525 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.570 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.616 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.662 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.708 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.754 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.799 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.845 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.891 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.937 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:06.983 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.030 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.076 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.122 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.168 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.213 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.259 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.305 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.350 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.396 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.442 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.488 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.535 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.582 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.627 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.673 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.719 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.765 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.811 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.857 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.902 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.949 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:07.994 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.041 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.088 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.133 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.179 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.225 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.271 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.317 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.363 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.409 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.455 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.501 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.547 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.593 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.639 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.685 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.731 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.777 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.823 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:08.869 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:13.189 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:26:13.189 INFO: MACE version: 0.3.6
+2025-10-22 12:26:13.189 DEBUG: Configuration: Namespace(config=None, name='nacs', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=True, compute_socs=False, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=0.0, nacs_weight=100.0, socs_weight=100.0, soc_num=None, nac_num=6, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:26:13.218 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:26:13.235 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:26:13.237 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:26:13.238 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:26:13.238 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:26:13.240 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:26:13.240 INFO: 
+2025-10-22 12:26:13.240 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:26:18.112 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:26:18.114 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:26:18.114 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:26:18.114 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:26:18.122 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:26:18.329 INFO: 
+2025-10-22 12:26:18.329 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:26:18.568 INFO: Average number of neighbors: 15.7
+2025-10-22 12:26:18.568 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:26:18.659 INFO: Building model
+2025-10-22 12:26:18.660 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:26:18.660 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:26:18.660 INFO: 8 radial and 5 basis functions
+2025-10-22 12:26:18.660 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:26:18.660 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:26:19.347 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 4x0e+6x1o | 320 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 4x0e+6x1o | 128 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): None
+  )
+)
+2025-10-22 12:26:19.349 INFO: Total number of parameters: 103232
+2025-10-22 12:26:19.349 INFO: 
+2025-10-22 12:26:19.349 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:26:19.349 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:26:19.349 INFO: Batch size: 10
+2025-10-22 12:26:19.349 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:26:19.349 INFO: Number of gradient updates: 8550
+2025-10-22 12:26:19.349 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:26:19.349 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=0.000, dipole_weight=1.000)
+2025-10-22 12:26:19.349 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:26:19.350 INFO: 
+2025-10-22 12:26:19.350 INFO: ===========TRAINING===========
+2025-10-22 12:26:19.350 INFO: Started training, reporting errors on validation set
+2025-10-22 12:26:19.350 INFO: Loss metrics on validation set
+2025-10-22 12:26:21.612 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:22.036 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:22.601 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.219 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.271 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.322 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.371 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.422 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.472 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.521 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.569 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.615 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.661 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.707 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.754 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.800 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.847 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.893 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.939 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:23.986 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.033 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.080 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.126 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.173 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.219 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.265 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.312 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.358 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.405 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.451 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.497 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.544 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.590 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.637 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.683 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.730 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.776 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.822 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.869 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.915 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:24.961 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.008 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.055 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.101 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.148 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.194 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.240 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.286 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.333 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.379 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.425 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.472 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.518 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.565 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.611 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.658 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.704 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.750 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.796 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.843 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.889 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.935 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:25.982 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.029 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.075 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.122 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.168 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.215 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.261 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.307 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.353 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.400 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.447 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.493 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.540 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.586 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.633 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.679 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.726 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.772 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.818 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.865 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.911 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:26.958 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.004 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.051 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.272 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.273 DEBUG: Saving checkpoint: ./checkpoints/nacs_run-100_epoch-0.pt
+2025-10-22 12:26:27.337 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.383 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.429 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.476 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.523 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.569 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.616 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.662 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.708 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.755 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.802 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.848 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.894 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.941 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:27.987 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.035 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.081 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.127 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.174 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.221 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.267 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.314 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.360 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.406 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.453 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.502 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.548 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.595 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.641 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.688 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.734 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.781 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.827 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.878 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.924 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:28.970 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.017 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.063 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.109 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.159 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.206 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.252 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.299 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.345 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.392 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.438 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.485 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.532 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.579 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.625 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.672 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.718 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.764 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.811 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.857 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.904 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:29.950 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:26:59.414 INFO: ===========VERIFYING SETTINGS===========
+2025-10-22 12:26:59.414 INFO: MACE version: 0.3.6
+2025-10-22 12:26:59.414 DEBUG: Configuration: Namespace(config=None, name='nacs', seed=100, work_dir='.', nacs_key='smooth_nacs', log_dir='./logs', model_dir='.', checkpoints_dir='./checkpoints', results_dir='./results', downloads_dir='./downloads', device='cuda', default_dtype='float32', distributed=False, log_level='INFO', n_energies=4, error_table='EnergyNacsDipoleMAE', model='ExcitedMACE', r_max=5.0, num_permutational_invariant=16, radial_type='bessel', num_radial_basis=8, num_cutoff_basis=5, pair_repulsion=False, distance_transform='None', interaction='RealAgnosticResidualInteractionBlock', interaction_first='RealAgnosticResidualInteractionBlock', max_ell=3, correlation=3, num_interactions=2, MLP_irreps='32x0e', radial_MLP='[64, 64, 64]', hidden_irreps='32x0e + 32x1o', num_channels=32, max_L=1, gate='silu', scaling='rms_forces_scaling', avg_num_neighbors=1, compute_avg_num_neighbors=True, compute_stress=False, compute_forces=True, compute_dipoles=True, compute_nacs=False, compute_socs=True, train_file='SINGLET_SOC_ALL.xyz', valid_file=None, valid_fraction=0.1, test_file=None, test_dir=None, multi_processed_test=False, num_workers=0, pin_memory=True, atomic_numbers=None, mean=None, std=None, statistics_file=None, E0s='average', keep_isolated_atoms=False, energy_key='REF_energy', forces_key='REF_forces', virials_key='REF_virials', stress_key='REF_stress', dipoles_key='REF_dipoles', charges_key='REF_charges', loss='weighted', forces_weight=0.0, nacs_weight=100.0, socs_weight=100.0, soc_num=252, nac_num=None, swa_forces_weight=100.0, energy_weight=100.0, swa_energy_weight=1000.0, virials_weight=1.0, swa_virials_weight=10.0, stress_weight=1.0, swa_stress_weight=10.0, dipoles_weight=1.0, swa_dipole_weight=1.0, config_type_weights='{"Default":1.0}', huber_delta=0.01, optimizer='adam', beta=0.9, batch_size=10, valid_batch_size=10, lr=0.0001, swa_lr=0.001, weight_decay=5e-07, amsgrad=True, scheduler='ReduceLROnPlateau', lr_factor=0.8, scheduler_patience=50, lr_scheduler_gamma=0.9993, swa=False, start_swa=None, ema=True, ema_decay=0.99, max_num_epochs=100, patience=2048, foundation_model=None, foundation_model_readout=True, eval_interval=1, keep_checkpoints=False, save_all_checkpoints=False, restart_latest=False, save_cpu=False, clip_grad=10.0, wandb=False, wandb_dir=None, wandb_project='', wandb_entity='', wandb_name='', wandb_log_hypers=['num_channels', 'max_L', 'correlation', 'lr', 'swa_lr', 'weight_decay', 'batch_size', 'max_num_epochs', 'start_swa', 'energy_weight', 'forces_weight'])
+2025-10-22 12:26:59.443 INFO: CUDA version: 12.4, CUDA device: 0
+2025-10-22 12:26:59.460 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:26:59.462 DEBUG: Popen(['git', 'version'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=None, shell=False, universal_newlines=False)
+2025-10-22 12:26:59.463 DEBUG: sys.platform='linux', git_executable='git'
+2025-10-22 12:26:59.464 DEBUG: Popen(['git', 'cat-file', '--batch-check'], cwd=/home/rhyan/Exciton_model/X-MACE, stdin=<valid stream>, shell=False, universal_newlines=False)
+2025-10-22 12:26:59.465 DEBUG: Current Git commit: c8c2669a37c36e6342b34860e4a7a0a201afa6e5
+2025-10-22 12:26:59.465 INFO: 
+2025-10-22 12:26:59.465 INFO: ===========LOADING INPUT DATA===========
+2025-10-22 12:27:04.272 INFO: Using random 10% of training set for validation with indices saved in: ./valid_indices_100.txt
+2025-10-22 12:27:04.274 INFO: Atomic Numbers used: [1, 6, 7, 8]
+2025-10-22 12:27:04.274 INFO: Isolated Atomic Energies (E0s) not in training file, using command line argument
+2025-10-22 12:27:04.274 INFO: Computing average Atomic Energies using least squares regression
+2025-10-22 12:27:04.282 INFO: Atomic Energies used (z: eV): {1: -967.8427909292559, 6: -1244.3693026233295, 7: -138.2632558470366, 8: -829.5795350822196}
+2025-10-22 12:27:04.487 INFO: 
+2025-10-22 12:27:04.487 INFO: ===========MODEL DETAILS===========
+2025-10-22 12:27:04.734 INFO: Average number of neighbors: 15.7
+2025-10-22 12:27:04.735 INFO: During training the following quantities will be reported: energy, forces, dipoles, nacs
+2025-10-22 12:27:04.826 INFO: Building model
+2025-10-22 12:27:04.826 INFO: Message passing with 32 channels and max_L=1 (32x0e + 32x1o)
+2025-10-22 12:27:04.826 INFO: 2 layers, each with correlation order: 3 (body order: 4) and spherical harmonics up to: l=3
+2025-10-22 12:27:04.826 INFO: 8 radial and 5 basis functions
+2025-10-22 12:27:04.826 INFO: Radial cutoff: 5.0 Å (total receptive field for each atom: 10.0 Å)
+2025-10-22 12:27:04.826 INFO: Distance transform for radial basis functions: None
+2025-10-22 12:27:05.612 DEBUG: ExcitedMACE(
+  (node_embedding): LinearNodeEmbeddingBlock(
+    (linear): Linear(4x0e -> 32x0e | 128 weights)
+  )
+  (radial_embedding): RadialEmbeddingBlock(
+    (bessel_fn): BesselBasis(r_max=5.0, num_basis=8, trainable=False)
+    (cutoff_fn): PolynomialCutoff(p=5.0, r_max=5.0)
+  )
+  (spherical_harmonics): SphericalHarmonics()
+  (atomic_energies_fn): AtomicEnergiesBlock(energies=[-967.8428, -1244.3693, -138.2633, -829.5795])
+  (interactions): ModuleList(
+    (0): RealAgnosticInteractionBlock(
+      (linear_up): Linear(32x0e -> 32x0e | 1024 weights)
+      (conv_tp): TensorProduct(32x0e x 1x0e+1x1o+1x2e+1x3o -> 32x0e+32x1o+32x2e+32x3o | 128 paths | 128 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 128]
+      (linear): Linear(32x0e+32x1o+32x2e+32x3o -> 32x0e+32x1o+32x2e+32x3o | 4096 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o+32x2e+32x3o x 4x0e -> 32x0e+32x1o+32x2e+32x3o | 16384 paths | 16384 weights)
+      (reshape): reshape_irreps()
+    )
+    (1): RealAgnosticResidualInteractionBlock(
+      (linear_up): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+      (conv_tp): TensorProduct(32x0e+32x1o x 1x0e+1x1o+1x2e+1x3o -> 64x0e+96x1o+96x2e+64x3o | 320 paths | 320 weights)
+      (conv_tp_weights): FullyConnectedNet[8, 64, 64, 64, 320]
+      (linear): Linear(64x0e+96x1o+96x2e+64x3o -> 32x0e+32x1o+32x2e+32x3o | 10240 weights)
+      (skip_tp): FullyConnectedTensorProduct(32x0e+32x1o x 4x0e -> 32x0e | 4096 paths | 4096 weights)
+      (reshape): reshape_irreps()
+    )
+  )
+  (products): ModuleList(
+    (0): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+          (1): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x6x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e+32x1o -> 32x0e+32x1o | 2048 weights)
+    )
+    (1): EquivariantProductBasisBlock(
+      (symmetric_contractions): SymmetricContraction(
+        (contractions): ModuleList(
+          (0): Contraction(
+            (contractions_weighting): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (contractions_features): ModuleList(
+              (0-1): 2 x GraphModule()
+            )
+            (weights): ParameterList(
+                (0): Parameter containing: [torch.float32 of size 4x4x32 (cuda:0)]
+                (1): Parameter containing: [torch.float32 of size 4x1x32 (cuda:0)]
+            )
+            (graph_opt_main): GraphModule()
+          )
+        )
+      )
+      (linear): Linear(32x0e -> 32x0e | 1024 weights)
+    )
+  )
+  (readouts): ModuleList(
+    (0): LinearReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 4x0e | 128 weights)
+    )
+    (1): NonLinearReadoutBlock(
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (non_linearity): Activation [x] (32x0e -> 32x0e)
+      (linear_2): Linear(32x0e -> 4x0e | 128 weights)
+    )
+  )
+  (socs_readouts): ModuleList(
+    (0): LinearSocReadoutBlock(
+      (linear): Linear(32x0e+32x1o -> 252x0e | 8064 weights)
+    )
+    (1): NonLinearSocReadoutBlock(
+      (equivariant_nonlin): Gate (32x0e -> 32x0e)
+      (linear_1): Linear(32x0e -> 32x0e | 1024 weights)
+      (linear_2): Linear(32x0e -> 252x0e | 8064 weights)
+    )
+  )
+)
+2025-10-22 12:27:05.613 INFO: Total number of parameters: 120192
+2025-10-22 12:27:05.613 INFO: 
+2025-10-22 12:27:05.613 INFO: ===========OPTIMIZER INFORMATION===========
+2025-10-22 12:27:05.613 INFO: Using ADAM as parameter optimizer
+2025-10-22 12:27:05.613 INFO: Batch size: 10
+2025-10-22 12:27:05.613 INFO: Using Exponential Moving Average with decay: 0.99
+2025-10-22 12:27:05.613 INFO: Number of gradient updates: 8550
+2025-10-22 12:27:05.613 INFO: Learning rate: 0.0001, weight decay: 5e-07
+2025-10-22 12:27:05.613 INFO: WeightedEnergyForcesNacsDipoleLoss(energy_weight=100.000, forces_weight=0.000, dipole_weight=1.000)
+2025-10-22 12:27:05.614 INFO: Using gradient clipping with tolerance=10.000
+2025-10-22 12:27:05.614 INFO: 
+2025-10-22 12:27:05.614 INFO: ===========TRAINING===========
+2025-10-22 12:27:05.614 INFO: Started training, reporting errors on validation set
+2025-10-22 12:27:05.614 INFO: Loss metrics on validation set
+2025-10-22 12:27:08.126 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:08.611 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:09.220 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:09.881 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:09.998 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.115 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.232 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.348 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.464 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.580 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.698 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.814 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:10.931 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.047 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.164 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.280 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.396 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.513 DEBUG: Saving info: ./results/nacs_run-100_train.txt
+2025-10-22 12:27:11.629 DEBUG: Saving info: ./results/nacs_run-100_train.txt

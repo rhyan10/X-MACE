@@ -770,8 +770,6 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         )
 
         self.n_energies = n_energies
-        self.n_nacs = int(n_energies*(n_energies-1)/2)
-        self.n_dipoles = int(n_energies + int(n_energies*(n_energies-1)/2))
         self.num_permutational_invariant = num_permutational_invariant
 
         if isinstance(correlation, int):
@@ -837,10 +835,10 @@ class AutoencoderExcitedMACE(torch.nn.Module):
         self.products = torch.nn.ModuleList([prod])
 
         self.readouts = torch.nn.ModuleList()
-        self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs))
+        self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs=False, nac_indices=0))
 
         self.invariant_readouts = torch.nn.ModuleList()
-        self.invariant_readouts.append(LinearReadoutBlock(hidden_irreps, num_permutational_invariant, compute_nacs=False))
+        self.invariant_readouts.append(LinearReadoutBlock(hidden_irreps, num_permutational_invariant, compute_nacs=False, nac_indices=0))
 
         for i in range(num_interactions - 1):
             if i == num_interactions - 2:
@@ -869,11 +867,11 @@ class AutoencoderExcitedMACE(torch.nn.Module):
             )
             self.products.append(prod)
             if i == num_interactions - 2:
-                self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, False))
+                self.readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_energies, compute_nacs=False, nac_indices=0))
             else:
-                self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, False))
+                self.readouts.append(LinearReadoutBlock(hidden_irreps, n_energies, compute_nacs=False, nac_indices=0))
 
-            self.invariant_readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, num_permutational_invariant, compute_nacs=False))
+            self.invariant_readouts.append(NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, num_permutational_invariant, compute_nacs=False, nac_indices=0))
 
     def forward(
         self,

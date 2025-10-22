@@ -305,7 +305,6 @@ def train(
                         keep_last = False or save_all_checkpoints
         if distributed:
             torch.distributed.barrier()
-        torch.save(model, name+'_duation.model')
         epoch += 1
 
     logging.info("Training complete")
