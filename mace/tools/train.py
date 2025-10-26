@@ -367,12 +367,12 @@ def take_step(
         compute_stress=output_args["stress"],
     )
 
-    # if model_type == "AutoencoderExcitedMACE":
-    #     centred_energy = (batch["energy"] - output["e0s"] - output["pair_energy"]).unsqueeze(-1)
-    #     encoded_energy = model.perm_encoder(centred_energy)
-    #     decoded_energy = model.perm_decoder(encoded_energy) + output["e0s"] + output["pair_energy"]
-    #     output["encoded_energy"] = encoded_energy
-    #     output["decoded_energy"] = decoded_energy
+    if model_type == "AutoencoderExcitedMACE":
+        centred_energy = (batch["energy"] - output["e0s"] - output["pair_energy"]).unsqueeze(-1)
+        encoded_energy = model.perm_encoder(centred_energy)
+        decoded_energy = model.perm_decoder(encoded_energy) + output["e0s"] + output["pair_energy"]
+        output["encoded_energy"] = encoded_energy
+        output["decoded_energy"] = decoded_energy
 
     loss = loss_fn(pred=output, ref=batch)
     loss.backward()
@@ -415,12 +415,13 @@ def evaluate(
             compute_virials=output_args["virials"],
             compute_stress=output_args["stress"],
         )
-        # if model_type == "AutoencoderExcitedMACE":
-        #     encoded_energy = model.perm_encoder(batch["energy"].unsqueeze(-1))
-        #     decoded_energy = model.perm_decoder(encoded_energy)
-        #     output["encoded_energy"] = encoded_energy
-        #     output["decoded_energy"] = decoded_energy
-        
+
+        if model_type == "AutoencoderExcitedMACE":
+            encoded_energy = model.perm_encoder(batch["energy"].unsqueeze(-1))
+            decoded_energy = model.perm_decoder(encoded_energy)
+            output["encoded_energy"] = encoded_energy
+            output["decoded_energy"] = decoded_energy
+
         avg_loss, aux = metrics(batch, output)
 
     avg_loss, aux = metrics.compute()

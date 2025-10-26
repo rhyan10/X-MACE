@@ -34,7 +34,7 @@ class MACECalculator(Calculator):
 
     def __init__(
         self,
-        model_path: Union[str, Path],
+        model_paths: Union[str, Path],
         device: str,
         n_energies: int,
         energy_units_to_eV: float = 1.0,
@@ -46,12 +46,12 @@ class MACECalculator(Calculator):
         super().__init__(**kwargs)
         self.results = {}
         self.n_energies = int(n_energies)
-
+        print(2222)
         # ---- Load single model ----
-        model_path = Path(model_path)
-        if not model_path.exists():
-            raise ValueError(f"Couldn't find model file: {model_path}")
-        self.model = torch.load(f=model_path, map_location=device)
+        model_paths = Path(model_paths)
+        if not model_paths.exists():
+            raise ValueError(f"Couldn't find model file: {model_paths}")
+        self.model = torch.load(f=model_paths, map_location=device, weights_only=False)
 
         # Device & dtype
         self.device = torch_tools.init_device(device)
@@ -103,6 +103,7 @@ class MACECalculator(Calculator):
         # "forces" -> (num_atoms, n_states, 3)
         # "socs"   -> (n_states, n_states)      (assumed)
         # "nacs"   -> (num_atoms, n_states, n_states, 3) (assumed)
+        print(111111)
         out = self.model(batch.to_dict(), training=False)
 
         # ---- Gather & scale results ----

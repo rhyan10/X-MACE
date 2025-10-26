@@ -46,7 +46,7 @@ class MACECalculator(Calculator):
         super().__init__(**kwargs)
         self.results = {}
         self.n_energies = int(n_energies)
-
+        print(2222)
         # ---- Load single model ----
         model_paths = Path(model_paths)
         if not model_paths.exists():
@@ -103,6 +103,7 @@ class MACECalculator(Calculator):
         # "forces" -> (num_atoms, n_states, 3)
         # "socs"   -> (n_states, n_states)      (assumed)
         # "nacs"   -> (num_atoms, n_states, n_states, 3) (assumed)
+        print(111111)
         out = self.model(batch.to_dict(), training=False)
 
         # ---- Gather & scale results ----

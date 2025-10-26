@@ -315,6 +315,7 @@ def run(args: argparse.Namespace) -> None:
             forces_weight=args.forces_weight,
             dipoles_weight=args.dipoles_weight,
             nacs_weight = args.nacs_weight,
+            socs_weight = args.socs_weight
         )
     
     if args.compute_avg_num_neighbors:
@@ -466,7 +467,9 @@ def run(args: argparse.Namespace) -> None:
             radial_MLP=ast.literal_eval(args.radial_MLP),
             radial_type=args.radial_type,
             compute_nacs=args.compute_nacs,
-            compute_dipoles=args.compute_dipoles,
+            compute_socs=args.compute_socs,
+            soc_num=args.soc_num,
+            nac_num=args.nac_num,
         )
     else:
         raise RuntimeError(f"Unknown model: '{args.model}'")
