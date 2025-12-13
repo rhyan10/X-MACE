@@ -475,18 +475,18 @@ class MACELoss(Metric):
         self.total_loss += loss
         self.num_data += batch.num_graphs
 
-        if output.get("energy") is not None and batch.energy is not None:
+        if output.get("energy").shape == batch.energy.shape:
             self.E_computed += 1.0
             self.delta_es.append(batch.energy - output["energy"])
             self.delta_es_per_atom.append(
                 (batch.energy - output["energy"]) / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1)
             )
-        if output.get("forces") is not None and (batch.forces != 0).any():
+        if output.get("forces").shape == batch.forces.shape:
            self.Fs_computed += 1.0
            self.fs.append(batch.forces)
            self.delta_fs.append(batch.forces - output["forces"] )
 
-        if output.get("dipoles") is not None and (batch.dipoles != 0).any() :
+        if output.get("dipoles").shape == batch.dipoles.shape :
            self.Mus_computed += 1.0
            self.mus.append(batch.dipoles)
            self.delta_mus.append(batch.dipoles - output["dipoles"])
@@ -494,7 +494,7 @@ class MACELoss(Metric):
                (batch.dipoles - output["dipoles"])
                / (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1).unsqueeze(-1)
            )
-        if output.get("nacs").shape == batch.nacs.shape and torch.any(batch.nacs != 0):
+        if output.get("nacs").shape == batch.nacs.shape:
             self.nacs_computed += 1.0
             self.nacs.append(batch.nacs)
             neg = torch.abs(batch.nacs - output["nacs"]).unsqueeze(-1)
@@ -502,7 +502,7 @@ class MACELoss(Metric):
             vec = torch.cat((pos,neg),dim=-1)
             val = torch.min(vec, dim=-1)[0]
             self.delta_nacs.append(val)
-        if output.get("socs").shape == batch.socs.shape and torch.any(batch.socs != 0):
+        if output.get("socs").shape == batch.socs.shape:
             self.socs_computed += 1.0
             self.socs.append(batch.socs)
             neg = torch.abs(batch.socs - output["socs"]).unsqueeze(-1)

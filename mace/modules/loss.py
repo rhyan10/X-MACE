@@ -442,7 +442,7 @@ class WeightedEnergyForcesNacsDipoleLoss(torch.nn.Module):
         
         if ref["socs"].shape == pred["socs"].shape:
             loss += self.socs_weight * phase_rmse_socs(ref, pred)
-
+        
         if ref["dipoles"].shape == pred["dipoles"].shape:
             loss += self.dipoles_weight * weighted_mean_squared_error_dipole(ref, pred) * 100
 

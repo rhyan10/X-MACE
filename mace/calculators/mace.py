@@ -46,7 +46,7 @@ class MACECalculator(Calculator):
         super().__init__(**kwargs)
         self.results = {}
         self.n_energies = int(n_energies)
-        print(2222)
+
         # ---- Load single model ----
         model_paths = Path(model_paths)
         if not model_paths.exists():
@@ -99,14 +99,14 @@ class MACECalculator(Calculator):
         batch = self._atoms_to_batch(atoms)
 
         # Forward pass. Expect the model to return these keys:
-        # "energy" -> (n_states,)
-        # "forces" -> (num_atoms, n_states, 3)
-        # "socs"   -> (n_states, n_states)      (assumed)
-        # "nacs"   -> (num_atoms, n_states, n_states, 3) (assumed)
-        print(111111)
+        # "energy" 
+        # "forces"
+        # "socs"     
+        # "nacs"   
+        # "charges"
+
         out = self.model(batch.to_dict(), training=False)
 
-        # ---- Gather & scale results ----
         # Energies: convert to eV
         energy = out["energy"].detach().to("cpu").numpy() * self.energy_units_to_eV
 
@@ -120,6 +120,9 @@ class MACECalculator(Calculator):
         # SOCs & NACs: pass through as-is (units model-defined)
         socs = out["socs"].detach().to("cpu").numpy()
         nacs = out["nacs"].detach().to("cpu").numpy()
+        dipoles = out["dipoles"].detach().to("cpu").numpy()
+        if "charges" in out:
+            charges = out["charges"].detach().to("cpu").numpy()
 
         self.results = {
             "energy": energy,          # (n_states,)
@@ -127,5 +130,7 @@ class MACECalculator(Calculator):
             "forces": forces,          # (num_atoms, n_states, 3)
             "socs": socs,              # (n_states, n_states)
             "nacs": nacs,              # (num_atoms, n_states, n_states, 3)
+            "charges": charges,        # (num_atoms, n_states)
+            "dipoles": dipoles,        # (n_states, 3)
         }
 

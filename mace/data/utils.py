@@ -24,6 +24,7 @@ Charges = np.ndarray  # [..., 1]
 Nacs = np.ndarray #[...,...,3]
 Socs = np.ndarray
 Cell = np.ndarray  # [3,3]
+Dipoles = np.ndarray
 Pbc = tuple  # (3,)
 
 DEFAULT_CONFIG_TYPE = "Default"
@@ -139,6 +140,12 @@ def config_from_atoms(
     """Convert ase.Atoms to Configuration"""
     if config_type_weights is None:
         config_type_weights = DEFAULT_CONFIG_TYPE_WEIGHTS
+
+    masses = atoms.get_masses()
+    positions = atoms.positions
+    com = np.average(positions, axis=0, weights=masses)
+    atoms.positions = positions - com
+
     energy = atoms.info.get(energy_key, None)  # eV
     forces = atoms.info.get(forces_key, None)  # eV / Ang
     stress = atoms.info.get(stress_key, None)  # eV / Ang ^ 3

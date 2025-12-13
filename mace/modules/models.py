@@ -1032,3 +1032,238 @@ class AutoencoderExcitedMACE(torch.nn.Module):
             "e0s": e0.unsqueeze(-1).expand(-1, self.n_energies),
             "pair_energy": pair_energy.unsqueeze(-1).expand(-1, self.n_energies),
         }
+
+@compile_mode("script")
+class DipoleMACE(torch.nn.Module):
+    def __init__(
+        self,
+        r_max: float,
+        num_bessel: int,
+        num_polynomial_cutoff: int,
+        n_charges: int,  # renamed from n_energies
+        max_ell: int,
+        interaction_cls: Type[InteractionBlock],
+        interaction_cls_first: Type[InteractionBlock],
+        num_interactions: int,
+        num_elements: int,
+        atomic_energies: np.ndarray,
+        hidden_irreps: o3.Irreps,
+        MLP_irreps: o3.Irreps,
+        avg_num_neighbors: float,
+        atomic_numbers: List[int],
+        correlation: Union[int, List[int]],
+        gate: Optional[Callable],
+        pair_repulsion: bool = False,
+        distance_transform: str = "None",
+        radial_MLP: Optional[List[int]] = None,
+        radial_type: Optional[str] = "bessel",
+    ):
+        super().__init__()
+        self.register_buffer(
+            "atomic_numbers", torch.tensor(atomic_numbers, dtype=torch.int64)
+        )
+        self.register_buffer(
+            "r_max", torch.tensor(r_max, dtype=torch.get_default_dtype())
+        )
+        self.register_buffer(
+            "num_interactions", torch.tensor(num_interactions, dtype=torch.int64)
+        )
+
+        self.n_charges = n_charges  # renamed from n_energies
+
+        if isinstance(correlation, int):
+            correlation = [correlation] * num_interactions
+
+        # Embedding
+        node_attr_irreps = o3.Irreps([(num_elements, (0, 1))])
+        node_feats_irreps = o3.Irreps([(hidden_irreps.count(o3.Irrep(0, 1)), (0, 1))])
+        self.node_embedding = LinearNodeEmbeddingBlock(
+            irreps_in=node_attr_irreps, irreps_out=node_feats_irreps
+        )
+        self.radial_embedding = RadialEmbeddingBlock(
+            r_max=r_max,
+            num_bessel=num_bessel,
+            num_polynomial_cutoff=num_polynomial_cutoff,
+            radial_type=radial_type,
+            distance_transform=distance_transform,
+        )
+
+        edge_feats_irreps = o3.Irreps(f"{self.radial_embedding.out_dim}x0e")
+        if pair_repulsion:
+            self.pair_repulsion_fn = ZBLBasis(r_max=r_max, p=num_polynomial_cutoff)
+            self.pair_repulsion = True
+
+        sh_irreps = o3.Irreps.spherical_harmonics(max_ell)
+        num_features = hidden_irreps.count(o3.Irrep(0, 1))
+        interaction_irreps = (sh_irreps * num_features).sort()[0].simplify()
+        self.spherical_harmonics = o3.SphericalHarmonics(
+            sh_irreps, normalize=True, normalization="component"
+        )
+        if radial_MLP is None:
+            radial_MLP = [64, 64, 64]
+
+        # Interactions and readout
+        self.atomic_charges_fn = AtomicEnergiesBlock(np.zeros(atomic_energies.shape)) 
+
+        inter = interaction_cls_first(
+            node_attrs_irreps=node_attr_irreps,
+            node_feats_irreps=node_feats_irreps,
+            edge_attrs_irreps=sh_irreps,
+            edge_feats_irreps=edge_feats_irreps,
+            target_irreps=interaction_irreps,
+            hidden_irreps=hidden_irreps,
+            avg_num_neighbors=avg_num_neighbors,
+            radial_MLP=radial_MLP,
+        )
+        self.interactions = torch.nn.ModuleList([inter])
+
+        # Disable SOCs and NACS
+        self.compute_socs = False
+        self.compute_nacs = False
+        self.soc_indices = 0
+        self.nac_indices = 0
+
+        # Self connection
+        use_sc_first = False
+        if "Residual" in str(interaction_cls_first):
+            use_sc_first = True
+
+        node_feats_irreps_out = inter.target_irreps
+        prod = EquivariantProductBasisBlock(
+            node_feats_irreps=node_feats_irreps_out,
+            target_irreps=hidden_irreps,
+            correlation=correlation[0],
+            num_elements=num_elements,
+            use_sc=use_sc_first,
+        )
+
+        self.products = torch.nn.ModuleList([prod])
+        self.readouts = torch.nn.ModuleList()
+        self.readouts.append(LinearReadoutBlock(hidden_irreps, n_charges, False, self.nac_indices))
+
+        for i in range(num_interactions - 1):
+            if i == num_interactions - 2:
+                hidden_irreps_out = str(hidden_irreps[0])  # last layer only scalars
+            else:
+                hidden_irreps_out = hidden_irreps
+
+            inter = interaction_cls(
+                node_attrs_irreps=node_attr_irreps,
+                node_feats_irreps=hidden_irreps,
+                edge_attrs_irreps=sh_irreps,
+                edge_feats_irreps=edge_feats_irreps,
+                target_irreps=interaction_irreps,
+                hidden_irreps=hidden_irreps_out,
+                avg_num_neighbors=avg_num_neighbors,
+                radial_MLP=radial_MLP,
+            )
+            self.interactions.append(inter)
+            prod = EquivariantProductBasisBlock(
+                node_feats_irreps=interaction_irreps,
+                target_irreps=hidden_irreps_out,
+                correlation=correlation[i + 1],
+                num_elements=num_elements,
+                use_sc=True,
+            )
+            self.products.append(prod)
+            if i == num_interactions - 2:
+                self.readouts.append(
+                    NonLinearReadoutBlock(hidden_irreps_out, MLP_irreps, gate, n_charges, False, self.nac_indices)
+                )
+            else:
+                self.readouts.append(
+                    LinearReadoutBlock(hidden_irreps, n_charges, False, self.nac_indices)
+                )
+
+    def forward(
+        self,
+        data: Dict[str, torch.Tensor],
+        training: bool = False,
+        foundational: bool = True,
+        compute_force: bool = True,
+        compute_hessian: bool = False,
+        compute_virials: bool = False,
+        compute_stress: bool = False,
+    ) -> Dict[str, Optional[torch.Tensor]]:
+        # Setup
+        data["node_attrs"].requires_grad_(True)
+        data["positions"].requires_grad_(True)
+        num_graphs = data["ptr"].numel() - 1
+        displacement = torch.zeros(
+            (num_graphs, 3, 3),
+            dtype=data["positions"].dtype,
+            device=data["positions"].device,
+        )
+
+        # Atomic charges
+        node_q0 = self.atomic_charges_fn(data["node_attrs"])
+        q0 = scatter_sum(src=node_q0, index=data["batch"], dim=-1, dim_size=num_graphs)
+
+        # Embeddings
+        node_feats = self.node_embedding(data["node_attrs"])
+        vectors, lengths = get_edge_vectors_and_lengths(
+            positions=data["positions"],
+            edge_index=data["edge_index"],
+            shifts=data["shifts"],
+        )
+        edge_attrs = self.spherical_harmonics(vectors)
+        edge_feats = self.radial_embedding(
+            lengths, data["node_attrs"], data["edge_index"], self.atomic_numbers
+        )
+        pair_node_charge = torch.zeros_like(node_q0)
+        pair_charge = torch.zeros_like(q0)
+
+        # Interactions
+        dipoles_list = []
+        node_charges_list = []
+        node_feats_list = []
+
+        for j, (interaction, product, readout) in enumerate(zip(
+            self.interactions, self.products, self.readouts,
+        )):
+            node_feats, sc = interaction(
+                node_attrs=data["node_attrs"],
+                node_feats=node_feats,
+                edge_attrs=edge_attrs,
+                edge_feats=edge_feats,
+                edge_index=data["edge_index"],
+            )
+            node_feats = product(
+                node_feats=node_feats,
+                sc=sc,
+                node_attrs=data["node_attrs"],
+            )
+            node_feats_list.append(node_feats)
+            node_output = readout(node_feats)
+            node_charges = torch.transpose(node_output[:, :self.n_charges], 0, 1)  # shape: (B1, N)
+            dot_prod = node_charges.unsqueeze(1).unsqueeze(-1) * torch.transpose(data["positions"], 0, 1).unsqueeze(0).unsqueeze(-1)
+            dipoles = scatter_sum(
+                src=dot_prod, index=data["batch"], dim=2, dim_size=num_graphs
+            )
+            dipoles_list.append(torch.transpose(dipoles, 0, 1).squeeze(-1))
+            node_charges_list.append(torch.transpose(node_charges, 0, 1).squeeze(-1))
+
+        # Concatenate node features
+        node_feats_out = torch.cat(node_feats_list, dim=-1)
+
+        # Sum over charge contributions
+        contributions = torch.stack(dipoles_list, dim=-1)
+        node_charge_contributions = torch.stack(node_charges_list, dim=-1)
+        dipoles = torch.sum(contributions, dim=-1)
+        node_charge_contributions = torch.sum(node_charge_contributions, dim=-1)
+        dipoles = dipoles.permute(2, 1, 0)
+
+        return {
+            "energy": torch.tensor([]),
+            "charges": node_charge_contributions,
+            "nacs": torch.tensor([]),
+            "socs": torch.tensor([]),
+            "dipoles": dipoles,
+            "forces": torch.tensor([]),
+            "virials": None,
+            "stress": None,
+            "displacement": displacement,
+            "hessian": None,
+            "node_feats": node_feats_out,
+        }
+

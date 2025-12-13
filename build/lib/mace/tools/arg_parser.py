@@ -86,6 +86,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--n_energies", help="Number of energies", type=int)
 
+    parser.add_argument("--n_dipoles", help="Number of Dipoles", type=int)
+
     parser.add_argument(
         "--error_table",
         help="Type of error table produced at the end of the training",
@@ -112,7 +114,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default="ExcitedMACE",
         choices=[
             "ExcitedMACE",
-            "AutoencoderExcitedMACE"
+            "AutoencoderExcitedMACE",
+            "DipoleMACE"
         ],
     )
     parser.add_argument(

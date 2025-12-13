@@ -239,6 +239,16 @@ def run(args: argparse.Namespace) -> None:
             f"Atomic Energies used (z: eV): {{{', '.join([f'{z}: {atomic_energies_dict[z]}' for z in z_table.zs])}}}"
         )
 
+    elif args.model == "DipoleMACE":
+        atomic_energies = None
+        compute_dipole = True
+        compute_energy = False 
+        args.compute_forces = False
+        compute_nacs = False
+        compute_virials = False
+        args.compute_stress = False
+        atomic_energies: np.ndarray = np.zeros(len(z_table.zs))
+
     if args.train_file.endswith(".xyz"):
         train_set = [
             data.AtomicData.from_config(config, z_table=z_table, cutoff=args.r_max)
@@ -301,7 +311,7 @@ def run(args: argparse.Namespace) -> None:
     )
     logging.info("")
     logging.info("===========MODEL DETAILS===========")
-    if args.model == "ExcitedMACE":
+    if args.model == "ExcitedMACE" or "DipoleMACE":
         loss_fn = modules.WeightedEnergyForcesNacsDipoleLoss(
             energy_weight=args.energy_weight,
             forces_weight=args.forces_weight,
@@ -470,6 +480,21 @@ def run(args: argparse.Namespace) -> None:
             compute_socs=args.compute_socs,
             soc_num=args.soc_num,
             nac_num=args.nac_num,
+        )
+    elif args.model == "DipoleMACE":
+        model = modules.DipoleMACE(
+            **model_config,
+            pair_repulsion=args.pair_repulsion,
+            n_charges=args.n_dipoles,
+            distance_transform=args.distance_transform,
+            correlation=args.correlation,
+            gate=modules.gate_dict[args.gate],
+            interaction_cls_first=modules.interaction_classes[
+                "RealAgnosticInteractionBlock"
+            ],
+            MLP_irreps=o3.Irreps(args.MLP_irreps),
+            radial_MLP=ast.literal_eval(args.radial_MLP),
+            radial_type=args.radial_type,
         )
     else:
         raise RuntimeError(f"Unknown model: '{args.model}'")
