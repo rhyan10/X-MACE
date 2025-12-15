@@ -1253,6 +1253,9 @@ class DipoleMACE(torch.nn.Module):
         node_charge_contributions = torch.sum(node_charge_contributions, dim=-1)
         dipoles = dipoles.permute(2, 1, 0)
 
+        print(node_charge_contributions.shape)
+        print(dipoles.shape)
+
         return {
             "energy": torch.tensor([]),
             "charges": node_charge_contributions,
