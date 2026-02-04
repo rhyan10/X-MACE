@@ -109,10 +109,10 @@ def phase_rmse_socs(ref: Batch, pred: TensorDict) -> torch.Tensor:
     ).unsqueeze(
         -1
     )
-    neg = torch.square(ref["socs"] - pred["socs"]).unsqueeze(-1)
-    pos = torch.square(ref["socs"] + pred["socs"]).unsqueeze(-1)
-    vec = torch.cat((pos,neg),dim=-1)
-    return torch.mean(torch.min(vec, dim=-1)[0])
+    neg = torch.sum(torch.square(ref["socs"] - pred["socs"]), dim=-1)
+    pos = torch.sum(torch.square(ref["socs"] + pred["socs"]), dim=-1)
+    err2 = torch.minimum(pos, neg)                  
+    return torch.sqrt(torch.mean(err2))  
 
 def conditional_mse_forces(ref: Batch, pred: TensorDict) -> torch.Tensor:
     # forces: [n_atoms, 3]
