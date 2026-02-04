@@ -103,7 +103,6 @@ class MACECalculator(Calculator):
         # "forces" -> (num_atoms, n_states, 3)
         # "socs"   -> (n_states, n_states)      (assumed)
         # "nacs"   -> (num_atoms, n_states, n_states, 3) (assumed)
-        print(111111)
         out = self.model(batch.to_dict(), training=False)
 
         # ---- Gather & scale results ----
