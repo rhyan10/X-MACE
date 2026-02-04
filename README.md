@@ -99,13 +99,13 @@ python scripts/run_train.py --name="energies_forces" --train_file="SINGLET_SOC_A
 This will just train nac values, the nac_num is the number of vectorial quantities (like nacs) that the model will predict. Due to the way this MACE model is set up please make sure you also include energy values in the dataset otherwise there may be some problems.
 
 ```bash
-python scripts/run_train.py --name="nacs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=100.0 --forces_weight=0.0 --nacs_weight=100.0 --error_table="EnergyNacsDipoleMAE" --compute_nacs --nac_num=6
+python scripts/run_train.py --name="nacs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=100.0 --forces_weight=0.0 --nacs_weight=100.0 --error_table="EnergyNacsDipoleMAE" --compute_nacs --nac_num=6 --nacs_key="REF_nacs"
 ```
 
 If you only need to train NACs keep all the properties in the dataset but set the weighting of it in the loss function to zero for example:
 
 ```bash
-python scripts/run_train.py --name="nacs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=0.0 --forces_weight=0.0 --nacs_weight=100.0  --socs_weight=0.0  --error_table="EnergyNacsDipoleMAE" --compute_nacs --nac_num=6
+python scripts/run_train.py --name="nacs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=0.0 --forces_weight=0.0 --nacs_weight=100.0  --socs_weight=0.0  --error_table="EnergyNacsDipoleMAE" --compute_nacs --nac_num=6 --nacs_key="REF_nacs"
 ```
 
 Here you still have the nac, socs and energy values in the dataset but the energy, forces and socs weights are set to zero so do not contribute.
@@ -115,7 +115,7 @@ Here you still have the nac, socs and energy values in the dataset but the energ
 This will just train soc values, the soc_num is the number of socs that the model will predict. Due to the way this MACE model is set up please make sure you also include energy values in the dataset otherwise there may be some problems.
 
 ```bash
-python scripts/run_train.py --name="socs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=100.0 --forces_weight=100.0 --nacs_weight=100.0 --socs_weight=100.0 --error_table="EnergyNacsDipoleMAE" --compute_socs --soc_num=252
+python scripts/run_train.py --name="socs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=100.0 --forces_weight=100.0 --nacs_weight=100.0 --socs_weight=100.0 --error_table="EnergyNacsDipoleMAE" --compute_socs --soc_num=252 
 ```
 
 If you only need to train NACs keep all the properties in the dataset but set the weighting of it in the loss function to zero for example:
