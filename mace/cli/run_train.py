@@ -826,35 +826,35 @@ def run(args: argparse.Namespace) -> None:
         for param in model.parameters():
             param.requires_grad = False
 
-        # table_train_valid = create_error_table(
-        #     table_type=args.error_table,
-        #     all_data_loaders=train_valid_data_loader,
-        #     model_type=args.model,
-        #     model=model_to_evaluate,
-        #     loss_fn=loss_fn,
-        #     output_args=output_args,
-        #     log_wandb=args.wandb,
-        #     device=device,
-        #     distributed=args.distributed,
-        # )
-        # logging.info("Error-table on TRAIN and VALID:\n" + str(table_train_valid))
+        table_train_valid = create_error_table(
+            table_type=args.error_table,
+            all_data_loaders=train_valid_data_loader,
+            model_type=args.model,
+            model=model_to_evaluate,
+            loss_fn=loss_fn,
+            output_args=output_args,
+            log_wandb=args.wandb,
+            device=device,
+            distributed=args.distributed,
+        )
+        logging.info("Error-table on TRAIN and VALID:\n" + str(table_train_valid))
 
-        # if test_data_loader:
-        #     table_test = create_error_table(
-        #         table_type=args.error_table,
-        #         all_data_loaders=test_data_loader,
-        #         model_type=args.model,
-        #         model=model_to_evaluate,
-        #         loss_fn=loss_fn,
-        #         output_args=output_args,
-        #         log_wandb=args.wandb,
-        #         device=device,
-        #         distributed=args.distributed,
-        #     )
-        #     logging.info("Error-table on TEST:\n" + str(table_test))
+        if test_data_loader:
+            table_test = create_error_table(
+                 table_type=args.error_table,
+                 all_data_loaders=test_data_loader,
+                 model_type=args.model,
+                 model=model_to_evaluate,
+                 loss_fn=loss_fn,
+                 output_args=output_args,
+                 log_wandb=args.wandb,
+                 device=device,
+                 distributed=args.distributed,
+             )
+            logging.info("Error-table on TEST:\n" + str(table_test))
 
         if rank == 0:
-            # Save entire model
+                # Save entire model
             if swa_eval:
                 model_path = Path(args.checkpoints_dir) / (tag + "_stagetwo.model")
             else:
