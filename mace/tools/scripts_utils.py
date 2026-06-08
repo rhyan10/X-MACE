@@ -538,7 +538,6 @@ def create_error_table(
             "config_type",
             "MAE E",
             "MAE F",
-            "MAE Mu",
             "MAE nacs",
             "MAE socs",
         ]
@@ -696,13 +695,16 @@ def create_error_table(
                 ]
             )
         elif table_type == "EnergyNacsDipoleMAE":
+            def _fmt(key):
+                v = metrics.get(key)
+                return f"{v * 1000:8.1f}" if v is not None else "     N/A"
             table.add_row(
                 [
                     name,
-                    f"{metrics['mae_e']*1000:8.1f}",
-                    f"{metrics['mae_f']*1000:8.1f}",
-                    f"{metrics['mae_nacs']*1000:8.1f}",
-                    f"{metrics['mae_socs']*1000:8.1f}",
+                    _fmt("mae_e"),
+                    _fmt("mae_f"),
+                    _fmt("mae_nacs"),
+                    _fmt("mae_socs"),
                 ]
             )
     return table
