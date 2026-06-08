@@ -36,7 +36,7 @@ class MACECalculator(Calculator):
         self,
         model_paths: Union[str, Path],
         device: str,
-        n_energies: int,
+        n_energies: int = 1,
         energy_units_to_eV: float = 1.0,
         length_units_to_A: float = 1.0,
         default_dtype: str = "",
@@ -46,7 +46,6 @@ class MACECalculator(Calculator):
         super().__init__(**kwargs)
         self.results = {}
         self.n_energies = int(n_energies)
-        print(2222)
         # ---- Load single model ----
         model_paths = Path(model_paths)
         if not model_paths.exists():
