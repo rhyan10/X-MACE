@@ -134,6 +134,9 @@ You only need to add the flag together at the end like so
 python scripts/run_train.py --name="socs" --train_file="SINGLET_SOC_ALL.xyz" --seed=100 --valid_fraction=0.1 --E0s='average' --model="ExcitedMACE" --r_max=5.0 --batch_size=10 --n_energies=4 --correlation=3 --max_num_epochs=100 --ema --lr=0.0001 --ema_decay=0.99 --default_dtype="float32" --device=cuda --hidden_irreps="32x0e + 32x1o" --MLP_irreps='32x0e' --num_radial_basis=8 --num_interactions=2 --energy_weight=100.0 --forces_weight=100.0 --nacs_weight=100.0 --socs_weight=100.0 --error_table="EnergyNacsDipoleMAE" --compute_socs --soc_num=252 --compute_nacs --nac_num=6
 ```
 
+## SHARC Installation
+Please refer to the SHARC website for installation instructions. Once SHARC is installed, copy the SHARC_MACE.py file provided in the tutorials folder into the bin/ directory of your SHARC installation. This is required to run any mace trajectories
+
 ## Datasets
 
 The datasets used for developing and benchmarking X‑MACE are available from publications references in the X-MACE publication. You can also access some of them directly via this link:
