@@ -31,14 +31,14 @@ Detailed documentation is in progress. In the meantime, usage examples provided 
 
 ### Software
 - **Operating System:** Linux, macOS, or Windows (best used with a conda environment)
-- **Python:** 3.7 or higher
+- **Python:** 3.11
 - **Dependencies:** X‑MACE relies on the typical deep learning and scientific computing stack in Python. All dependencies are installed during installation of the library
 
 ---
 
 ## Installation
 
-Ensure that Python 3.7+ is installed in your environment. To install X‑MACE and its dependencies clone the github repo and install locally. The installation should only take a few minutes on a normal computer. The following commands illustate this:
+Ensure that Python 3.11 is installed in your environment. To install X‑MACE and its dependencies clone the github repo and install locally. The installation should only take a few minutes on a normal computer. The following commands illustate this:
 
 ```bash
 git clone https://github.com/rhyan10/X-MACE.git
