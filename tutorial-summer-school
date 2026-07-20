@@ -1,0 +1,643 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "toc_visible": true,
+      "authorship_tag": "ABX9TyP9Slvi1PbDRdcGq2lSo3AD",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/rhyan10/X-MACE/blob/X-MACE_socs/tutorial-summer-school\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "abd9233a"
+      },
+      "source": [
+        "# ASE Tutorial: Opening and Inspecting the xyz file\n",
+        "\n",
+        "This notebook walks through:\n",
+        "1. Reading an extended XYZ file with ASE\n",
+        "2. Exploring basic `Atoms` properties\n",
+        "3. Understanding the `atoms.info` dictionary\n",
+        "4. Checking the correct shape of every data array\n",
+        "5. Iterating over all frames\n",
+        "\n",
+        "The file is **XYZ** format — each frame's comment line contains JSON-serialised arrays that ASE automatically parses into `atoms.info`."
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "7675456a"
+      },
+      "source": [
+        "## 1. Imports"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "8c34656e"
+      },
+      "source": [
+        "import ase.io\n",
+        "import numpy as np"
+      ],
+      "execution_count": 3,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "de8fa539"
+      },
+      "source": [
+        "## 2. Reading the XYZ File\n",
+        "\n",
+        "Pass `\":\"` as the index to read **all** frames, or `\":10\"` for the first 10."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "daead7a1"
+      },
+      "source": [
+        "# Read all frames — returns a list of Atoms objects\n",
+        "db = ase.io.read(\"SINGLET_SOC_ALL.xyz\", \":\")\n",
+        "\n",
+        "print(f\"Total frames loaded : {len(db)}\")\n",
+        "\n",
+        "# Work with the first frame for exploration\n",
+        "atoms = db[0]\n",
+        "print(f\"Type of each element: {type(atoms)}\")"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "6dcd96d1"
+      },
+      "source": [
+        "## 3. Basic Atoms Properties"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "66c17a76"
+      },
+      "source": [
+        "print(\"Number of atoms    :\", len(atoms))\n",
+        "print(\"Chemical symbols   :\", list(atoms.symbols))\n",
+        "print(\"Positions shape    :\", atoms.positions.shape)   # (N_atoms, 3)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "469bf0ab"
+      },
+      "source": [
+        "## 4. Listing All `atoms.info` Keys\n",
+        "\n",
+        "`atoms.info` is a plain Python `dict`. Every key in the extXYZ comment line ends up here, with JSON arrays already parsed."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "fbf5fba8"
+      },
+      "source": [
+        "print(\"Keys in atoms.info:\")\n",
+        "for k in atoms.info:\n",
+        "    print(\" \", k)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "b06c4f6a"
+      },
+      "source": [
+        "## 5. Shape Reference\n",
+        "\n",
+        "The dataset contains **4 electronic states** and **N = 23 atoms**.  \n",
+        "The number of unique state pairs is `4 × (4-1) / 2 = 6`.\n",
+        "\n",
+        "| Key | Expected shape | Meaning |\n",
+        "|---|---|---|\n",
+        "| `energy` | `(1, 4)` | 1 geometry × 4 state energies |\n",
+        "| `forces` | `(23, 4, 3)` | atoms × states × xyz |\n",
+        "| `couplings` | `(23, 6, 3)` | atoms × state pairs × xyz |\n",
+        "| `smooth_nacs` | `(23, 6, 3)` | smoothed NACs, same layout |\n",
+        "| `socs` | `(1, 240)` | flat SOC vector |"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "da16673b"
+      },
+      "source": [
+        "## 6. Inspecting Each Key"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "506f1e38"
+      },
+      "source": [
+        "### 6.1 Energy — shape `(1, 4)`"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "90bb1799"
+      },
+      "source": [
+        "energy = np.array(atoms.info['REF_energy'])\n",
+        "print(\"energy shape :\", energy.shape)   # (1, 4)\n",
+        "print(\"values       :\", energy)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "f5d960f5"
+      },
+      "source": [
+        "### 6.2 Forces — shape `(N_atoms, 4, 3)`"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "abff3973"
+      },
+      "source": [
+        "forces = np.array(atoms.info['REF_forces'])\n",
+        "print(\"forces shape :\", forces.shape)   # (23, 4, 3)\n",
+        "\n",
+        "# Re-order to (n_states, N_atoms, 3) if you prefer state-first indexing\n",
+        "forces_sf = forces.transpose(1, 0, 2)\n",
+        "print(\"state-first  :\", forces_sf.shape)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "4005cbfc"
+      },
+      "source": [
+        "### 6.3 Couplings — shape `(N_atoms, 6, 3)`"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "864c36e6"
+      },
+      "source": [
+        "couplings = np.array(atoms.info['REF_smooth_nacs']) # Can adjust nacs key here\n",
+        "print(\"couplings shape :\", couplings.shape)   # (23, 6, 3)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "e5fb260b"
+      },
+      "source": [
+        "### 6.5 Spin–Orbit Couplings — shape `(1, 240)` with labels"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "f41e65cb"
+      },
+      "source": [
+        "socs = np.array(atoms.info['REF_socs'])\n",
+        "print(\"socs shape   :\", socs.shape)          # (1, 240)"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "1ce38a5d"
+      },
+      "source": [
+        "## 7. Sanity-Check Script\n",
+        "\n",
+        "Run this to verify all shapes are correct for every frame in the dataset."
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "df301516"
+      },
+      "source": [
+        "N        = len(atoms)                            # 23\n",
+        "n_states = 4\n",
+        "n_pairs  = n_states * (n_states - 1) // 2       # 6\n",
+        "\n",
+        "expected_shapes = {\n",
+        "    'REF_energy'      : (1, n_states),\n",
+        "    'REF_forces'      : (N, n_states, 3),\n",
+        "    'REF_couplings'   : (N, n_pairs,  3),\n",
+        "    'REF_smooth_nacs' : (N, n_pairs,  3),\n",
+        "}\n",
+        "\n",
+        "print(f\"Checking frame 0 (N_atoms={N}, n_states={n_states}, n_pairs={n_pairs})\\n\")\n",
+        "all_ok = True\n",
+        "for key, expected in expected_shapes.items():\n",
+        "    actual = np.array(atoms.info[key]).shape\n",
+        "    ok = actual == expected\n",
+        "    status = \"✓\" if ok else f\"✗  got {actual}\"\n",
+        "    print(f\"  {key:22s}  expected {str(expected):15s}  {status}\")\n",
+        "    all_ok = all_ok and ok\n",
+        "\n",
+        "print()\n",
+        "print(\"All shapes correct!\" if all_ok else \"Some shapes are wrong — check above.\")"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "b7d0aae1"
+      },
+      "source": [
+        "## 8. Iterating Over All Frames"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "metadata": {
+        "id": "0f5d7966"
+      },
+      "source": [
+        "print(f\"{'Frame':>6}  {'Min energy (eV)':>18}  {'Max |force| (eV/Å)':>20}\")\n",
+        "print(\"-\" * 50)\n",
+        "\n",
+        "for i, frame in enumerate(db):\n",
+        "    e = np.array(frame.info['REF_energy'])\n",
+        "    f = np.array(frame.info['REF_forces'])\n",
+        "    print(f\"{i:>6}  {e.min():>18.6f}  {np.abs(f).max():>20.6f}\")"
+      ],
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 1,
+      "metadata": {
+        "id": "1kabnfQi5ARw"
+      },
+      "outputs": [],
+      "source": [
+        "notebook_json = \"\"\"\n",
+        "{\n",
+        " \"cells\": [\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"a1b2c3d4\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"# ASE Tutorial: Opening and Inspecting the xyz file\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"This notebook walks through:\\n\",\n",
+        "    \"1. Reading an extended XYZ file with ASE\\n\",\n",
+        "    \"2. Exploring basic `Atoms` properties\\n\",\n",
+        "    \"3. Understanding the `atoms.info` dictionary\\n\",\n",
+        "    \"4. Checking the correct shape of every data array\\n\",\n",
+        "    \"5. Iterating over all frames\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"The file is **XYZ** format — each frame's comment line contains JSON-serialised arrays that ASE automatically parses into `atoms.info`.\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"b2c3d4e5\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 1. Imports\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"c3d4e5f6\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"import ase.io\\n\",\n",
+        "    \"import numpy as np\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"d4e5f6a7\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 2. Reading the XYZ File\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"Pass `\":\"` as the index to read **all** frames, or `\":10\"` for the first 10.\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"e5f6a7b8\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"# Read all frames — returns a list of Atoms objects\\n\",\n",
+        "    \"db = ase.io.read(\\\"SINGLET_SOC_ALL.xyz\\\", \\\":\\\")\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"print(f\\\"Total frames loaded : {len(db)}\\\")\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"# Work with the first frame for exploration\\n\",\n",
+        "    \"atoms = db[0]\\n\",\n",
+        "    \"print(f\\\"Type of each element: {type(atoms)}\\\")\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"f6a7b8c9\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 3. Basic Atoms Properties\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"a7b8c9d0\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"print(\\\"Number of atoms    :\\\", len(atoms))\\n\",\n",
+        "    \"print(\\\"Chemical symbols   :\\\", list(atoms.symbols))\\n\",\n",
+        "    \"print(\\\"Positions shape    :\\\", atoms.positions.shape)   # (N_atoms, 3)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"b8c9d0e1\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 4. Listing All `atoms.info` Keys\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"`atoms.info` is a plain Python `dict`. Every key in the extXYZ comment line ends up here, with JSON arrays already parsed.\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"c9d0e1f2\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"print(\\\"Keys in atoms.info:\\\")\\n\",\n",
+        "    \"for k in atoms.info:\\n\",\n",
+        "    \"    print(\\\" \\\", k)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"d0e1f2a3\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 5. Shape Reference\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"The dataset contains **4 electronic states** and **N = 23 atoms**.  \\n\",\n",
+        "    \"The number of unique state pairs is `4 × (4-1) / 2 = 6`.\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"| Key | Expected shape | Meaning |\\n\",\n",
+        "    \"|---|---|---|\\n\",\n",
+        "    \"| `energy` | `(1, 4)` | 1 geometry × 4 state energies |\\n\",\n",
+        "    \"| `forces` | `(23, 4, 3)` | atoms × states × xyz |\\n\",\n",
+        "    \"| `couplings` | `(23, 6, 3)` | atoms × state pairs × xyz |\\n\",\n",
+        "    \"| `smooth_nacs` | `(23, 6, 3)` | smoothed NACs, same layout |\\n\",\n",
+        "    \"| `socs` | `(1, 240)` | flat SOC vector |\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"e1f2a3b4\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 6. Inspecting Each Key\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"f2a3b4c5\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"### 6.1 Energy — shape `(1, 4)`\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"a3b4c5d6\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"energy = np.array(atoms.info['REF_energy'])\\n\",\n",
+        "    \"print(\\\"energy shape :\\\", energy.shape)   # (1, 4)\\n\",\n",
+        "    \"print(\\\"values       :\\\", energy)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"b4c5d6e7\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"### 6.2 Forces — shape `(N_atoms, 4, 3)`\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"c5d6e7f8\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"forces = np.array(atoms.info['REF_forces'])\\n\",\n",
+        "    \"print(\\\"forces shape :\\\", forces.shape)   # (23, 4, 3)\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"# Re-order to (n_states, N_atoms, 3) if you prefer state-first indexing\\n\",\n",
+        "    \"forces_sf = forces.transpose(1, 0, 2)\\n\",\n",
+        "    \"print(\\\"state-first  :\\\", forces_sf.shape)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"d6e7f8a9\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"### 6.3 Couplings — shape `(N_atoms, 6, 3)`\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"e7f8a9b0\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"couplings = np.array(atoms.info['REF_smooth_nacs']) # Can adjust nacs key here\\n\",\n",
+        "    \"print(\\\"couplings shape :\\\", couplings.shape)   # (23, 6, 3)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"b0c1d2e3\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"### 6.5 Spin–Orbit Couplings — shape `(1, 240)` with labels\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"c1d2e3f4\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"socs = np.array(atoms.info['REF_socs'])\\n\",\n",
+        "    \"print(\\\"socs shape   :\\\", socs.shape)          # (1, 240)\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"f4a5b6c7\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 7. Sanity-Check Script\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"Run this to verify all shapes are correct for every frame in the dataset.\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"a5b6c7d8\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"N        = len(atoms)                            # 23\\n\",\n",
+        "    \"n_states = 4\\n\",\n",
+        "    \"n_pairs  = n_states * (n_states - 1) // 2       # 6\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"expected_shapes = {\\n\",\n",
+        "    \"    'REF_energy'      : (1, n_states),\\n\",\n",
+        "    \"    'REF_forces'      : (N, n_states, 3),\\n\",\n",
+        "    \"    'REF_couplings'   : (N, n_pairs,  3),\\n\",\n",
+        "    \"    'REF_smooth_nacs' : (N, n_pairs,  3),\\n\",\n",
+        "    \"}\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"print(f\\\"Checking frame 0 (N_atoms={N}, n_states={n_states}, n_pairs={n_pairs})\\\\n\\\")\\n\",\n",
+        "    \"all_ok = True\\n\",\n",
+        "    \"for key, expected in expected_shapes.items():\\n\",\n",
+        "    \"    actual = np.array(atoms.info[key]).shape\\n\",\n",
+        "    \"    ok = actual == expected\\n\",\n",
+        "    \"    status = \\\"✓\\\" if ok else f\\\"✗  got {actual}\\\"\\n\",\n",
+        "    \"    print(f\\\"  {key:22s}  expected {str(expected):15s}  {status}\\\")\\n\",\n",
+        "    \"    all_ok = all_ok and ok\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"print()\\n\",\n",
+        "    \"print(\\\"All shapes correct!\\\" if all_ok else \\\"Some shapes are wrong — check above.\\\")\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"markdown\",\n",
+        "   \"id\": \"b6c7d8e9\",\n",
+        "   \"metadata\": {},\n",
+        "   \"source\": [\n",
+        "    \"## 8. Iterating Over All Frames\"\n",
+        "   ]\n",
+        "  },\n",
+        "  {\n",
+        "   \"cell_type\": \"code\",\n",
+        "   \"execution_count\": null,\n",
+        "   \"id\": \"c7d8e9f0\",\n",
+        "   \"metadata\": {},\n",
+        "   \"outputs\": [],\n",
+        "   \"source\": [\n",
+        "    \"print(f\\\"{'Frame':>6}  {'Min energy (eV)':>18}  {'Max |force| (eV/Å)':>20}\\\")\\n\",\n",
+        "    \"print(\\\"-\\\" * 50)\\n\",\n",
+        "    \"\\n\",\n",
+        "    \"for i, frame in enumerate(db):\\n\",\n",
+        "    \"    e = np.array(frame.info['REF_energy'])\\n\",\n",
+        "    \"    f = np.array(frame.info['REF_forces'])\\n\",\n",
+        "    \"    print(f\\\"{i:>6}  {e.min():>18.6f}  {np.abs(f).max():>20.6f}\\\")\"\n",
+        "   ]\n",
+        "  }\n",
+        " ],\n",
+        " \"metadata\": {\n",
+        "  \"kernelspec\": {\n",
+        "   \"display_name\": \"Python 3\",\n",
+        "   \"language\": \"python\",\n",
+        "   \"name\": \"python3\"\n",
+        "  },\n",
+        "  \"language_info\": {\n",
+        "   \"name\": \"python\",\n",
+        "   \"version\": \"3.10.0\"\n",
+        "  }\n",
+        " },\n",
+        " \"nbformat\": 4,\n",
+        " \"nbformat_minor\": 5\n",
+        "}\n",
+        "\"\"\"\n",
+        "\n",
+        "import json\n",
+        "# notebook_data = json.loads(notebook_json)\n",
+        "# You can uncomment the line above to parse the JSON string into a Python dictionary."
+      ]
+    }
+  ]
+}
