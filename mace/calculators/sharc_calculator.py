@@ -22,7 +22,7 @@ class SharcCalculator:
     def __init__(
         self,
         atom_types,
-        model_path: str,
+        model_paths: str,
         device: str,
         energy_unit: str,
         distance_unit: str,
@@ -37,7 +37,7 @@ class SharcCalculator:
         self.distance_unit_conversion = distance_units[distance_unit]
 
         # Load model and setup molecule
-        self.modelpath = model_path
+        self.model_paths = model_paths
         self.properties = properties
 
         self.molecule = ase.Atoms(symbols=atom_types)
@@ -49,7 +49,7 @@ class SharcCalculator:
         self.soc_idx = np.triu_indices(self.n_total_states, 1)
         self.n_atoms = len(atom_types)
 
-        self.calc = MACECalculator(model_path=model_path, n_energies=self.n_total_states, device=device)
+        self.calc = MACECalculator(model_paths=model_paths, n_energies=self.n_total_states, device=device)
 
     def calculate(
         self, sharc_coords: Union[np.ndarray, torch.Tensor]
