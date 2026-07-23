@@ -108,6 +108,7 @@ class SHARC_MACE(SHARC_FAST):
             "grad",
             "nacdr",
             "point_charges",
+            "phases",
         }
 
     def get_infos(self, INFOS: dict, KEYSTROKES: TextIOWrapper | None = None) -> dict:
@@ -201,6 +202,9 @@ class SHARC_MACE(SHARC_FAST):
                     self.QMout.socdr = np.array(NN_out["socdr"])
                 case _:
                     self.log.warning(key," is not implemented")
+        
+        if self.QMin.requests["phases"]:
+            self.QMout.phases = np.ones(self.QMin.molecule["nmstates"], dtype=complex)
 
     def getQMout(self):
         # everything is already
