@@ -162,7 +162,7 @@ class SHARC_MACE(SHARC_FAST):
         super().setup_interface()
         self.models = SharcCalculator(
             atom_types=self.QMin.molecule["elements"],
-            model_path=self.QMin.template["model_file"],
+            model_paths=self.QMin.template["model_file"],
             device=self.QMin.template["device"],
             energy_unit=self.QMin.template["energy_unit"],
             distance_unit=self.QMin.template["distance_unit"],
