@@ -32,23 +32,22 @@ class SharcCalculator:
 
         distance_units = {"Ang": 0.529177249, "Bohr": 1.0}
         energy_units = {"eV": 0.0367493, "Hartree": 1.0}
-
         self.energy_unit_conversion = energy_units[energy_unit]
         self.distance_unit_conversion = distance_units[distance_unit]
-
         # Load model and setup molecule
         self.model_paths = model_paths
-        self.properties = properties
-
+        # SHARC's template parser nests list keywords: [["energy","forces","smooth_nacs"]]
+        if properties and isinstance(properties[0], list):
+            properties = properties[0]
+        self.properties = properties or []
+        self.nac_key = next((p for p in self.properties if "nac" in p), "smooth_nacs")
         self.molecule = ase.Atoms(symbols=atom_types)
         self.atom_types = atom_types
-
         self.n_states = n_states
         self.n_total_states = n_states["n_singlets"] + 3 * n_states["n_triplets"]
         self.nac_idx = np.triu_indices(self.n_states["n_singlets"], 1)
         self.soc_idx = np.triu_indices(self.n_total_states, 1)
         self.n_atoms = len(atom_types)
-
         self.calc = MACECalculator(model_paths=model_paths, n_energies=self.n_total_states, device=device)
 
     def calculate(
