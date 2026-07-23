@@ -88,6 +88,11 @@ class SharcCalculator:
         qm_out["grad"] = np.einsum("ijk->jik", -mace_output["forces"]).tolist()
 
         if self.nac_key in self.properties:
+            if np.size(mace_output[self.nac_key]) == 0:
+                raise ValueError(
+                    "Model returned no NACs — was it trained with --compute_nacs? "
+                    "Retrain with NAC output or remove the NAC property from MACE.template."
+                )
             nacs_v = np.einsum("ijk->jik", mace_output[self.nac_key])
             nacs_m = np.zeros((states, states, self.n_atoms, 3))
 
