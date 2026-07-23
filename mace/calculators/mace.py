@@ -1,6 +1,6 @@
 ###########################################################################################
 # Minimal ASE Calculator for a single MACE-like model (energies, forces, SOCs, NACs)
-# Authors: You + trimmed by ChatGPT
+# Authors: Rhyan Barrett
 # License: MIT
 ###########################################################################################
 
