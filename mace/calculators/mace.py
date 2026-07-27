@@ -117,6 +117,8 @@ class MACECalculator(Calculator):
         # SOCs & NACs: pass through as-is (units model-defined)
         socs = out["socs"].detach().to("cpu").numpy()
         nacs = out["nacs"].detach().to("cpu").numpy()
+        print(energy.shape)
+        print(nacs.shape)
 
         self.results = {
             "energy": energy,          # (n_graphs, n_states)
