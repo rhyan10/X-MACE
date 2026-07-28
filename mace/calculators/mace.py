@@ -6,7 +6,7 @@
 
 from pathlib import Path
 from typing import Union
-
+import numpy as np
 import torch
 from ase.calculators.calculator import Calculator, all_changes
 
@@ -40,6 +40,7 @@ class MACECalculator(Calculator):
         length_units_to_A: float = 1.0,
         default_dtype: str = "",
         charges_key: str = "Qs",
+        nacs_key: str = "REF_nacs",
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -79,9 +80,10 @@ class MACECalculator(Calculator):
 
         # Where to find atomic charges in Atoms for building graphs
         self.charges_key = charges_key
+        self.nacs_key = nacs_key
 
     def _atoms_to_batch(self, atoms):
-        cfg = data.config_from_atoms(atoms, charges_key=self.charges_key)
+        cfg = data.config_from_atoms(atoms, charges_key=self.charges_key, nacs_key=self.nacs_key)
         loader = torch_geometric.dataloader.DataLoader(
             dataset=[data.AtomicData.from_config(cfg, z_table=self.z_table, cutoff=self.r_max)],
             batch_size=1,
@@ -116,7 +118,19 @@ class MACECalculator(Calculator):
 
         # SOCs & NACs: pass through as-is (units model-defined)
         socs = out["socs"].detach().to("cpu").numpy()
-        nacs = out["nacs"].detach().to("cpu").numpy()
+
+        # --- Physical NACs ---
+        # The model predicts SMOOTH NACs (couplings pre-multiplied by the energy
+        # gap during training). Undo that here by dividing out the gap to recover
+        # the physical couplings, which diverge as 1/(En - Em) near conical
+        # intersections. Pair order must match the training convention:
+        # (0,1), (0,2), (1,2), ... from np.triu_indices(n_states, k=1).
+        smooth_nacs = out["nacs"].detach().to("cpu").numpy()   # (n_atoms, n_pairs, 3), smooth
+        E = energy.reshape(-1)                          # (n_states,)
+        i, j = np.triu_indices(E.size, k=1)             # (n_pairs,)
+        gaps = np.abs(E[j] - E[i])                      # (n_pairs,)
+        nacs = smooth_nacs / np.maximum(gaps, 1e-8)[None, :, None]
+        # ---------------------
 
         self.results = {
             "energy": energy,          # (n_graphs, n_states)
@@ -124,8 +138,6 @@ class MACECalculator(Calculator):
             "forces": forces,          # (num_atoms, n_states, 3)
             "socs": socs,              # (n_state_pairs,)
             "nacs": nacs,              # (num_atoms, n_state_pairs, 3)
-            # Alias: SHARC templates name the NAC property after the dataset key
-            # ("smooth_nacs"), while the model emits "nacs". Expose both so
-            # SharcCalculator finds it under either name.
-            "smooth_nacs": nacs,
+            "smooth_nacs": smooth_nacs,
         }
+
