@@ -152,13 +152,13 @@ def config_from_atoms(
     # intersections, so multiplying by the energy gap removes the discontinuity.
     # Invert by dividing by `gaps` to recover the physical couplings.
     # The input does assume the nacs are not converted to smooth nacs already
-    E = energy.reshape(-1)                    # (n_states,)
-    i, j = np.triu_indices(E.size, k=1)         # pair order: (0,1), (0,2), (1,2), ...
-    gaps = np.abs(E[j] - E[i])                  # (n_pairs,)
-    # raw -> smooth (training target)
-    nacs = nacs * gaps[None, :, None]    # (n_atoms, n_pairs, 3)
+    if nacs is not None and energy is not None:
+        E = energy.reshape(-1)                    # (n_states,)
+        i, j = np.triu_indices(E.size, k=1)         # pair order: (0,1), (0,2), (1,2), ...
+        gaps = np.abs(E[j] - E[i])                  # (n_pairs,)
+        # raw -> smooth (training target)
+        nacs = nacs * gaps[None, :, None]    # (n_atoms, n_pairs, 3)
     # -------------------
-
 
     dipoles = atoms.info.get(dipoles_key, None)  # Debye
     # Charges default to 0 instead of None if not found
