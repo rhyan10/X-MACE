@@ -126,7 +126,7 @@ class MACECalculator(Calculator):
         # intersections. Pair order must match the training convention:
         # (0,1), (0,2), (1,2), ... from np.triu_indices(n_states, k=1).
         smooth_nacs = out["nacs"].detach().to("cpu").numpy()   # (n_atoms, n_pairs, 3), smooth
-        if nacs is not None and energy is not None:
+        if smooth_nacs is not None and energy is not None:
             E = energy.reshape(-1)                          # (n_states,)
             i, j = np.triu_indices(E.size, k=1)             # (n_pairs,)
             gaps = np.abs(E[j] - E[i])                      # (n_pairs,)
