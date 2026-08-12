@@ -55,7 +55,7 @@ git checkout X-MACE_socs
 cd x-mace
 
 # Create and activate a new Python virtual environment using conda
-conda create --name x-mace-env python=3.13.2 -y
+conda create --name x-mace-env python=3.11.2 -y
 conda activate x-mace-env
 
 # Install dependencies and X-MACE
