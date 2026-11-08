@@ -214,3 +214,36 @@ def test_missing_n_energies_is_rejected_cleanly(tmp_path):
     result = run_mace_train(params, check=False, capture_output=True, text=True)
     assert result.returncode != 0
     assert "expected 1 energies" in result.stderr + result.stdout
+
+
+def test_hdf5_preprocessing_and_training(tmp_path):
+    _write_data(tmp_path)
+    run_mace_train(
+        {
+            "train_file": str(tmp_path / "train.xyz"),
+            "valid_fraction": 0.2,
+            "h5_prefix": str(tmp_path / "h5") + "/",
+            "r_max": 4.0,
+            "E0s": "average",
+            "n_energies": 3,
+            "seed": 1,
+            "num_process": 1,
+            "compute_statistics": None,
+            "compute_nacs": None,
+            "compute_socs": None,
+        },
+        script=Path(__file__).resolve().parents[2] / "mace" / "cli" / "preprocess_data.py",
+    )
+    statistics = json.loads((tmp_path / "h5" / "statistics.json").read_text())
+    assert len(statistics["mean"]) == 3  # one shift per state
+    params = _params(
+        tmp_path,
+        train_file=str(tmp_path / "h5" / "train" / "train_0.h5"),
+        valid_file=str(tmp_path / "h5" / "val" / "val_0.h5"),
+        statistics_file=str(tmp_path / "h5" / "statistics.json"),
+        max_num_epochs=2,
+    )
+    params.pop("valid_fraction")
+    params.pop("E0s")
+    run_mace_train(params, extra_argv=["--compute_nacs", "--compute_socs"])
+    assert "MAE NACs" in _log(tmp_path)

@@ -230,8 +230,14 @@ def standardise_excited_configs(
 
 
 def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
-    """Build the ExcitedStateSpec from command line arguments (None for other models)."""
-    if getattr(args, "model", None) not in EXCITED_MODELS:
+    """Build the ExcitedStateSpec from command line arguments.
+
+    None for other models. Without a --model argument (mace_preprocess_data),
+    --n_energies switches the excited-state labels on."""
+    if hasattr(args, "model"):
+        if args.model not in EXCITED_MODELS:
+            return None
+    elif getattr(args, "n_energies", None) is None:
         return None
     n_states = args.n_energies if args.n_energies is not None else 1
     n_pairs = num_state_pairs(n_states)
@@ -260,4 +266,12 @@ def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
         n_socs=n_socs,
         n_dipoles=n_dipoles,
         nacs_format=resolve_nacs_format(args.nacs_format, args.nacs_key),
+    )
+
+
+def add_excited_state_keys(key_specification, args) -> None:
+    """Read NACs (per atom), SOCs and dipoles with the keys given on the command line."""
+    key_specification.update(
+        info_keys={"socs": args.socs_key, "dipoles": args.dipoles_key},
+        arrays_keys={"nacs": args.nacs_key},
     )

@@ -79,6 +79,15 @@ The energies are total energies, and the couplings are phase free. The autoencod
 
 **Transfer learning.** `--foundation_model=medium_off` (or `small`, `medium`, `large`, `*_off`, or a path to a MACE model) takes the architecture and weights of the backbone from a ground-state MACE model. With `--foundation_model_readout=True` (the default), every state starts from the foundation's energy readout and scale/shift. The model then reproduces the foundation's potential energy surface for every state before training. Where the last layer keeps l = 1 features, the foundation weights fill the scalar part.
 
+**Large data sets.** `mace_preprocess_data` stores the excited-state labels in HDF5 when given `--n_energies` and the property options. With `--compute_statistics` it writes one shift per state:
+
+```bash
+mace_preprocess_data --train_file=train.xyz --valid_fraction=0.1 --h5_prefix=h5/ --r_max=5.0 \
+  --E0s=average --compute_statistics --n_energies=3 --compute_nacs --compute_socs
+mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_socs \
+  --train_file=h5/train/train_0.h5 --valid_file=h5/val/val_0.h5 --statistics_file=h5/statistics.json ...
+```
+
 ## Evaluation and dynamics
 
 ```bash
@@ -141,7 +150,7 @@ distance_unit  Ang
 
 **Not supported**
 
-* **Data and hardware.** HDF5/LMDB training data (`mace_preprocess_data`), multi-head fine-tuning, stress/virials, cuEquivariance/OpenEquivariance acceleration and LAMMPS. Excited-state models train from extended XYZ files.
+* **Training and deployment features.** Multi-head fine-tuning, stress/virials, cuEquivariance/OpenEquivariance acceleration and LAMMPS.
 
 ## Tests
 
@@ -151,7 +160,7 @@ distance_unit  Ang
 * **Models.** Invariance and equivariance under rotation, translation, inversion and atom permutation. Finite-difference forces for every state. The ZBL repulsion against a direct calculation. Batching, TorchScript, float32, and transfer from a foundation model, which must reproduce the ground state exactly.
 * **Losses and metrics.** Phase invariance, per-frame weights, autoencoder terms, and optimizer coverage.
 * **Calculators.** ASE, committees, MD energy conservation, and the SHARC layer in all state modes and units, including phase continuity.
-* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32 and `mace_eval_configs`.
+* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing and `mace_eval_configs`.
 
 ```bash
 pytest tests/excited            # about 3 minutes on a CPU

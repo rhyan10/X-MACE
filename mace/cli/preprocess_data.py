@@ -15,9 +15,15 @@ from typing import List, Tuple
 import h5py
 import numpy as np
 import tqdm
+from torch.utils.data import ConcatDataset
 
-from mace import data, tools
-from mace.data import KeySpecification, update_keyspec_from_kwargs
+from mace import data, modules, tools
+from mace.data import HDF5Dataset, KeySpecification, update_keyspec_from_kwargs
+from mace.data.excited import (
+    add_excited_state_keys,
+    excited_spec_from_args,
+    standardise_excited_configs,
+)
 from mace.data.utils import save_configurations_as_HDF5
 from mace.modules import compute_statistics
 from mace.tools import deprecation, torch_geometric
@@ -141,6 +147,23 @@ def main() -> None:
     run(args)
 
 
+def _excited_statistics(args, z_table, atomic_energies, excited_spec):
+    """avg_num_neighbors, per-state shift and scale of the excited-state training set."""
+    train_files = sorted(glob(args.h5_prefix + "train/*"))
+    dataset = ConcatDataset(
+        [HDF5Dataset(f, r_max=args.r_max, z_table=z_table) for f in train_files]
+    )
+    loader = torch_geometric.dataloader.DataLoader(
+        dataset, batch_size=args.batch_size, shuffle=False, drop_last=False
+    )
+    avg_num_neighbors = modules.compute_avg_num_neighbors(loader)
+    scaling = args.scaling if args.scaling != "no_scaling" else "rms_forces_scaling"
+    std, mean = modules.compute_excited_scaling(
+        loader, atomic_energies, scaling, excited_spec.n_states
+    )
+    return avg_num_neighbors, mean, std
+
+
 def run(args: argparse.Namespace):
     """
     This script loads an xyz dataset and prepares
@@ -150,6 +173,10 @@ def run(args: argparse.Namespace):
     # currently support only command line property_key syntax
     args.key_specification = KeySpecification()
     update_keyspec_from_kwargs(args.key_specification, vars(args))
+    # excited states (X-MACE): --n_energies stores multi-state labels
+    excited_spec = excited_spec_from_args(args)
+    if excited_spec is not None:
+        add_excited_state_keys(args.key_specification, args)
 
     # Setup
     tools.set_seeds(args.seed)
@@ -187,6 +214,17 @@ def run(args: argparse.Namespace):
         key_specification=args.key_specification,
         head_name="",
     )
+
+    if excited_spec is not None:
+        for subset_name, subset in [
+            ("train", collections.train),
+            ("valid", collections.valid),
+        ] + [(f"test {name}", configs) for name, configs in collections.tests]:
+            counts = standardise_excited_configs(subset, excited_spec)
+            logging.info(
+                f"Excited-state labels in {subset_name} set ({len(subset)} configurations): "
+                + ", ".join(f"{key}={value}" for key, value in counts.items())
+            )
 
     # Atomic number table
     # yapf: disable
@@ -242,15 +280,23 @@ def run(args: argparse.Namespace):
             [atomic_energies_dict[z] for z in z_table.zs]
         )
         logging.info(f"Atomic Energies: {atomic_energies.tolist()}")
-        _inputs = [args.h5_prefix+'train', z_table, args.r_max, atomic_energies, args.batch_size, args.num_process]
-        avg_num_neighbors, mean, std=pool_compute_stats(_inputs)
+        if excited_spec is not None:
+            avg_num_neighbors, mean, std = _excited_statistics(
+                args, z_table, atomic_energies, excited_spec
+            )
+        else:
+            _inputs = [args.h5_prefix+'train', z_table, args.r_max, atomic_energies, args.batch_size, args.num_process]
+            avg_num_neighbors, mean, std=pool_compute_stats(_inputs)
         logging.info(f"Average number of neighbors: {avg_num_neighbors}")
         logging.info(f"Mean: {mean}")
         logging.info(f"Standard deviation: {std}")
 
         # save the statistics as a json
         statistics = {
-            "atomic_energies": str(atomic_energies_dict),
+            # plain Python numbers: str() of numpy scalars is not parseable (numpy >= 2)
+            "atomic_energies": str(
+                {int(z): float(e) for z, e in atomic_energies_dict.items()}
+            ),
             "avg_num_neighbors": avg_num_neighbors,
             "mean": mean,
             "std": std,

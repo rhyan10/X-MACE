@@ -6,6 +6,7 @@ import torch
 from e3nn import o3
 
 from mace import modules
+from mace.data.excited import add_excited_state_keys
 from mace.modules.wrapper_ops import CuEquivarianceConfig
 from mace.tools.deprecation import warn
 from mace.tools.finetuning_utils import load_foundations_elements, load_foundations_mdp
@@ -21,10 +22,7 @@ def configure_excited_state_args(args, excited_spec) -> None:
     if args.n_energies is None:
         logging.warning("--n_energies not set, training a single electronic state")
         args.n_energies = excited_spec.n_states
-    args.key_specification.update(
-        info_keys={"socs": args.socs_key, "dipoles": args.dipoles_key},
-        arrays_keys={"nacs": args.nacs_key},
-    )
+    add_excited_state_keys(args.key_specification, args)
     if args.loss != "excited":
         if args.loss not in ("weighted", "ef"):
             logging.warning(

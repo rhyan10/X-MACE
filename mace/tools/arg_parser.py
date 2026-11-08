@@ -445,72 +445,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default=False,
     )
 
-    # Excited states (ExcitedMACE, AutoencoderExcitedMACE)
-    parser.add_argument(
-        "--n_energies",
-        "--n_states",
-        help="Number of electronic states S predicted by ExcitedMACE / AutoencoderExcitedMACE",
-        type=int,
-        default=None,
-        dest="n_energies",
-    )
-    parser.add_argument(
-        "--compute_nacs",
-        help="Predict non-adiabatic couplings (excited-state models)",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        default=False,
-    )
-    parser.add_argument(
-        "--compute_socs",
-        help="Predict spin-orbit couplings (excited-state models)",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        default=False,
-    )
-    parser.add_argument(
-        "--compute_dipoles",
-        help="Predict permanent and transition dipoles (excited-state models)",
-        type=str2bool,
-        nargs="?",
-        const=True,
-        default=False,
-    )
-    parser.add_argument(
-        "--nac_num",
-        help="Number of NAC vectors per atom (default: S(S-1)/2, one per state pair)",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--soc_num",
-        help="Number of SOC values per configuration (default: S(S-1)/2)",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--dipole_num",
-        help="Number of dipole vectors per configuration (default: S permanent + S(S-1)/2 transition)",
-        type=int,
-        default=None,
-    )
-    parser.add_argument(
-        "--nacs_format",
-        help="'raw': NACs in the data are multiplied by the energy gap of their state pair "
-        "(smooth NACs) before training; 'smooth': they already are; 'auto': 'smooth' if the "
-        "NAC key contains 'smooth', otherwise 'raw'",
-        type=str,
-        default="auto",
-        choices=["auto", "raw", "smooth"],
-    )
-    parser.add_argument(
-        "--num_permutational_invariant",
-        help="Size of the latent vector of AutoencoderExcitedMACE",
-        type=int,
-        default=16,
-    )
+    add_excited_state_arguments(parser)
     parser.add_argument(
         "--compute_magforces",
         help="Select True to compute magnetic forces",
@@ -1490,6 +1425,7 @@ def build_preprocess_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         default=False,
     )
+    add_excited_state_arguments(parser)
     parser.add_argument(
         "--batch_size",
         help="batch size to compute average number of neighbours",
@@ -1548,6 +1484,75 @@ def check_float_or_none(value: str) -> Optional[float]:
                 f"{value} is an invalid value (float or None)"
             ) from None
         return None
+
+
+def add_excited_state_arguments(parser) -> None:
+    """Options of the excited-state models (ExcitedMACE, AutoencoderExcitedMACE)."""
+    parser.add_argument(
+        "--n_energies",
+        "--n_states",
+        help="Number of electronic states S predicted by ExcitedMACE / AutoencoderExcitedMACE",
+        type=int,
+        default=None,
+        dest="n_energies",
+    )
+    parser.add_argument(
+        "--compute_nacs",
+        help="Predict non-adiabatic couplings (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--compute_socs",
+        help="Predict spin-orbit couplings (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--compute_dipoles",
+        help="Predict permanent and transition dipoles (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--nac_num",
+        help="Number of NAC vectors per atom (default: S(S-1)/2, one per state pair)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--soc_num",
+        help="Number of SOC values per configuration (default: S(S-1)/2)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--dipole_num",
+        help="Number of dipole vectors per configuration (default: S permanent + S(S-1)/2 transition)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--nacs_format",
+        help="'raw': NACs in the data are multiplied by the energy gap of their state pair "
+        "(smooth NACs) before training; 'smooth': they already are; 'auto': 'smooth' if the "
+        "NAC key contains 'smooth', otherwise 'raw'",
+        type=str,
+        default="auto",
+        choices=["auto", "raw", "smooth"],
+    )
+    parser.add_argument(
+        "--num_permutational_invariant",
+        help="Size of the latent vector of AutoencoderExcitedMACE",
+        type=int,
+        default=16,
+    )
 
 
 def str2bool(value):
