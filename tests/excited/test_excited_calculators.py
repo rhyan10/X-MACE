@@ -152,6 +152,14 @@ def test_evaluate_excited_configs(model_file, molecules):
         assert atoms.info["P_energy"] == pytest.approx(out["energy"][0, 0].item())
 
 
+def test_evaluate_float32_model_under_float64_default(molecules):
+    """A float32 model evaluated while the default dtype is float64 (as in a script)."""
+    model = build_excited().float()
+    atoms_list = [a.copy() for a in molecules]
+    evaluate_excited_configs(model, atoms_list)
+    assert atoms_list[0].info["MACE_energies"].dtype == np.float32
+
+
 # ------------------------------------------------------------------------------------
 # SHARC
 # ------------------------------------------------------------------------------------

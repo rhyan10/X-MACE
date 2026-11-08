@@ -470,11 +470,15 @@ def evaluate_excited_configs(
         data.config_from_atoms(atoms, key_specification=data.KeySpecification())
         for atoms in atoms_list
     ]
-    loader = torch_geometric.dataloader.DataLoader(
-        [
+    with torch_tools.default_dtype(
+        torch.float64 if calc.default_dtype == "float64" else torch.float32
+    ):
+        dataset = [
             data.AtomicData.from_config(c, z_table=z_table, cutoff=r_max)
             for c in configs
-        ],
+        ]
+    loader = torch_geometric.dataloader.DataLoader(
+        dataset,
         batch_size=batch_size,
         shuffle=False,
         drop_last=False,
