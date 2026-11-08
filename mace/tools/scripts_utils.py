@@ -1050,6 +1050,8 @@ def get_params_options(
         "nacs_readouts",
         "socs_readouts",
         "soc_vectors_readouts",
+        "nacs_axial_readouts",
+        "dipoles_axial_readouts",
         "dipoles_readouts",
         "perm_encoder",
         "perm_decoder",

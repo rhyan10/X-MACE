@@ -106,12 +106,29 @@ def test_rotation_translation_permutation_symmetry(molecules, autoencoder):
 
 
 def test_inversion_flips_vectors(molecules):
-    model = build_excited()
+    # coupling_parity="fixed": NACs and all dipoles are polar vectors
+    model = build_excited(coupling_parity="fixed")
     out = model(atoms_to_batch(molecules, None).to_dict())
     out_i = model(atoms_to_batch(_rotated(molecules, -np.eye(3)), None).to_dict())
     torch.testing.assert_close(out_i["energy"], out["energy"])
     torch.testing.assert_close(out_i["nacs"], -out["nacs"])
     torch.testing.assert_close(out_i["dipoles"], -out["dipoles"])
+
+
+def test_both_parities_under_inversion(molecules):
+    # coupling_parity="both" (default): couplings have a polar and an axial part;
+    # permanent dipoles stay polar
+    model = build_excited()
+    out = model(atoms_to_batch(molecules, None).to_dict())
+    out_i = model(atoms_to_batch(_rotated(molecules, -np.eye(3)), None).to_dict())
+    torch.testing.assert_close(out_i["energy"], out["energy"])
+    n_states = out["energy"].shape[1]
+    torch.testing.assert_close(out_i["dipoles"][:, :n_states], -out["dipoles"][:, :n_states])
+    polar_nacs = 0.5 * (out["nacs"] - out_i["nacs"])
+    axial_nacs = 0.5 * (out["nacs"] + out_i["nacs"])
+    assert polar_nacs.abs().max() > 1e-6 and axial_nacs.abs().max() > 1e-6
+    axial_dipoles = 0.5 * (out["dipoles"] + out_i["dipoles"])[:, n_states:]
+    assert axial_dipoles.abs().max() > 1e-6
 
 
 @pytest.mark.parametrize("autoencoder", BOTH)
@@ -272,7 +289,8 @@ def test_autoencoder_reconstruction_path(molecules):
     # decoded_energy = baseline + scale * decoder(encoder((E_ref - baseline) / scale))
     num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).double()
     e0 = torch.zeros(4).index_add(0, batch.batch, model.atomic_energies_fn(batch.node_attrs)[:, 0])
-    baseline = e0[:, None] + num_atoms[:, None] * model.scale_shift.shift
+    shift = model.shift_average @ model.scale_shift.shift  # one shift per multiplicity
+    baseline = e0[:, None] + num_atoms[:, None] * shift
     encoded = model.perm_encoder((batch.energy - baseline) / 1.5)
     torch.testing.assert_close(out["encoded_energy"], encoded)
     torch.testing.assert_close(out["decoded_energy"], baseline + 1.5 * model.perm_decoder(encoded))

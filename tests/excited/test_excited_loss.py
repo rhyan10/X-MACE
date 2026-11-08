@@ -17,7 +17,12 @@ from mace.modules.excited_loss import (
 from mace.tools.scripts_utils import get_params_options
 from mace.tools.train import evaluate
 
-from conftest import atoms_to_batch, build_excited, full_spec  # pylint: disable=import-error
+from conftest import (  # pylint: disable=import-error
+    atoms_to_batch,
+    build_excited,
+    flip_nac_readouts,
+    full_spec,
+)
 from excited_data import make_excited_configs  # pylint: disable=import-error
 
 
@@ -152,9 +157,7 @@ def test_metrics_use_phase_aligned_couplings(molecules):
     for key in ("mae_e", "mae_e_per_atom", "rmse_f", "mae_nacs", "rmse_socs", "mae_dipoles"):
         assert metrics[key] is not None and np.isfinite(metrics[key]), key
     # flipping the sign of the model's NAC readouts changes nothing in the metrics
-    model.nacs_readouts[0].linear.weight.data.mul_(-1)
-    last = model.nacs_readouts[1].linear_2.weight
-    last.data.mul_(-1)
+    flip_nac_readouts(model)
     _, flipped = evaluate(model, _loss(), loader, output_args, device="cpu")
     np.testing.assert_allclose(flipped["mae_nacs"], metrics["mae_nacs"], rtol=1e-10)
 

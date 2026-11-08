@@ -104,3 +104,11 @@ def _float64():
 @pytest.fixture(name="molecules")
 def fixture_molecules():
     return make_excited_configs(4, n_states=3, seed=3)
+
+
+def flip_nac_readouts(model):
+    """Change the sign of a model's NACs (its polar and axial NAC readouts)."""
+    model.nacs_readouts[0].linear.weight.data.mul_(-1)
+    model.nacs_readouts[1].linear_2.weight.data.mul_(-1)
+    for readout in getattr(model, "nacs_axial_readouts", []):
+        readout.tensor_product.weight.data.mul_(-1)

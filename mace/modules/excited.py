@@ -157,22 +157,36 @@ class NonLinearVectorReadoutBlock(torch.nn.Module):
 
 
 @compile_mode("script")
-class AxialVectorReadoutBlock(torch.nn.Module):
-    """Readout to axial vectors ("P x 1e"), e.g. spin-orbit coupling vectors.
+class PairVectorReadoutBlock(torch.nn.Module):
+    """Readout to coupling vectors of either parity: "1e" (axial), "1o" (polar) or
+    "1o+1e" (both, summed per vector).
 
-    Polar l=1 features (1o) give axial vectors through their cross products
-    (1o x 1o -> 1e), so the block works with the usual hidden irreps. The features
-    are first projected to K scalars and K vectors (K = number of MLP scalars)."""
+    Axial vectors come from cross products of polar l=1 features (1o x 1o -> 1e), so
+    the block works with the usual hidden irreps. The features are first projected
+    to K scalars and K vectors (K = number of MLP scalars), then combined by a tensor
+    product. Returns Cartesian vectors [n_nodes, num_out * 3]."""
 
-    def __init__(self, irreps_in: o3.Irreps, MLP_irreps: o3.Irreps, num_out: int):
+    def __init__(
+        self,
+        irreps_in: o3.Irreps,
+        MLP_irreps: o3.Irreps,
+        num_out: int,
+        parities: str = "1e",
+    ):
         super().__init__()
+        if parities not in ("1e", "1o", "1o+1e"):
+            raise ValueError(f"parities must be '1e', '1o' or '1o+1e', got {parities}")
         irreps_in = o3.Irreps(irreps_in)
         num_hidden = max(1, o3.Irreps(MLP_irreps).count(o3.Irrep(0, 1)))
         hidden = f"{num_hidden}x0e + {num_hidden}x1o"
         if irreps_in.count(o3.Irrep(1, 1)) > 0:
             hidden += f" + {num_hidden}x1e"
         self.hidden_irreps = o3.Irreps(hidden)
-        self.irreps_out = o3.Irreps(f"{num_out}x1e")
+        self.num_out = num_out
+        self.n_parities = len(parities.split("+"))
+        self.irreps_out = o3.Irreps(
+            " + ".join(f"{num_out}x{p}" for p in parities.split("+"))
+        )
         self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=self.hidden_irreps)
         self.tensor_product = o3.FullyConnectedTensorProduct(
             self.hidden_irreps, self.hidden_irreps, self.irreps_out
@@ -184,7 +198,9 @@ class AxialVectorReadoutBlock(torch.nn.Module):
         heads: Optional[torch.Tensor] = None,  # pylint: disable=unused-argument
     ) -> torch.Tensor:
         hidden = self.linear(x)
-        return self.tensor_product(hidden, hidden)
+        out = self.tensor_product(hidden, hidden)
+        # [n, parity, num_out * 3] -> sum over the parities
+        return out.view(out.shape[0], self.n_parities, self.num_out * 3).sum(dim=1)
 
 
 @compile_mode("script")
@@ -222,13 +238,29 @@ class ExcitedScaleShiftBlock(torch.nn.Module):
 
 @compile_mode("script")
 class PermutationInvariantEncoder(torch.nn.Module):
-    """Deep set over the electronic states: energies [B, S] -> latent [B, K]."""
+    """Deep set over the electronic states: energies [B, S] -> latent [B, K].
 
-    def __init__(self, latent_dim: int = 16, hidden_dim: int = 16):
+    With several multiplicities (groups: the group of every state), each energy is
+    tagged with its multiplicity, so the encoding is invariant to permutations of
+    states within a multiplicity only."""
+
+    def __init__(
+        self,
+        latent_dim: int = 16,
+        hidden_dim: int = 16,
+        groups: Optional[List[int]] = None,
+    ):
         super().__init__()
         act = torch.nn.ELU
+        groups = list(groups) if groups is not None else []
+        n_groups = max(groups) + 1 if groups else 1
+        self.n_groups = n_groups
+        tags = torch.zeros(len(groups), n_groups)
+        for state, group in enumerate(groups):
+            tags[state, group] = 1.0
+        self.register_buffer("group_tags", tags)
         self.elementwise_nn = torch.nn.Sequential(
-            torch.nn.Linear(1, hidden_dim),
+            torch.nn.Linear(1 + (n_groups if n_groups > 1 else 0), hidden_dim),
             act(),
             torch.nn.Linear(hidden_dim, hidden_dim),
             act(),
@@ -248,19 +280,39 @@ class PermutationInvariantEncoder(torch.nn.Module):
         )
 
     def forward(self, energies: torch.Tensor) -> torch.Tensor:
-        per_state = self.elementwise_nn(energies.unsqueeze(-1))  # [B, S, H]
+        features = energies.unsqueeze(-1)  # [B, S, 1]
+        if self.n_groups > 1:
+            tags = self.group_tags.to(energies.dtype).unsqueeze(0)
+            features = torch.cat(
+                [features, tags.expand(energies.shape[0], -1, -1)], dim=-1
+            )
+        per_state = self.elementwise_nn(features)  # [B, S, H]
         return self.post_aggregation_nn(per_state.sum(dim=1))  # [B, K]
 
 
 @compile_mode("script")
 class PermutationInvariantDecoder(torch.nn.Module):
-    """latent [B, K] -> symmetric tridiagonal S x S matrix -> sorted eigenvalues [B, S]."""
+    """latent [B, K] -> symmetric tridiagonal matrix -> sorted eigenvalues [B, S].
+
+    With several multiplicities (block_sizes: states per multiplicity, in model
+    order) there is one tridiagonal block per multiplicity, so the states are ordered
+    within each multiplicity, as SHARC's MCH states are."""
 
     def __init__(
-        self, latent_dim: int = 16, n_energies: int = 3, hidden_dim: int = 128
+        self,
+        latent_dim: int = 16,
+        n_energies: int = 3,
+        hidden_dim: int = 128,
+        block_sizes: Optional[List[int]] = None,
     ):
         super().__init__()
         self.n_energies = n_energies
+        self.block_sizes: List[int] = (
+            [int(n) for n in block_sizes if n > 0] if block_sizes else [n_energies]
+        )
+        if sum(self.block_sizes) != n_energies:
+            raise ValueError(f"block sizes {self.block_sizes} != {n_energies} states")
+        n_values = sum(2 * n - 1 for n in self.block_sizes)
         act = torch.nn.ELU
         self.decoder_nn = torch.nn.Sequential(
             torch.nn.Linear(latent_dim, hidden_dim),
@@ -271,19 +323,33 @@ class PermutationInvariantDecoder(torch.nn.Module):
             act(),
             torch.nn.Linear(hidden_dim, hidden_dim),
             act(),
-            torch.nn.Linear(hidden_dim, 2 * n_energies - 1),
+            torch.nn.Linear(hidden_dim, n_values),
         )
 
     def forward(self, latent: torch.Tensor) -> torch.Tensor:
         values = self.decoder_nn(latent)
-        diagonal = values[:, : self.n_energies]
-        off_diagonal = values[:, self.n_energies :]
-        matrix = (
-            torch.diag_embed(diagonal)
-            + torch.diag_embed(off_diagonal, offset=1)
-            + torch.diag_embed(off_diagonal, offset=-1)
-        )
-        return torch.linalg.eigvalsh(matrix)  # ascending order
+        if len(self.block_sizes) == 1:
+            diagonal = values[:, : self.n_energies]
+            off_diagonal = values[:, self.n_energies :]
+            matrix = (
+                torch.diag_embed(diagonal)
+                + torch.diag_embed(off_diagonal, offset=1)
+                + torch.diag_embed(off_diagonal, offset=-1)
+            )
+            return torch.linalg.eigvalsh(matrix)  # ascending order
+        energies: List[torch.Tensor] = []
+        start = 0
+        for n in self.block_sizes:
+            diagonal = values[:, start : start + n]
+            off_diagonal = values[:, start + n : start + 2 * n - 1]
+            matrix = (
+                torch.diag_embed(diagonal)
+                + torch.diag_embed(off_diagonal, offset=1)
+                + torch.diag_embed(off_diagonal, offset=-1)
+            )
+            energies.append(torch.linalg.eigvalsh(matrix))
+            start += 2 * n - 1
+        return torch.cat(energies, dim=1)
 
 
 # --------------------------------------------------------------------------------------
@@ -301,13 +367,24 @@ class ExcitedMACE(MACE):
       socs    [B, L]       sum of per-atom invariant scalars
       dipoles [B, D, 3]    sum of per-atom equivariant vectors
       soc_vectors [B, Q, 3]  spin-orbit coupling vectors (soc_mode="spin_orbit"): sums
-                           of per-atom axial vectors, one per spin-orbit-coupled pair of
+                           of per-atom vectors, one per spin-orbit-coupled pair of
                            spatial states; mace.modules.spin_states turns them into the
                            M_S-resolved SOC matrix (Wigner-Eckart)
 
     states gives the states per multiplicity as in SHARC ([n_singlets, n_doublets,
     n_triplets, ...]); NACs and transition dipoles then couple states of the same
     multiplicity only.
+
+    coupling_parity: a coupling between two states changes sign with the phase of
+    either state, and an improper operation (inversion, reflection) can flip those
+    phases, so a coupling vector may behave as a polar or an axial vector. In a
+    planar molecule, the NACs and transition dipoles between states of opposite
+    reflection symmetry are perpendicular to the plane and the SOC vectors lie in
+    it, which polar (resp. axial) functions of in-plane positions cannot give.
+    "both" (default) gives every coupling vector a polar and an axial part, so the
+    model is equivariant under rotations and handles such couplings; "fixed" keeps
+    NACs and transition dipoles polar and SOC vectors axial. Permanent dipoles are
+    always polar.
 
     The ZBL core repulsion (pair_repulsion=True) is the same for every state. The
     atomic interaction energies are scaled by atomic_inter_scale and shifted by
@@ -345,6 +422,7 @@ class ExcitedMACE(MACE):
         heads: Optional[List[str]] = None,
         states: Optional[List[int]] = None,
         soc_mode: str = "free",
+        coupling_parity: str = "both",
         **kwargs: Any,
     ):
         if heads is not None and len(heads) > 1:
@@ -360,6 +438,10 @@ class ExcitedMACE(MACE):
         layout = list(states) if states is not None else [n_energies]
         # NACs and transition dipoles couple states of the same multiplicity only
         n_pairs = len(same_multiplicity_pairs(layout))
+        if coupling_parity not in ("both", "fixed"):
+            raise ValueError(
+                f"coupling_parity must be 'both' or 'fixed', got {coupling_parity!r}"
+            )
         if soc_mode not in ("free", "spin_orbit"):
             raise ValueError(
                 f"soc_mode must be 'free' or 'spin_orbit', got {soc_mode!r}"
@@ -439,6 +521,11 @@ class ExcitedMACE(MACE):
         self.soc_vector_num = soc_vector_num
         self.soc_mode = "spin_orbit" if soc_vector_num > 0 else "free"
         self.multiplicity_states: List[int] = layout
+        self.coupling_parity = coupling_parity
+        # default dipole layout: S permanent dipoles, then transition dipoles
+        self.n_permanent_dipoles = (
+            n_energies if dipole_num == n_energies + n_pairs else dipole_num
+        )
         self.keep_last_layer_irreps = keep_last_layer_irreps
         self.scale_shift = ExcitedScaleShiftBlock(
             scale=atomic_inter_scale, shift=atomic_inter_shift, n_states=n_energies
@@ -465,13 +552,30 @@ class ExcitedMACE(MACE):
             self.dipoles_readouts = self._vector_readouts(
                 layer_irreps, MLP_irreps, gate, dipole_num
             )
+        # Couplings between two states may be polar or axial vectors: an improper
+        # operation can change the sign of either state. With coupling_parity="both"
+        # every coupling vector gets a polar and an axial part (equivariant under
+        # rotations); "fixed" keeps NACs and transition dipoles polar and SOC
+        # vectors axial (also equivariant under inversion), which cannot describe
+        # couplings between states of opposite reflection symmetry of a planar
+        # molecule. Permanent dipoles are always polar.
+        both = coupling_parity == "both"
+        self.nacs_axial_readouts = torch.nn.ModuleList()
+        if self.compute_nacs and both:
+            self.nacs_axial_readouts = self._pair_readouts(
+                layer_irreps, MLP_irreps, nac_num, "1e"
+            )
+        self.n_transition_dipoles = dipole_num - self.n_permanent_dipoles
+        self.dipoles_axial_readouts = torch.nn.ModuleList()
+        if self.compute_dipoles and both and self.n_transition_dipoles > 0:
+            self.dipoles_axial_readouts = self._pair_readouts(
+                layer_irreps, MLP_irreps, self.n_transition_dipoles, "1e"
+            )
         self.soc_vectors_readouts = torch.nn.ModuleList()
         if self.compute_soc_vectors:
-            for irreps_in in layer_irreps:
-                if irreps_in.count(o3.Irrep(1, -1)) > 0:
-                    self.soc_vectors_readouts.append(
-                        AxialVectorReadoutBlock(irreps_in, MLP_irreps, soc_vector_num)
-                    )
+            self.soc_vectors_readouts = self._pair_readouts(
+                layer_irreps, MLP_irreps, soc_vector_num, "1o+1e" if both else "1e"
+            )
 
     def _energy_readout_dim(self) -> int:
         return self.n_energies
@@ -512,6 +616,21 @@ class ExcitedMACE(MACE):
                 )
             else:
                 readouts.append(LinearReadoutBlock(irreps_in, irreps_out))
+        return readouts
+
+    @staticmethod
+    def _pair_readouts(
+        layer_irreps: List[o3.Irreps],
+        MLP_irreps: o3.Irreps,
+        num_out: int,
+        parities: str,
+    ) -> torch.nn.ModuleList:
+        readouts = torch.nn.ModuleList()
+        for irreps_in in layer_irreps:
+            if irreps_in.count(o3.Irrep(1, -1)) > 0:
+                readouts.append(
+                    PairVectorReadoutBlock(irreps_in, MLP_irreps, num_out, parities)
+                )
         return readouts
 
     def _node_features(
@@ -559,8 +678,8 @@ class ExcitedMACE(MACE):
                 dtype=node_feats_list[0].dtype,
                 device=node_feats_list[0].device,
             )
-            for i, readout in enumerate(self.soc_vectors_readouts):
-                node_soc = node_soc + readout(node_feats_list[i])
+            for i, soc_readout in enumerate(self.soc_vectors_readouts):
+                node_soc = node_soc + soc_readout(node_feats_list[i])
             soc_vectors = scatter_sum(
                 node_soc, data["batch"], dim=0, dim_size=num_graphs
             ).view(num_graphs, self.soc_vector_num, 3)
@@ -571,8 +690,10 @@ class ExcitedMACE(MACE):
                 dtype=node_feats_list[0].dtype,
                 device=node_feats_list[0].device,
             )
-            for i, readout in enumerate(self.nacs_readouts):
-                node_nacs = node_nacs + readout(node_feats_list[i])
+            for i, nac_readout in enumerate(self.nacs_readouts):
+                node_nacs = node_nacs + nac_readout(node_feats_list[i])
+            for i, nac_axial_readout in enumerate(self.nacs_axial_readouts):
+                node_nacs = node_nacs + nac_axial_readout(node_feats_list[i])
             nacs = node_nacs.view(num_nodes, self.nac_num, 3)
         if self.compute_socs:
             node_socs = torch.zeros(
@@ -581,8 +702,8 @@ class ExcitedMACE(MACE):
                 dtype=node_feats_list[0].dtype,
                 device=node_feats_list[0].device,
             )
-            for i, readout in enumerate(self.socs_readouts):
-                node_socs = node_socs + readout(node_feats_list[i])
+            for i, free_soc_readout in enumerate(self.socs_readouts):
+                node_socs = node_socs + free_soc_readout(node_feats_list[i])
             socs = scatter_sum(node_socs, data["batch"], dim=0, dim_size=num_graphs)
         if self.compute_dipoles:
             node_dipoles = torch.zeros(
@@ -591,8 +712,27 @@ class ExcitedMACE(MACE):
                 dtype=node_feats_list[0].dtype,
                 device=node_feats_list[0].device,
             )
-            for i, readout in enumerate(self.dipoles_readouts):
-                node_dipoles = node_dipoles + readout(node_feats_list[i])
+            for i, dipole_readout in enumerate(self.dipoles_readouts):
+                node_dipoles = node_dipoles + dipole_readout(node_feats_list[i])
+            if len(self.dipoles_axial_readouts) > 0:
+                node_transition = torch.zeros(
+                    num_nodes,
+                    self.n_transition_dipoles * 3,
+                    dtype=node_feats_list[0].dtype,
+                    device=node_feats_list[0].device,
+                )
+                for i, dipole_axial_readout in enumerate(self.dipoles_axial_readouts):
+                    node_transition = node_transition + dipole_axial_readout(
+                        node_feats_list[i]
+                    )
+                node_dipoles = torch.cat(
+                    [
+                        node_dipoles[:, : 3 * self.n_permanent_dipoles],
+                        node_dipoles[:, 3 * self.n_permanent_dipoles :]
+                        + node_transition,
+                    ],
+                    dim=1,
+                )
             dipoles = scatter_sum(
                 node_dipoles, data["batch"], dim=0, dim_size=num_graphs
             ).view(num_graphs, self.dipole_num, 3)
@@ -699,7 +839,8 @@ class AutoencoderExcitedMACE(ExcitedMACE):
     The network predicts a permutation-invariant latent vector (readouts, K values
     per configuration). A decoder maps it to a symmetric tridiagonal S x S matrix
     whose eigenvalues are the interaction energies, so the states stay ordered and
-    their crossings smooth. During training an encoder maps the reference energies
+    their crossings smooth. With several multiplicities the matrix has one block per
+    multiplicity: states are ordered within each multiplicity. During training an encoder maps the reference energies
     to the latent space; the decoder must reconstruct them (decoded_energy) and the
     network must reproduce the encoded latent vector (encoded_energy).
     """
@@ -709,12 +850,25 @@ class AutoencoderExcitedMACE(ExcitedMACE):
     ):
         self.num_permutational_invariant = num_permutational_invariant
         super().__init__(*args, **kwargs)
+        blocks = [n for n in self.multiplicity_states if n > 0]
+        groups = [g for g, n in enumerate(blocks) for _ in range(n)]
         self.perm_encoder = PermutationInvariantEncoder(
-            latent_dim=num_permutational_invariant
+            latent_dim=num_permutational_invariant,
+            groups=groups if len(blocks) > 1 else None,
         )
         self.perm_decoder = PermutationInvariantDecoder(
-            latent_dim=num_permutational_invariant, n_energies=self.n_energies
+            latent_dim=num_permutational_invariant,
+            n_energies=self.n_energies,
+            block_sizes=blocks,
         )
+        # one energy shift per multiplicity (the mean of its states' shifts), so the
+        # shift keeps the decoded states in order
+        average = torch.zeros(self.n_energies, self.n_energies)
+        start = 0
+        for n in blocks:
+            average[start : start + n, start : start + n] = 1.0 / n
+            start += n
+        self.register_buffer("shift_average", average)
 
     def _energy_readout_dim(self) -> int:
         return self.num_permutational_invariant
@@ -752,9 +906,12 @@ class AutoencoderExcitedMACE(ExcitedMACE):
         num_atoms = (data["ptr"][1:] - data["ptr"][:-1]).to(invariant_vals.dtype)
         e0 = scatter_sum(node_e0, batch, dim=0, dim_size=num_graphs)
         pair_energy = scatter_sum(pair_node_energy, batch, dim=0, dim_size=num_graphs)
+        shift = self.shift_average.to(self.scale_shift.shift.dtype) @ (
+            self.scale_shift.shift
+        )
         baseline = (e0 + pair_energy).unsqueeze(-1) + num_atoms.unsqueeze(
             -1
-        ) * self.scale_shift.shift.unsqueeze(
+        ) * shift.unsqueeze(
             0
         )  # [n_graphs, S]
         scale = self.scale_shift.scale

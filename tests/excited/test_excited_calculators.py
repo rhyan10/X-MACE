@@ -9,7 +9,11 @@ import ase
 import numpy as np
 import pytest
 import torch
-from conftest import atoms_to_batch, build_excited  # pylint: disable=import-error
+from conftest import (  # pylint: disable=import-error
+    atoms_to_batch,
+    build_excited,
+    flip_nac_readouts,
+)
 
 from mace.calculators import ExcitedMACECalculator, MACECalculator
 from mace.calculators.excited import evaluate_excited_configs, raw_nacs_from_smooth
@@ -83,8 +87,7 @@ def test_committee_aligns_coupling_signs(tmp_path, molecules):
     model = build_excited()
     flipped = build_excited()
     flipped.load_state_dict(model.state_dict())
-    flipped.nacs_readouts[0].linear.weight.data.mul_(-1)
-    flipped.nacs_readouts[1].linear_2.weight.data.mul_(-1)
+    flip_nac_readouts(flipped)
     for readout in flipped.socs_readouts:
         last = readout.linear_2 if hasattr(readout, "linear_2") else readout.linear
         last.weight.data.mul_(-1)
@@ -282,8 +285,7 @@ def test_sharc_phase_continuity(tmp_path, molecules):
     # the model flips the sign of its couplings between two (identical) steps
     flipped = build_excited()
     flipped.load_state_dict(model.state_dict())
-    flipped.nacs_readouts[0].linear.weight.data.mul_(-1)
-    flipped.nacs_readouts[1].linear_2.weight.data.mul_(-1)
+    flip_nac_readouts(flipped)
     sharc.calc.models = [flipped]
     second = sharc.calculate(coords)
     np.testing.assert_allclose(second["nacdr"], first["nacdr"], atol=1e-12)

@@ -223,13 +223,18 @@ def test_model_layout_and_symmetry(states, molecules):
     for atoms in inverted:
         atoms.positions = -atoms.positions
     out_rot = _predict(model, rotated)
-    out_inv = _predict(model, inverted)
-    # SOC vectors are axial: rotate like vectors, unchanged by inversion
+    # SOC vectors, NACs and dipoles rotate with the molecule
     torch.testing.assert_close(out_rot["soc_vectors"], out["soc_vectors"] @ rotation.T)
-    torch.testing.assert_close(out_inv["soc_vectors"], out["soc_vectors"])
-    # dipoles are polar
-    torch.testing.assert_close(out_inv["dipoles"], -out["dipoles"])
+    torch.testing.assert_close(out_rot["dipoles"], out["dipoles"] @ rotation.T)
     torch.testing.assert_close(out_rot["energy"], out["energy"])
+    # coupling_parity="fixed": SOC vectors axial (unchanged by inversion), dipoles polar
+    fixed = spin_model(states, coupling_parity="fixed")
+    out_fixed, out_fixed_inv = _predict(fixed, molecules[:2]), _predict(fixed, inverted)
+    torch.testing.assert_close(out_fixed_inv["soc_vectors"], out_fixed["soc_vectors"])
+    torch.testing.assert_close(out_fixed_inv["dipoles"], -out_fixed["dipoles"])
+    # default "both": the SOC vectors also have a polar part
+    out_inv = _predict(model, inverted)
+    assert (out_inv["soc_vectors"] - out["soc_vectors"]).abs().max() > 1e-6
 
 
 def test_model_scripts_and_errors(molecules):
@@ -507,3 +512,81 @@ def test_sharc_finite_difference_gradients(spin_model_files, molecules):
         np.testing.assert_allclose(
             (e_plus - e_minus) / (2 * step), grad[:, atom, axis], atol=1e-7
         )
+
+
+def test_labels_from_sharc_round_trip(spin_model_files, molecules):
+    """SharcCalculator output (SHARC units, M_S resolved) turned back into labels
+    gives the model's own predictions."""
+    from mace.data.sharc_labels import atoms_from_sharc, labels_from_sharc
+
+    states = SINGLET_TRIPLET_QUINTET
+    sharc = _sharc(spin_model_files["stq"], states)
+    coords = molecules[0].positions / BOHR_TO_ANGSTROM
+    qm = sharc.calculate(coords)
+    results = sharc.calc.predict(molecules[0])
+    labels = labels_from_sharc(
+        states, qm["h"], qm["grad"], qm["nacdr"], qm["dm"], soc_unit="eV"
+    )
+    np.testing.assert_allclose(labels["energies"], results["energies"], atol=1e-10)
+    np.testing.assert_allclose(labels["forces"], results["forces_states"], atol=1e-10)
+    np.testing.assert_allclose(labels["nacs"], results["nacs"], atol=1e-10)
+    np.testing.assert_allclose(labels["dipoles"], results["dipoles"], atol=1e-10)
+    np.testing.assert_allclose(labels["socs"], results["soc_matrix"], atol=1e-12)
+    atoms = atoms_from_sharc(
+        ["C", "H", "H", "O"], coords, states, qm["h"], qm["grad"], qm["nacdr"], qm["dm"]
+    )
+    np.testing.assert_allclose(atoms.positions, molecules[0].positions)
+    assert atoms.info["REF_socs"].shape == (13 * 12,)
+    bad = qm["h"].copy()
+    bad[3, 3] += 1e-3  # an M_S component off the multiplet energy
+    with pytest.raises(ValueError, match="MCH"):
+        labels_from_sharc(states, bad)
+
+
+def test_planar_molecules_need_both_parities(molecules):
+    """For a planar geometry, polar functions of the positions lie in the plane and
+    axial ones are perpendicular to it. Couplings between states of opposite
+    reflection symmetry need the other direction (e.g. out-of-plane n->pi*
+    transition dipoles, in-plane SOC vectors), which coupling_parity="both" gives."""
+    planar = molecules[0].copy()
+    planar.positions[:, 2] = 0.0  # molecule in the xy plane, normal along z
+    torch.manual_seed(5)
+    states = [2, 0, 2]
+    fixed = spin_model(states, coupling_parity="fixed")
+    both = spin_model(states, coupling_parity="both")
+    out_fixed, out_both = _predict(fixed, [planar]), _predict(both, [planar])
+    n_states = sum(states)
+    transition_fixed = out_fixed["dipoles"][0, n_states:]
+    transition_both = out_both["dipoles"][0, n_states:]
+    assert transition_fixed[:, 2].abs().max() < 1e-10  # polar: in plane only
+    assert transition_both[:, 2].abs().max() > 1e-6  # out of plane too
+    assert out_fixed["soc_vectors"][0, :, :2].abs().max() < 1e-10  # axial: normal only
+    assert out_both["soc_vectors"][0, :, :2].abs().max() > 1e-6  # in plane too
+    assert out_fixed["nacs"][..., 2].abs().max() < 1e-10
+    assert out_both["nacs"][..., 2].abs().max() > 1e-6
+    # permanent dipoles of a planar molecule lie in its plane in both cases
+    assert out_both["dipoles"][0, :n_states, 2].abs().max() < 1e-10
+
+
+def test_autoencoder_orders_states_within_each_multiplicity(molecules):
+    torch.manual_seed(6)
+    states = [2, 0, 3]
+    model = build_excited(n_states=5, states=states, soc_mode="spin_orbit", autoencoder=True)
+    assert model.perm_decoder.block_sizes == [2, 3]
+    assert model.perm_encoder.n_groups == 2
+    # the energies of each multiplicity are sorted (one shift per multiplicity)
+    model.scale_shift.shift.data[:] = torch.tensor([0.3, -0.2, 1.0, -1.0, 0.5])
+    energies = _predict(model, molecules[:3])["energy"].detach()
+    assert torch.all(energies[:, 1] >= energies[:, 0] - 1e-9)
+    assert torch.all(torch.diff(energies[:, 2:], dim=1) >= -1e-9)
+    # the encoder distinguishes multiplicities: swapping a singlet and a triplet energy
+    # changes the encoding, swapping two triplets does not
+    reference = torch.tensor([[0.0, 1.0, 2.0, 3.0, 4.0]])
+    swap_triplets = reference[:, [0, 1, 3, 2, 4]]
+    swap_mult = reference[:, [2, 1, 0, 3, 4]]
+    enc = model.perm_encoder
+    torch.testing.assert_close(enc(swap_triplets), enc(reference))
+    assert (enc(swap_mult) - enc(reference)).abs().max() > 1e-6
+    from e3nn.util import jit
+
+    jit.compile(model)

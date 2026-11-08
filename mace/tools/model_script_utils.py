@@ -20,7 +20,8 @@ EXCITED_ERROR_TABLES = ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE")
 def configure_excited_state_args(args, excited_spec) -> None:
     """Settings shared by ExcitedMACE and AutoencoderExcitedMACE runs."""
     if args.n_energies is None:
-        logging.warning("--n_energies not set, training a single electronic state")
+        if excited_spec.states is None:
+            logging.warning("--n_energies not set, training a single electronic state")
         args.n_energies = excited_spec.n_states
     add_excited_state_keys(args.key_specification, args)
     if args.loss != "excited":
@@ -37,6 +38,7 @@ def configure_excited_state_args(args, excited_spec) -> None:
     args.compute_forces = True
     logging.info(
         f"{args.model}: {excited_spec.describe()}, "
+        f"coupling parity={getattr(args, 'coupling_parity', 'both')}, "
         f"pair repulsion={'on' if args.pair_repulsion else 'off'}"
     )
     args.excited_spec = excited_spec
@@ -397,6 +399,7 @@ def _build_excited_model(args, model_config):
         soc_num=spec.n_socs if spec.n_socs > 0 else None,
         states=spec.states,
         soc_mode=spec.soc_mode,
+        coupling_parity=getattr(args, "coupling_parity", "both"),
         compute_dipoles=spec.n_dipoles > 0,
         dipole_num=spec.n_dipoles if spec.n_dipoles > 0 else None,
         atomic_inter_scale=args.std if args.std is not None else 1.0,

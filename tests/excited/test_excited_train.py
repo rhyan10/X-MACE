@@ -94,7 +94,7 @@ def test_excited_mace_all_properties(tmp_path):
     losses = _valid_losses(tmp_path)
     assert losses[-1] < 0.5 * losses[0]
     log = _log(tmp_path)
-    assert "NACs=3 (raw), SOCs=3, dipoles=6, pair repulsion=on" in log
+    assert "NACs=3 (raw), SOCs=3, dipoles=6, coupling parity=both, pair repulsion=on" in log
     assert "RMSE NACs" in log and "Error-table on TEST" in log
     model = torch.load(tmp_path / "xmace.model", weights_only=False)
     assert model.__class__.__name__ == "ExcitedMACE"

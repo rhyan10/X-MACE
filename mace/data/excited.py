@@ -397,7 +397,7 @@ def standardise_excited_configs(
 def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
     """Build the ExcitedStateSpec from command line arguments.
 
-    None for other models. Without a --model argument (mace_preprocess_data),
+    None for other models. Without a --model argument (mace_prepare_data),
     --n_energies or --states switches the excited-state labels on."""
     states = getattr(args, "states", None)
     if hasattr(args, "model"):

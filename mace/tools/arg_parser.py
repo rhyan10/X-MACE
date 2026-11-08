@@ -1520,6 +1520,18 @@ def add_excited_state_arguments(parser) -> None:
         default="auto",
     )
     parser.add_argument(
+        "--coupling_parity",
+        help=(
+            "'both': NACs, transition dipoles and SOC vectors get a polar and an axial "
+            "part (equivariant under rotations). Needed for couplings between states "
+            "of opposite reflection symmetry in (near) planar molecules, e.g. "
+            "out-of-plane n->pi* transition dipoles. 'fixed': NACs and transition "
+            "dipoles polar, SOC vectors axial (also equivariant under inversion)"
+        ),
+        choices=["both", "fixed"],
+        default="both",
+    )
+    parser.add_argument(
         "--compute_nacs",
         help="Predict non-adiabatic couplings (excited-state models)",
         type=str2bool,
