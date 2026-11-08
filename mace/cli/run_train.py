@@ -36,10 +36,11 @@ from mace.cli.convert_e3nn_oeq import run as run_e3nn_to_oeq
 from mace.cli.convert_oeq_e3nn import run as run_oeq_to_e3nn
 from mace.cli.visualise_train import TrainingPlotter
 from mace.data import KeySpecification, update_keyspec_from_kwargs
+from mace.data.excited import excited_spec_from_args, standardise_excited_configs
 from mace.modules.lora import inject_LoRAs, merge_lora_weights
 from mace.tools import deprecation, torch_geometric
 from mace.tools.distributed_tools import init_distributed, xpu_device_index
-from mace.tools.model_script_utils import configure_model
+from mace.tools.model_script_utils import configure_excited_state_args, configure_model
 from mace.tools.multihead_tools import (
     HeadConfig,
     apply_pseudolabels_to_pt_head_configs,
@@ -142,6 +143,11 @@ def run(args) -> None:
     valid_mace_mp_models = [name for name in mace_mp_names if name is not None]
     args.foundation_model_kwargs = ast.literal_eval(args.foundation_model_kwargs)
     args.foundation_model_kwargs["head"] = args.foundation_head
+
+    # Excited-state models (X-MACE)
+    excited_spec = excited_spec_from_args(args)
+    if excited_spec is not None:
+        configure_excited_state_args(args, excited_spec)
 
     # MDP fine-tuning validation
     if args.finetune_dipoles_polarizabilities:
@@ -398,6 +404,17 @@ def run(args) -> None:
                 ),
                 prefix=args.name,
             )
+            if excited_spec is not None:
+                for subset_name, subset in [
+                    ("train", collections.train),
+                    ("valid", collections.valid),
+                ] + [(f"test {name}", configs) for name, configs in collections.tests]:
+                    counts = standardise_excited_configs(subset, excited_spec)
+                    logging.info(
+                        f"Excited-state labels in {subset_name} set of head "
+                        f"'{head_config.head_name}' ({len(subset)} configurations): "
+                        + ", ".join(f"{key}={value}" for key, value in counts.items())
+                    )
             head_config.collections = SubsetCollection(
                 train=collections.train,
                 valid=collections.valid,

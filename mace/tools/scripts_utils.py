@@ -832,9 +832,31 @@ def get_loss_fn(
             forces_weight=args.forces_weight,
             dipole_weight=args.dipole_weight,
         )
+    elif args.loss == "excited":
+        loss_fn = _excited_loss(args, args.energy_weight, args.forces_weight)
     else:
         loss_fn = modules.WeightedEnergyForcesLoss(energy_weight=1.0, forces_weight=1.0)
     return loss_fn
+
+
+def _excited_loss(
+    args: argparse.Namespace, energy_weight: float, forces_weight: float
+) -> torch.nn.Module:
+    spec = args.excited_spec
+    n_pairs = spec.n_states * (spec.n_states - 1) // 2
+    # Default layout: S permanent dipoles, then one transition dipole per state pair
+    # (phase free). Any other layout is compared as it is.
+    n_permanent = (
+        spec.n_states if spec.n_dipoles == spec.n_states + n_pairs else spec.n_dipoles
+    )
+    return modules.WeightedExcitedStatesLoss(
+        energy_weight=energy_weight,
+        forces_weight=forces_weight,
+        nacs_weight=args.nacs_weight,
+        socs_weight=args.socs_weight,
+        dipoles_weight=args.dipoles_weight,
+        n_permanent_dipoles=n_permanent,
+    )
 
 
 def get_swa(
@@ -890,6 +912,13 @@ def get_swa(
         )
         logging.info(
             f"Stage Two (after {args.start_swa} epochs) with loss function: {loss_fn_energy}, with energy weight : {args.swa_energy_weight}, forces weight : {args.swa_forces_weight}, dipole weight : {args.swa_dipole_weight} and learning rate : {args.swa_lr}"
+        )
+    elif args.loss == "excited":
+        loss_fn_energy = _excited_loss(
+            args, args.swa_energy_weight, args.swa_forces_weight
+        )
+        logging.info(
+            f"Stage Two (after {args.start_swa} epochs) with loss function: {loss_fn_energy} and learning rate : {args.swa_lr}"
         )
     elif args.loss == "universal":
         loss_fn_energy = modules.UniversalLoss(
@@ -1014,6 +1043,12 @@ def get_params_options(
         "field_dependent_charges_maps",
         "local_electron_energy",
         "layer_feature_mixer",
+        # excited-state models
+        "nacs_readouts",
+        "socs_readouts",
+        "dipoles_readouts",
+        "perm_encoder",
+        "perm_decoder",
     ]
     for submodule_name in optional_submodule_names:
         submodule = getattr(model, submodule_name, None)

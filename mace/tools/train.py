@@ -144,6 +144,19 @@ def valid_err_log(
         logging.info(
             f"{inintial_phrase}: head: {valid_loader_name}, loss={valid_loss:.4f}, RMSE_MU_per_atom={error_mu:.2f} me A, RMSE_polarizability_per_atom={error_polarizability:.2f} me A^2 / V",
         )
+    elif log_errors in ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE"):
+        kind = "mae" if log_errors.endswith("MAE") else "rmse"
+        label = kind.upper()
+        msg = (
+            f"{inintial_phrase}: head: {valid_loader_name}, loss={valid_loss:8.8f}, "
+            f"{label}_E={eval_metrics[f'{kind}_e'] * 1e3:8.2f} meV, "
+            f"{label}_E_per_atom={eval_metrics[f'{kind}_e_per_atom'] * 1e3:8.2f} meV, "
+            f"{label}_F={eval_metrics[f'{kind}_f'] * 1e3:8.2f} meV / A"
+        )
+        for key, name in (("nacs", "NACs"), ("socs", "SOCs"), ("dipoles", "dipoles")):
+            if eval_metrics.get(f"{kind}_{key}") is not None:
+                msg += f", {label}_{name}={eval_metrics[f'{kind}_{key}'] * 1e3:8.2f} (x1e-3)"
+        logging.info(msg)
     elif log_errors == "EnergyDipoleRMSE":
         error_e = eval_metrics["rmse_e_per_atom"] * 1e3
         error_f = eval_metrics["rmse_f"] * 1e3
@@ -644,6 +657,16 @@ class MACELoss(Metric):
             "delta_polarizability_per_atom", default=[], dist_reduce_fx="cat"
         )
 
+        # excited states: NACs, SOCs and permanent/transition dipoles, compared
+        # with the phase (sign) that best matches the reference
+        for name in ("nacs", "socs", "state_dipoles"):
+            self.add_state(
+                f"{name}_computed", default=torch.tensor(0.0), dist_reduce_fx="sum"
+            )
+            self.add_state(f"ref_{name}", default=[], dist_reduce_fx="cat")
+            self.add_state(f"delta_{name}", default=[], dist_reduce_fx="cat")
+        self.add_state("delta_state_dipoles_per_atom", default=[], dist_reduce_fx="cat")
+
         self.add_state(
             "MagFs_computed", default=torch.tensor(0.0), dist_reduce_fx="sum"
         )
@@ -656,10 +679,12 @@ class MACELoss(Metric):
         self.num_data += batch.num_graphs
 
         if output.get("energy") is not None and batch.energy is not None:
-            self.delta_es.append(batch.energy - output["energy"])
-            self.delta_es_per_atom.append(
-                (batch.energy - output["energy"]) / (batch.ptr[1:] - batch.ptr[:-1])
-            )
+            delta_es = batch.energy - output["energy"]
+            num_atoms = batch.ptr[1:] - batch.ptr[:-1]
+            if delta_es.dim() > 1:  # several electronic states: [n_graphs, n_states]
+                num_atoms = num_atoms.unsqueeze(-1)
+            self.delta_es.append(delta_es)
+            self.delta_es_per_atom.append(delta_es / num_atoms)
             self.E_computed += filter_nonzero_weight(
                 batch, self.delta_es, batch.weight, batch.energy_weight
             )
@@ -673,6 +698,8 @@ class MACELoss(Metric):
                 batch.forces_weight,
                 spread_atoms=True,
             )
+
+        self._update_excited_states(batch, output)
 
         if output.get("magforces") is not None and batch.magforces is not None:
             self.MagFs.append(batch.magforces)
@@ -730,6 +757,65 @@ class MACELoss(Metric):
                 batch.polarizability_weight,
                 spread_quantity_vector=False,
             )
+
+    def _update_excited_states(self, batch, output):
+        # pylint: disable=import-outside-toplevel
+        from mace.modules.excited import align_dipoles, align_nacs, align_socs
+
+        if output.get("nacs") is not None and "nacs" in batch:
+            ref = batch.nacs
+            aligned = align_nacs(
+                ref, output["nacs"].view(ref.shape), batch.batch, batch.num_graphs
+            )
+            self.ref_nacs.append(ref)
+            self.delta_nacs.append(ref - aligned)
+            self.nacs_computed += filter_nonzero_weight(
+                batch,
+                self.delta_nacs,
+                batch.weight,
+                batch.nacs_weight,
+                spread_atoms=True,
+            )
+        if output.get("socs") is not None and "socs" in batch:
+            ref = batch.socs
+            aligned = align_socs(ref, output["socs"].view(ref.shape))
+            self.ref_socs.append(ref)
+            self.delta_socs.append(ref - aligned)
+            self.socs_computed += filter_nonzero_weight(
+                batch, self.delta_socs, batch.weight, batch.socs_weight
+            )
+        if output.get("dipoles") is not None and "dipoles" in batch:
+            ref = batch.dipoles
+            n_permanent = getattr(self.loss_fn, "n_permanent_dipoles", ref.shape[1])
+            aligned = align_dipoles(ref, output["dipoles"].view(ref.shape), n_permanent)
+            self.ref_state_dipoles.append(ref)
+            self.delta_state_dipoles.append(ref - aligned)
+            self.delta_state_dipoles_per_atom.append(
+                (ref - aligned) / (batch.ptr[1:] - batch.ptr[:-1]).view(-1, 1, 1)
+            )
+            self.state_dipoles_computed += filter_nonzero_weight(
+                batch, self.delta_state_dipoles, batch.weight, batch.dipoles_weight
+            )
+
+    def _compute_excited_states(self, aux):
+        for name, key in (
+            ("nacs", "nacs"),
+            ("socs", "socs"),
+            ("state_dipoles", "dipoles"),
+        ):
+            if not getattr(self, f"{name}_computed"):
+                continue
+            ref = self.convert(getattr(self, f"ref_{name}"))
+            delta = self.convert(getattr(self, f"delta_{name}"))
+            aux[f"mae_{key}"] = compute_mae(delta)
+            aux[f"rel_mae_{key}"] = compute_rel_mae(delta, ref)
+            aux[f"rmse_{key}"] = compute_rmse(delta)
+            aux[f"rel_rmse_{key}"] = compute_rel_rmse(delta, ref)
+            aux[f"q95_{key}"] = compute_q95(delta)
+        if self.state_dipoles_computed:
+            delta = self.convert(self.delta_state_dipoles_per_atom)
+            aux["mae_dipoles_per_atom"] = compute_mae(delta)
+            aux["rmse_dipoles_per_atom"] = compute_rmse(delta)
 
     def convert(self, delta: Union[torch.Tensor, List[torch.Tensor]]) -> np.ndarray:
         if isinstance(delta, list):
@@ -800,6 +886,7 @@ class MACELoss(Metric):
             aux["rmse_mu_per_atom"] = compute_rmse(delta_mus_per_atom)
             aux["rel_rmse_mu"] = compute_rel_rmse(delta_mus, mus)
             aux["q95_mu"] = compute_q95(delta_mus)
+        self._compute_excited_states(aux)
         if self.polarizability_computed:
             delta_polarizability = self.convert(self.delta_polarizability)
             delta_polarizability_per_atom = self.convert(

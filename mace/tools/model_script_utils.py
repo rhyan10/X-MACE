@@ -13,6 +13,38 @@ from mace.tools.scripts_utils import extract_config_mace_model, resolve_m_max
 from mace.tools.torch_tools import dtype_dict
 from mace.tools.utils import AtomicNumberTable
 
+EXCITED_ERROR_TABLES = ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE")
+
+
+def configure_excited_state_args(args, excited_spec) -> None:
+    """Settings shared by ExcitedMACE and AutoencoderExcitedMACE runs."""
+    if args.n_energies is None:
+        logging.warning("--n_energies not set, training a single electronic state")
+        args.n_energies = excited_spec.n_states
+    args.key_specification.update(
+        info_keys={"socs": args.socs_key, "dipoles": args.dipoles_key},
+        arrays_keys={"nacs": args.nacs_key},
+    )
+    if args.loss != "excited":
+        if args.loss not in ("weighted", "ef"):
+            logging.warning(
+                f"--loss={args.loss} is not available for {args.model}, using --loss=excited"
+            )
+        args.loss = "excited"
+    if args.error_table not in EXCITED_ERROR_TABLES:
+        args.error_table = "EnergyNacsDipoleMAE"
+    args.multiheads_finetuning = False
+    args.compute_stress = False
+    args.compute_virials = False
+    args.compute_forces = True
+    logging.info(
+        f"{args.model}: {excited_spec.n_states} states, "
+        f"NACs={excited_spec.n_nacs} ({excited_spec.nacs_format}), "
+        f"SOCs={excited_spec.n_socs}, dipoles={excited_spec.n_dipoles}, "
+        f"pair repulsion={'on' if args.pair_repulsion else 'off'}"
+    )
+    args.excited_spec = excited_spec
+
 
 def configure_model(
     args,
@@ -76,6 +108,19 @@ def configure_model(
                 )
         args.std = atomic_inter_scale
 
+    elif args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
+        scale, shift = modules.compute_excited_scaling(
+            train_loader,
+            np.atleast_2d(atomic_energies)[0],
+            args.scaling,
+            n_states=args.n_energies,
+        )
+        args.std = scale if args.std is None else args.std
+        args.mean = shift if args.mean is None else args.mean
+        logging.info(
+            f"Atomic interaction energy scale: {args.std:.4f}, shift per state: "
+            + ", ".join(f"{x:.4f}" for x in np.atleast_1d(args.mean))
+        )
     elif (args.mean is None or args.std is None) and (
         args.model not in ("AtomicDipolesMACE", "AtomicDielectricMACE")
     ):
@@ -210,9 +255,40 @@ def configure_model(
         )
         model_config_foundation = None
 
+    if model_foundation is not None and args.model in (
+        "ExcitedMACE",
+        "AutoencoderExcitedMACE",
+    ):
+        model_config = _excited_config_from_foundation(model_config, model_foundation)
+        if args.foundation_model_readout:
+            # the readouts of every state start from the foundation's energy readout
+            foundation_mlp = str(
+                extract_config_mace_model(model_foundation)["MLP_irreps"]
+            )
+            if o3.Irreps(foundation_mlp) != o3.Irreps(args.MLP_irreps):
+                logging.info(
+                    f"Using the foundation model's MLP irreps {foundation_mlp} "
+                    "(--foundation_model_readout=True)"
+                )
+            args.MLP_irreps = foundation_mlp
+        args.max_L = model_config["hidden_irreps"].lmax
+        args.avg_num_neighbors = model_config["avg_num_neighbors"]
+
     model = _build_model(args, model_config, model_config_foundation, heads)
 
-    if model_foundation is not None:
+    if model_foundation is not None and args.model in (
+        "ExcitedMACE",
+        "AutoencoderExcitedMACE",
+    ):
+        model = modules.load_foundations_excited(
+            model,
+            model_foundation,
+            z_table,
+            load_readout=args.foundation_model_readout,
+            max_L=args.max_L,
+            default_dtype=dtype_dict.get(args.default_dtype, torch.float64),
+        )
+    elif model_foundation is not None:
         if getattr(args, "finetune_dipoles_polarizabilities", False):
             # MDP fine-tuning: dedicated loader that handles higher-order irreps
             load_foundations_mdp(model, model_foundation, z_table, max_L=args.max_L)
@@ -256,9 +332,90 @@ def _parse_literal_or_none(value):
     return value
 
 
+def _excited_config_from_foundation(model_config, model_foundation):
+    """Architecture of a ground-state foundation model for an excited-state model."""
+    foundation_config = extract_config_mace_model(model_foundation)
+    if "error" in foundation_config:
+        raise ValueError(
+            "Excited-state models can start from MACE (ScaleShiftMACE) foundation models only"
+        )
+    config = dict(model_config)
+    for key in (
+        "r_max",
+        "num_bessel",
+        "num_polynomial_cutoff",
+        "max_ell",
+        "interaction_cls",
+        "num_interactions",
+        "hidden_irreps",
+        "edge_irreps",
+        "avg_num_neighbors",
+        "correlation",
+        "radial_type",
+        "radial_MLP",
+        "distance_transform",
+        "apply_cutoff",
+        "use_reduced_cg",
+        "use_so3",
+        "use_agnostic_product",
+        "use_edge_irreps_first",
+    ):
+        if key in foundation_config:
+            config[key] = foundation_config[key]
+    config["interaction_cls_first"] = foundation_config["interaction_cls_first"]
+    logging.info(
+        "Architecture taken from the foundation model: "
+        f"{config['num_interactions']} layers, hidden irreps {config['hidden_irreps']}, "
+        f"correlation {config['correlation']}, r_max {config['r_max']}"
+    )
+    return config
+
+
+def _build_excited_model(args, model_config):
+    model_config = dict(model_config)
+    interaction_cls_first = model_config.pop(
+        "interaction_cls_first",
+        modules.interaction_classes[args.interaction_first],
+    )
+    correlation = model_config.pop("correlation", args.correlation)
+    radial_MLP = model_config.pop("radial_MLP", ast.literal_eval(args.radial_MLP))
+    radial_type = model_config.pop("radial_type", args.radial_type)
+    distance_transform = model_config.pop("distance_transform", args.distance_transform)
+    if distance_transform is None:
+        distance_transform = "None"
+    spec = args.excited_spec
+    kwargs = dict(
+        **model_config,
+        pair_repulsion=args.pair_repulsion,
+        distance_transform=distance_transform,
+        correlation=correlation,
+        gate=modules.gate_dict[args.gate],
+        interaction_cls_first=interaction_cls_first,
+        MLP_irreps=o3.Irreps(args.MLP_irreps),
+        radial_MLP=radial_MLP,
+        radial_type=radial_type,
+        n_energies=spec.n_states,
+        compute_nacs=spec.n_nacs > 0,
+        nac_num=spec.n_nacs if spec.n_nacs > 0 else None,
+        compute_socs=spec.n_socs > 0,
+        soc_num=spec.n_socs if spec.n_socs > 0 else None,
+        compute_dipoles=spec.n_dipoles > 0,
+        dipole_num=spec.n_dipoles if spec.n_dipoles > 0 else None,
+        atomic_inter_scale=args.std if args.std is not None else 1.0,
+        atomic_inter_shift=args.mean if args.mean is not None else 0.0,
+    )
+    if args.model == "AutoencoderExcitedMACE":
+        return modules.AutoencoderExcitedMACE(
+            **kwargs, num_permutational_invariant=args.num_permutational_invariant
+        )
+    return modules.ExcitedMACE(**kwargs)
+
+
 def _build_model(
     args, model_config, model_config_foundation, heads
 ):  # pylint: disable=too-many-return-statements
+    if args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
+        return _build_excited_model(args, model_config)
 
     if args.model == "MagneticScaleShiftMACE":
         m_max = resolve_m_max(args.m_max, list(model_config["atomic_numbers"]))

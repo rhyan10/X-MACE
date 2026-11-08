@@ -125,6 +125,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "DipoleMAE",
             "DipolePolarRMSE",
             "EnergyDipoleRMSE",
+            "EnergyNacsDipoleMAE",
+            "EnergyNacsDipoleRMSE",
         ],
         default="PerAtomRMSE",
     )
@@ -145,6 +147,8 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "AtomicDielectricMACE",
             "EnergyDipolesMACE",
             "MagneticScaleShiftMACE",
+            "ExcitedMACE",
+            "AutoencoderExcitedMACE",
         ],
     )
     parser.add_argument(
@@ -440,6 +444,73 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         type=str2bool,
         default=False,
     )
+
+    # Excited states (ExcitedMACE, AutoencoderExcitedMACE)
+    parser.add_argument(
+        "--n_energies",
+        "--n_states",
+        help="Number of electronic states S predicted by ExcitedMACE / AutoencoderExcitedMACE",
+        type=int,
+        default=None,
+        dest="n_energies",
+    )
+    parser.add_argument(
+        "--compute_nacs",
+        help="Predict non-adiabatic couplings (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--compute_socs",
+        help="Predict spin-orbit couplings (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--compute_dipoles",
+        help="Predict permanent and transition dipoles (excited-state models)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
+        "--nac_num",
+        help="Number of NAC vectors per atom (default: S(S-1)/2, one per state pair)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--soc_num",
+        help="Number of SOC values per configuration (default: S(S-1)/2)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--dipole_num",
+        help="Number of dipole vectors per configuration (default: S permanent + S(S-1)/2 transition)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--nacs_format",
+        help="'raw': NACs in the data are multiplied by the energy gap of their state pair "
+        "(smooth NACs) before training; 'smooth': they already are; 'auto': 'smooth' if the "
+        "NAC key contains 'smooth', otherwise 'raw'",
+        type=str,
+        default="auto",
+        choices=["auto", "raw", "smooth"],
+    )
+    parser.add_argument(
+        "--num_permutational_invariant",
+        help="Size of the latent vector of AutoencoderExcitedMACE",
+        type=int,
+        default=16,
+    )
     parser.add_argument(
         "--compute_magforces",
         help="Select True to compute magnetic forces",
@@ -692,6 +763,24 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default=DefaultKeys.DIPOLE.value,
     )
     parser.add_argument(
+        "--nacs_key",
+        help="Key of reference NACs in training xyz ([n_atoms, n_pairs, 3], info or arrays)",
+        type=str,
+        default="REF_nacs",
+    )
+    parser.add_argument(
+        "--socs_key",
+        help="Key of reference SOCs in training xyz ([n_socs], info)",
+        type=str,
+        default="REF_socs",
+    )
+    parser.add_argument(
+        "--dipoles_key",
+        help="Key of reference permanent/transition dipoles in training xyz ([n_dipoles, 3], info)",
+        type=str,
+        default="REF_dipoles",
+    )
+    parser.add_argument(
         "--polarizability_key",
         help="Key of polarizability in training xyz",
         type=str,
@@ -786,6 +875,7 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
             "universal",
             "energy_forces_dipole",
             "l1l2energyforces",
+            "excited",
         ],
     )
     parser.add_argument(
@@ -868,6 +958,18 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--polarizability_weight",
         help="weight of polarizability loss",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--nacs_weight", help="weight of NACs loss", type=float, default=100.0
+    )
+    parser.add_argument(
+        "--socs_weight", help="weight of SOCs loss", type=float, default=100.0
+    )
+    parser.add_argument(
+        "--dipoles_weight",
+        help="weight of permanent/transition dipoles loss (excited-state models)",
         type=float,
         default=1.0,
     )
@@ -1344,6 +1446,24 @@ def build_preprocess_arg_parser() -> argparse.ArgumentParser:
         help="Key of reference dipoles in training xyz",
         type=str,
         default=DefaultKeys.DIPOLE.value,
+    )
+    parser.add_argument(
+        "--nacs_key",
+        help="Key of reference NACs in training xyz ([n_atoms, n_pairs, 3], info or arrays)",
+        type=str,
+        default="REF_nacs",
+    )
+    parser.add_argument(
+        "--socs_key",
+        help="Key of reference SOCs in training xyz ([n_socs], info)",
+        type=str,
+        default="REF_socs",
+    )
+    parser.add_argument(
+        "--dipoles_key",
+        help="Key of reference permanent/transition dipoles in training xyz ([n_dipoles, 3], info)",
+        type=str,
+        default="REF_dipoles",
     )
     parser.add_argument(
         "--polarizability_key",

@@ -98,6 +98,18 @@ def create_error_table(
             "relative MU RMSE %",
             "RMSE ALPHA e A^2 / V / atom",
         ]
+    elif table_type in ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE"):
+        label = "MAE" if table_type.endswith("MAE") else "RMSE"
+        table.field_names = [
+            "config_type",
+            f"{label} E / meV",
+            f"{label} E / meV / atom",
+            f"{label} F / meV / A",
+            f"rel F {label} %",
+            f"{label} NACs (x1e-3)",
+            f"{label} SOCs (x1e-3)",
+            f"{label} dipoles (x1e-3)",
+        ]
     elif table_type == "EnergyDipoleRMSE":
         table.field_names = [
             "config_type",
@@ -246,6 +258,30 @@ def create_error_table(
                     f"{metrics['rmse_mu_per_atom'] * 1000:.2f}",
                     f"{metrics['rel_rmse_mu']:.1f}",
                     f"{metrics['rmse_polarizability_per_atom'] * 1000:.2f}",
+                ]
+            )
+        elif table_type in ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE"):
+            kind = "mae" if table_type.endswith("MAE") else "rmse"
+
+            def _fmt(key, factor=1000.0, digits=1):
+                value = metrics.get(key)
+                if value is None or isinstance(value, str):
+                    return "N/A"
+                try:
+                    return f"{float(value) * factor:8.{digits}f}"
+                except TypeError:
+                    return "N/A"
+
+            table.add_row(
+                [
+                    name,
+                    _fmt(f"{kind}_e"),
+                    _fmt(f"{kind}_e_per_atom"),
+                    _fmt(f"{kind}_f"),
+                    _fmt(f"rel_{kind}_f", factor=1.0, digits=2),
+                    _fmt(f"{kind}_nacs", digits=2),
+                    _fmt(f"{kind}_socs", digits=2),
+                    _fmt(f"{kind}_dipoles", digits=2),
                 ]
             )
         elif table_type == "EnergyDipoleRMSE":
