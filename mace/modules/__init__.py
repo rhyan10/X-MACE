@@ -28,6 +28,13 @@ from .blocks import (
     RealAgnosticResidualNonLinearInteractionBlock,
     ScaleShiftBlock,
 )
+from .excited import (
+    AutoencoderExcitedMACE,
+    ExcitedMACE,
+    compute_excited_scaling,
+    load_foundations_excited,
+)
+from .excited_loss import WeightedExcitedStatesLoss
 from .extensions import (
     MACELES,
     MagneticScaleShiftMACE,
@@ -124,6 +131,11 @@ __all__ = [
     "AtomicDipolesMACE",
     "AtomicDielectricMACE",
     "EnergyDipolesMACE",
+    "ExcitedMACE",
+    "AutoencoderExcitedMACE",
+    "WeightedExcitedStatesLoss",
+    "compute_excited_scaling",
+    "load_foundations_excited",
     "MagneticScaleShiftMACE",
     "MagneticSCFMACE",
     "TimeReversalSymmetrizedMACE",
