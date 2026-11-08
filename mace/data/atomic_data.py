@@ -27,7 +27,13 @@ from .neighborhood import get_neighborhood
 #   nacs    [n_atoms, n_pairs, 3]   non-adiabatic couplings (smooth, i.e. times dE)
 #   socs    [n_socs]                spin-orbit couplings
 #   dipoles [n_dipoles, 3]          permanent and transition dipoles
-EXCITED_STATE_PROPERTIES = {"nacs": False, "socs": True, "dipoles": True}
+#   soc_vectors [n_soc_pairs, 3]    spin-orbit coupling vectors (Wigner-Eckart)
+EXCITED_STATE_PROPERTIES = {
+    "nacs": False,
+    "socs": True,
+    "dipoles": True,
+    "soc_vectors": True,
+}
 
 if TYPE_CHECKING:
     from .utils import Configuration

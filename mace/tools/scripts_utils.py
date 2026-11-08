@@ -843,12 +843,13 @@ def _excited_loss(
     args: argparse.Namespace, energy_weight: float, forces_weight: float
 ) -> torch.nn.Module:
     spec = args.excited_spec
-    n_pairs = spec.n_states * (spec.n_states - 1) // 2
-    # Default layout: S permanent dipoles, then one transition dipole per state pair
+    # Default layout: S permanent dipoles, then one transition dipole per coupled pair
     # (phase free). Any other layout is compared as it is.
-    n_permanent = (
-        spec.n_states if spec.n_dipoles == spec.n_states + n_pairs else spec.n_dipoles
-    )
+    n_permanent = spec.n_permanent_dipoles
+    soc_weights = None
+    if spec.n_soc_vectors > 0:
+        soc_weights = modules.spin_states.soc_pair_weights(spec.states)
+        soc_weights = (soc_weights / soc_weights.mean()).tolist()
     return modules.WeightedExcitedStatesLoss(
         energy_weight=energy_weight,
         forces_weight=forces_weight,
@@ -856,6 +857,8 @@ def _excited_loss(
         socs_weight=args.socs_weight,
         dipoles_weight=args.dipoles_weight,
         n_permanent_dipoles=n_permanent,
+        soc_pair_weights=soc_weights,
+        soc_states=spec.states if spec.n_soc_vectors > 0 else None,
     )
 
 
@@ -1046,6 +1049,7 @@ def get_params_options(
         # excited-state models
         "nacs_readouts",
         "socs_readouts",
+        "soc_vectors_readouts",
         "dipoles_readouts",
         "perm_encoder",
         "perm_decoder",

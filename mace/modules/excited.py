@@ -24,6 +24,7 @@ from mace.tools.scatter import scatter_sum
 
 from .blocks import InteractionBlock, LinearReadoutBlock, NonLinearReadoutBlock
 from .models import MACE
+from .spin_states import parse_states, same_multiplicity_pairs, spin_orbit_pairs
 from .utils import prepare_graph
 
 # --------------------------------------------------------------------------------------
@@ -107,6 +108,13 @@ def align_dipoles(
     return torch.cat([pred[:, :n_permanent], transition * signs.unsqueeze(-1)], dim=1)
 
 
+def align_soc_vectors(ref: torch.Tensor, pred: torch.Tensor) -> torch.Tensor:
+    """pred spin-orbit coupling vectors [n_graphs, Q, 3] with the best sign per
+    configuration and pair of spatial states (the SOC block of a pair changes sign
+    with the phase of either state)."""
+    return align_dipoles(ref, pred, 0)
+
+
 # --------------------------------------------------------------------------------------
 # Blocks
 # --------------------------------------------------------------------------------------
@@ -146,6 +154,37 @@ class NonLinearVectorReadoutBlock(torch.nn.Module):
         heads: Optional[torch.Tensor] = None,  # pylint: disable=unused-argument
     ) -> torch.Tensor:
         return self.linear_2(self.equivariant_nonlin(self.linear_1(x)))
+
+
+@compile_mode("script")
+class AxialVectorReadoutBlock(torch.nn.Module):
+    """Readout to axial vectors ("P x 1e"), e.g. spin-orbit coupling vectors.
+
+    Polar l=1 features (1o) give axial vectors through their cross products
+    (1o x 1o -> 1e), so the block works with the usual hidden irreps. The features
+    are first projected to K scalars and K vectors (K = number of MLP scalars)."""
+
+    def __init__(self, irreps_in: o3.Irreps, MLP_irreps: o3.Irreps, num_out: int):
+        super().__init__()
+        irreps_in = o3.Irreps(irreps_in)
+        num_hidden = max(1, o3.Irreps(MLP_irreps).count(o3.Irrep(0, 1)))
+        hidden = f"{num_hidden}x0e + {num_hidden}x1o"
+        if irreps_in.count(o3.Irrep(1, 1)) > 0:
+            hidden += f" + {num_hidden}x1e"
+        self.hidden_irreps = o3.Irreps(hidden)
+        self.irreps_out = o3.Irreps(f"{num_out}x1e")
+        self.linear = o3.Linear(irreps_in=irreps_in, irreps_out=self.hidden_irreps)
+        self.tensor_product = o3.FullyConnectedTensorProduct(
+            self.hidden_irreps, self.hidden_irreps, self.irreps_out
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        heads: Optional[torch.Tensor] = None,  # pylint: disable=unused-argument
+    ) -> torch.Tensor:
+        hidden = self.linear(x)
+        return self.tensor_product(hidden, hidden)
 
 
 @compile_mode("script")
@@ -261,6 +300,14 @@ class ExcitedMACE(MACE):
       nacs    [N, P, 3]    smooth NACs (NAC * dE), per-atom equivariant vectors
       socs    [B, L]       sum of per-atom invariant scalars
       dipoles [B, D, 3]    sum of per-atom equivariant vectors
+      soc_vectors [B, Q, 3]  spin-orbit coupling vectors (soc_mode="spin_orbit"): sums
+                           of per-atom axial vectors, one per spin-orbit-coupled pair of
+                           spatial states; mace.modules.spin_states turns them into the
+                           M_S-resolved SOC matrix (Wigner-Eckart)
+
+    states gives the states per multiplicity as in SHARC ([n_singlets, n_doublets,
+    n_triplets, ...]); NACs and transition dipoles then couple states of the same
+    multiplicity only.
 
     The ZBL core repulsion (pair_repulsion=True) is the same for every state. The
     atomic interaction energies are scaled by atomic_inter_scale and shifted by
@@ -296,15 +343,43 @@ class ExcitedMACE(MACE):
         atomic_inter_shift: Union[float, Sequence[float]] = 0.0,
         keep_last_layer_irreps: Optional[bool] = None,
         heads: Optional[List[str]] = None,
+        states: Optional[List[int]] = None,
+        soc_mode: str = "free",
         **kwargs: Any,
     ):
         if heads is not None and len(heads) > 1:
             raise NotImplementedError("ExcitedMACE supports a single head only")
         if n_energies < 1:
             raise ValueError(f"n_energies must be at least 1, got {n_energies}")
-        n_pairs = num_state_pairs(n_energies)
+        if states is not None:
+            states = parse_states(states)
+            if sum(states) != n_energies:
+                raise ValueError(
+                    f"states {states} describe {sum(states)} states, but n_energies={n_energies}"
+                )
+        layout = list(states) if states is not None else [n_energies]
+        # NACs and transition dipoles couple states of the same multiplicity only
+        n_pairs = len(same_multiplicity_pairs(layout))
+        if soc_mode not in ("free", "spin_orbit"):
+            raise ValueError(
+                f"soc_mode must be 'free' or 'spin_orbit', got {soc_mode!r}"
+            )
+        soc_vector_num = 0
+        if compute_socs and soc_mode == "spin_orbit":
+            if states is None:
+                raise ValueError(
+                    "soc_mode='spin_orbit' needs the states per multiplicity"
+                )
+            soc_vector_num = len(spin_orbit_pairs(layout))
+            if soc_vector_num < 1:
+                raise ValueError(f"No spin-orbit-coupled pairs of states in {layout}")
+            compute_socs = False
         nac_num = (nac_num if nac_num is not None else n_pairs) if compute_nacs else 0
-        soc_num = (soc_num if soc_num is not None else n_pairs) if compute_socs else 0
+        soc_num = (
+            (soc_num if soc_num is not None else num_state_pairs(n_energies))
+            if compute_socs
+            else 0
+        )
         dipole_num = (
             (dipole_num if dipole_num is not None else n_energies + n_pairs)
             if compute_dipoles
@@ -316,12 +391,12 @@ class ExcitedMACE(MACE):
             raise ValueError("compute_socs needs n_energies >= 2 or soc_num >= 1")
         if compute_dipoles and dipole_num < 1:
             raise ValueError("compute_dipoles needs dipole_num >= 1")
-        needs_vectors = nac_num > 0 or dipole_num > 0
+        needs_vectors = nac_num > 0 or dipole_num > 0 or soc_vector_num > 0
         if keep_last_layer_irreps is None:
             keep_last_layer_irreps = needs_vectors
         if needs_vectors and o3.Irreps(hidden_irreps).count(o3.Irrep(1, -1)) == 0:
             raise ValueError(
-                "NACs and dipoles are vectors: use hidden irreps with l=1 features "
+                "NACs, dipoles and SOC vectors need hidden irreps with l=1 features "
                 "(e.g. --hidden_irreps='64x0e + 64x1o' or --max_L=1)"
             )
         if needs_vectors and not keep_last_layer_irreps and num_interactions == 1:
@@ -360,6 +435,10 @@ class ExcitedMACE(MACE):
         self.nac_num = nac_num
         self.soc_num = soc_num
         self.dipole_num = dipole_num
+        self.compute_soc_vectors = soc_vector_num > 0
+        self.soc_vector_num = soc_vector_num
+        self.soc_mode = "spin_orbit" if soc_vector_num > 0 else "free"
+        self.multiplicity_states: List[int] = layout
         self.keep_last_layer_irreps = keep_last_layer_irreps
         self.scale_shift = ExcitedScaleShiftBlock(
             scale=atomic_inter_scale, shift=atomic_inter_shift, n_states=n_energies
@@ -386,6 +465,13 @@ class ExcitedMACE(MACE):
             self.dipoles_readouts = self._vector_readouts(
                 layer_irreps, MLP_irreps, gate, dipole_num
             )
+        self.soc_vectors_readouts = torch.nn.ModuleList()
+        if self.compute_soc_vectors:
+            for irreps_in in layer_irreps:
+                if irreps_in.count(o3.Irrep(1, -1)) > 0:
+                    self.soc_vectors_readouts.append(
+                        AxialVectorReadoutBlock(irreps_in, MLP_irreps, soc_vector_num)
+                    )
 
     def _energy_readout_dim(self) -> int:
         return self.n_energies
@@ -465,6 +551,19 @@ class ExcitedMACE(MACE):
         nacs: Optional[torch.Tensor] = None
         socs: Optional[torch.Tensor] = None
         dipoles: Optional[torch.Tensor] = None
+        soc_vectors: Optional[torch.Tensor] = None
+        if self.compute_soc_vectors:
+            node_soc = torch.zeros(
+                num_nodes,
+                self.soc_vector_num * 3,
+                dtype=node_feats_list[0].dtype,
+                device=node_feats_list[0].device,
+            )
+            for i, readout in enumerate(self.soc_vectors_readouts):
+                node_soc = node_soc + readout(node_feats_list[i])
+            soc_vectors = scatter_sum(
+                node_soc, data["batch"], dim=0, dim_size=num_graphs
+            ).view(num_graphs, self.soc_vector_num, 3)
         if self.compute_nacs:
             node_nacs = torch.zeros(
                 num_nodes,
@@ -497,7 +596,12 @@ class ExcitedMACE(MACE):
             dipoles = scatter_sum(
                 node_dipoles, data["batch"], dim=0, dim_size=num_graphs
             ).view(num_graphs, self.dipole_num, 3)
-        return {"nacs": nacs, "socs": socs, "dipoles": dipoles}
+        return {
+            "nacs": nacs,
+            "socs": socs,
+            "dipoles": dipoles,
+            "soc_vectors": soc_vectors,
+        }
 
     def _graph_setup(self, data: Dict[str, torch.Tensor]):
         ctx = prepare_graph(data)
@@ -576,6 +680,7 @@ class ExcitedMACE(MACE):
             "nacs": couplings["nacs"],
             "socs": couplings["socs"],
             "dipoles": couplings["dipoles"],
+            "soc_vectors": couplings["soc_vectors"],
             "edge_forces": None,
             "virials": None,
             "stress": None,
@@ -681,6 +786,7 @@ class AutoencoderExcitedMACE(ExcitedMACE):
             "nacs": couplings["nacs"],
             "socs": couplings["socs"],
             "dipoles": couplings["dipoles"],
+            "soc_vectors": couplings["soc_vectors"],
             "edge_forces": None,
             "virials": None,
             "stress": None,

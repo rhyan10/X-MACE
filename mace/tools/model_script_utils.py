@@ -36,9 +36,7 @@ def configure_excited_state_args(args, excited_spec) -> None:
     args.compute_virials = False
     args.compute_forces = True
     logging.info(
-        f"{args.model}: {excited_spec.n_states} states, "
-        f"NACs={excited_spec.n_nacs} ({excited_spec.nacs_format}), "
-        f"SOCs={excited_spec.n_socs}, dipoles={excited_spec.n_dipoles}, "
+        f"{args.model}: {excited_spec.describe()}, "
         f"pair repulsion={'on' if args.pair_repulsion else 'off'}"
     )
     args.excited_spec = excited_spec
@@ -395,8 +393,10 @@ def _build_excited_model(args, model_config):
         n_energies=spec.n_states,
         compute_nacs=spec.n_nacs > 0,
         nac_num=spec.n_nacs if spec.n_nacs > 0 else None,
-        compute_socs=spec.n_socs > 0,
+        compute_socs=spec.n_socs > 0 or spec.n_soc_vectors > 0,
         soc_num=spec.n_socs if spec.n_socs > 0 else None,
+        states=spec.states,
+        soc_mode=spec.soc_mode,
         compute_dipoles=spec.n_dipoles > 0,
         dipole_num=spec.n_dipoles if spec.n_dipoles > 0 else None,
         atomic_inter_scale=args.std if args.std is not None else 1.0,

@@ -1497,6 +1497,29 @@ def add_excited_state_arguments(parser) -> None:
         dest="n_energies",
     )
     parser.add_argument(
+        "--states",
+        help=(
+            "States per multiplicity as in SHARC, e.g. '3 0 2' for three singlets and "
+            "two triplets or '0 2 0 1' for two doublets and a quartet (spatial states, "
+            "without M_S components). NACs and transition dipoles then couple states "
+            "of the same multiplicity only. Default: n_energies states of one multiplicity"
+        ),
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
+        "--soc_mode",
+        help=(
+            "SOC representation. 'spin_orbit': one equivariant axial coupling vector per "
+            "pair of spatial states allowed by the spin selection rules, giving the "
+            "M_S-resolved complex SOC matrix by the Wigner-Eckart theorem (labels: SOC "
+            "matrices, e.g. SHARC's). 'free': soc_num invariant numbers (X-MACE). "
+            "'auto': spin_orbit when --states has spin-orbit-coupled multiplicities"
+        ),
+        choices=["auto", "free", "spin_orbit"],
+        default="auto",
+    )
+    parser.add_argument(
         "--compute_nacs",
         help="Predict non-adiabatic couplings (excited-state models)",
         type=str2bool,

@@ -767,35 +767,73 @@ class MACELoss(Metric):
             aligned = align_nacs(
                 ref, output["nacs"].view(ref.shape), batch.batch, batch.num_graphs
             )
-            self.ref_nacs.append(ref)
             self.delta_nacs.append(ref - aligned)
-            self.nacs_computed += filter_nonzero_weight(
-                batch,
-                self.delta_nacs,
-                batch.weight,
-                batch.nacs_weight,
-                spread_atoms=True,
+            self._add_excited(
+                "nacs",
+                ref,
+                filter_nonzero_weight(
+                    batch,
+                    self.delta_nacs,
+                    batch.weight,
+                    batch.nacs_weight,
+                    spread_atoms=True,
+                ),
             )
         if output.get("socs") is not None and "socs" in batch:
             ref = batch.socs
             aligned = align_socs(ref, output["socs"].view(ref.shape))
-            self.ref_socs.append(ref)
             self.delta_socs.append(ref - aligned)
-            self.socs_computed += filter_nonzero_weight(
-                batch, self.delta_socs, batch.weight, batch.socs_weight
+            self._add_excited(
+                "socs",
+                ref,
+                filter_nonzero_weight(
+                    batch, self.delta_socs, batch.weight, batch.socs_weight
+                ),
+            )
+        if output.get("soc_vectors") is not None and "soc_vectors" in batch:
+            # errors of the M_S-resolved SOC matrix elements (real and imaginary parts)
+            from mace.modules.excited import (  # pylint: disable=import-outside-toplevel
+                align_soc_vectors,
+            )
+            from mace.modules.spin_states import (  # pylint: disable=import-outside-toplevel
+                soc_entries_from_vectors,
+            )
+
+            ref = batch.soc_vectors
+            aligned = align_soc_vectors(ref, output["soc_vectors"].view(ref.shape))
+            states = getattr(self.loss_fn, "soc_states", None)
+            if states:
+                ref_entries = soc_entries_from_vectors(ref, states)
+                delta = ref_entries - soc_entries_from_vectors(aligned, states)
+            else:
+                ref_entries, delta = ref.flatten(1), (ref - aligned).flatten(1)
+            self.delta_socs.append(delta)
+            self._add_excited(
+                "socs",
+                ref_entries,
+                filter_nonzero_weight(
+                    batch, self.delta_socs, batch.weight, batch.soc_vectors_weight
+                ),
             )
         if output.get("dipoles") is not None and "dipoles" in batch:
             ref = batch.dipoles
             n_permanent = getattr(self.loss_fn, "n_permanent_dipoles", ref.shape[1])
             aligned = align_dipoles(ref, output["dipoles"].view(ref.shape), n_permanent)
-            self.ref_state_dipoles.append(ref)
             self.delta_state_dipoles.append(ref - aligned)
-            self.delta_state_dipoles_per_atom.append(
-                (ref - aligned) / (batch.ptr[1:] - batch.ptr[:-1]).view(-1, 1, 1)
-            )
-            self.state_dipoles_computed += filter_nonzero_weight(
+            count = filter_nonzero_weight(
                 batch, self.delta_state_dipoles, batch.weight, batch.dipoles_weight
             )
+            if count:
+                self.delta_state_dipoles_per_atom.append(
+                    (ref - aligned) / (batch.ptr[1:] - batch.ptr[:-1]).view(-1, 1, 1)
+                )
+            self._add_excited("state_dipoles", ref, count)
+
+    def _add_excited(self, name: str, ref: torch.Tensor, count: float) -> None:
+        """keep the reference of a batch whose errors filter_nonzero_weight kept"""
+        if count:
+            getattr(self, f"ref_{name}").append(ref)
+            setattr(self, f"{name}_computed", getattr(self, f"{name}_computed") + count)
 
     def _compute_excited_states(self, aux):
         for name, key in (

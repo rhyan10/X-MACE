@@ -10,6 +10,16 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
+from mace.modules.spin_states import (
+    describe_states,
+    n_mstates,
+    same_multiplicity_pairs,
+    soc_vectors_from_matrix,
+    spatial_multiplicities,
+    spin_orbit_pairs,
+    state_pairs,
+)
+
 from .utils import Configuration
 
 EXCITED_MODELS = ("ExcitedMACE", "AutoencoderExcitedMACE")
@@ -36,13 +46,20 @@ def energy_gaps(energies: np.ndarray) -> np.ndarray:
 class ExcitedStateSpec:
     """What an excited-state model predicts.
 
-    n_states   S, number of electronic states (energies and forces for each)
-    n_nacs     number of NAC vectors per atom (0: no NACs); S(S-1)/2 for all pairs
-    n_socs     number of SOC values per configuration (0: no SOCs)
-    n_dipoles  number of dipole vectors per configuration (0: no dipoles);
-               S + S(S-1)/2 for S permanent dipoles followed by the transition dipoles
+    n_states   S, number of spatial electronic states (energies and forces for each)
+    n_nacs     number of NAC vectors per atom (0: no NACs)
+    n_socs     number of SOC values per configuration ("free" SOCs, 0: none)
+    n_dipoles  number of dipole vectors per configuration (0: no dipoles)
     nacs_format  "raw": NACs in the data are converted to smooth NACs (NAC * dE)
                  "smooth": NACs in the data are already smooth
+    states     states per multiplicity as in SHARC, [n_singlets, n_doublets,
+               n_triplets, ...] (None: S states of one multiplicity)
+    soc_mode   "free": SOCs are n_socs invariant numbers (X-MACE layout)
+               "spin_orbit": one axial coupling vector per spin-orbit-coupled pair of
+               spatial states, giving the M_S-resolved SOC matrix by Wigner-Eckart
+
+    With states, NACs and transition dipoles couple states of the same multiplicity
+    only: by default n_nacs is the number of such pairs and n_dipoles = S + n_nacs.
     """
 
     n_states: int
@@ -50,6 +67,8 @@ class ExcitedStateSpec:
     n_socs: int = 0
     n_dipoles: int = 0
     nacs_format: str = "raw"
+    states: Optional[List[int]] = None
+    soc_mode: str = "free"
 
     def __post_init__(self):
         if self.n_states < 1:
@@ -58,17 +77,76 @@ class ExcitedStateSpec:
             raise ValueError(
                 f"nacs_format must be 'raw' or 'smooth', got {self.nacs_format!r}"
             )
-        if (
-            self.n_nacs > 0
-            and self.nacs_format == "raw"
-            and self.n_nacs != num_state_pairs(self.n_states)
-        ):
+        if self.soc_mode not in ("free", "spin_orbit"):
             raise ValueError(
-                f"Converting raw NACs to smooth NACs needs one NAC per state pair "
-                f"({num_state_pairs(self.n_states)} for {self.n_states} states), but "
-                f"nac_num={self.n_nacs}. Store smooth NACs and use --nacs_format=smooth "
-                "for a custom NAC layout."
+                f"soc_mode must be 'free' or 'spin_orbit', got {self.soc_mode!r}"
             )
+        if self.states is not None:
+            self.states = list(self.states)
+            if sum(self.states) != self.n_states:
+                raise ValueError(
+                    f"states {self.states} describe {sum(self.states)} states, "
+                    f"but n_energies={self.n_states}"
+                )
+        if self.soc_mode == "spin_orbit":
+            if self.states is None:
+                raise ValueError(
+                    "soc_mode='spin_orbit' needs the states per multiplicity"
+                )
+            if not spin_orbit_pairs(self.states):
+                raise ValueError(f"No spin-orbit-coupled states in {self.states}")
+        if self.n_nacs > 0 and self.nacs_format == "raw" and self.nac_pairs is None:
+            raise ValueError(
+                f"Converting raw NACs to smooth NACs needs one NAC per coupled state pair "
+                f"({len(self.coupled_pairs)}), but nac_num={self.n_nacs}. Store smooth NACs "
+                "and use --nacs_format=smooth for a custom NAC layout."
+            )
+
+    @property
+    def layout(self) -> List[int]:
+        return self.states if self.states is not None else [self.n_states]
+
+    @property
+    def coupled_pairs(self) -> List[Tuple[int, int]]:
+        """State pairs that NACs and transition dipoles can couple."""
+        if self.states is None:
+            return state_pairs(self.n_states)
+        return same_multiplicity_pairs(self.states)
+
+    @property
+    def nac_pairs(self) -> Optional[List[Tuple[int, int]]]:
+        """The state pair of every NAC, or None for a custom layout."""
+        pairs = self.coupled_pairs
+        return pairs if self.n_nacs == len(pairs) else None
+
+    @property
+    def n_permanent_dipoles(self) -> int:
+        """Default layout: S permanent dipoles, then one transition dipole per pair."""
+        if self.n_dipoles == self.n_states + len(self.coupled_pairs):
+            return self.n_states
+        return self.n_dipoles
+
+    @property
+    def soc_pairs(self) -> List[Tuple[int, int]]:
+        return spin_orbit_pairs(self.states) if self.soc_mode == "spin_orbit" else []
+
+    @property
+    def n_soc_vectors(self) -> int:
+        return len(self.soc_pairs)
+
+    def describe(self) -> str:
+        text = f"{self.n_states} states"
+        if self.states is not None:
+            text += f" ({describe_states(self.states)})"
+        socs = (
+            f"SOCs={self.n_soc_vectors} coupling vectors (spin_orbit)"
+            if self.soc_mode == "spin_orbit"
+            else f"SOCs={self.n_socs}"
+        )
+        return (
+            f"{text}, NACs={self.n_nacs} ({self.nacs_format}), {socs}, "
+            f"dipoles={self.n_dipoles}"
+        )
 
 
 def resolve_nacs_format(nacs_format: str, nacs_key: str) -> str:
@@ -104,8 +182,25 @@ def _as_forces(value, n_atoms: int, n_states: int, index: int) -> np.ndarray:
     )
 
 
-def _as_nacs(value, n_atoms: int, n_nacs: int, index: int) -> np.ndarray:
+def _select_pairs(spec: ExcitedStateSpec) -> Optional[np.ndarray]:
+    """Indices of the coupled pairs among all state pairs (data stored for all pairs)."""
+    if spec.states is None:
+        return None
+    every = state_pairs(spec.n_states)
+    return np.array([every.index(pair) for pair in spec.coupled_pairs], dtype=int)
+
+
+def _as_nacs(value, n_atoms: int, spec: ExcitedStateSpec, index: int) -> np.ndarray:
+    n_nacs = spec.n_nacs
     nacs = np.asarray(value, dtype=float)
+    selected = _select_pairs(spec)
+    n_all = len(state_pairs(spec.n_states))
+    if selected is not None and spec.nac_pairs is not None and n_all != n_nacs:
+        # NACs given for every pair of states: keep the same-multiplicity pairs
+        if nacs.shape == (n_atoms, n_all, 3):
+            return nacs[:, selected]
+        if nacs.shape == (n_all, n_atoms, 3):
+            return np.transpose(nacs[selected], (1, 0, 2))
     if nacs.shape == (n_atoms, n_nacs, 3):
         return nacs
     if nacs.shape == (n_nacs, n_atoms, 3):
@@ -118,6 +213,37 @@ def _as_nacs(value, n_atoms: int, n_nacs: int, index: int) -> np.ndarray:
         f"Configuration {index}: NACs have shape {nacs.shape}; expected "
         f"({n_atoms}, {n_nacs}, 3), ({n_nacs}, {n_atoms}, 3) or ({n_atoms}, {3 * n_nacs})"
     )
+
+
+def soc_matrix_from_label(value, states: List[int], index: int = 0) -> np.ndarray:
+    """M_S-resolved SOC matrix [nm, nm] from the layouts accepted for SOC labels:
+    complex [nm, nm]; real [nm, nm] (real SOCs); [nm, nm, 2] or [2, nm, nm] (re, im);
+    the upper triangle (i < j, row by row) as nm(nm-1)/2 real or complex values, or as
+    nm(nm-1) values (re, im) (X-MACE layout for SHARC)."""
+    nm = n_mstates(states)
+    array = np.asarray(value)
+    n_upper = nm * (nm - 1) // 2
+    if array.shape == (nm, nm):
+        matrix = array.astype(complex)
+    elif array.shape == (nm, nm, 2):
+        matrix = array[..., 0] + 1j * array[..., 1]
+    elif array.shape == (2, nm, nm):
+        matrix = array[0] + 1j * array[1]
+    elif array.size in (n_upper, 2 * n_upper):
+        flat = array.reshape(-1)
+        if np.iscomplexobj(flat) or flat.size == n_upper:
+            upper = flat.astype(complex)
+        else:
+            upper = flat[0::2] + 1j * flat[1::2]
+        matrix = np.zeros((nm, nm), dtype=complex)
+        matrix[np.triu_indices(nm, k=1)] = upper
+        matrix = matrix + matrix.conj().T
+    else:
+        raise ValueError(
+            f"Configuration {index}: SOCs of shape {array.shape} do not describe an "
+            f"M_S-resolved {nm}x{nm} SOC matrix for states {states}"
+        )
+    return matrix
 
 
 def _as_socs(value, n_socs: int, index: int) -> np.ndarray:
@@ -135,8 +261,22 @@ def _as_socs(value, n_socs: int, index: int) -> np.ndarray:
     return socs
 
 
-def _as_dipoles(value, n_dipoles: int, index: int) -> np.ndarray:
+def _as_dipoles(value, spec: ExcitedStateSpec, index: int) -> np.ndarray:
+    n_dipoles = spec.n_dipoles
     dipoles = np.asarray(value, dtype=float)
+    selected = _select_pairs(spec)
+    n_all = spec.n_states + len(state_pairs(spec.n_states))
+    if (
+        selected is not None
+        and dipoles.size == 3 * n_all
+        and n_all != n_dipoles
+        and spec.n_permanent_dipoles == spec.n_states
+    ):
+        # dipoles given for every pair of states: keep the same-multiplicity pairs
+        dipoles = dipoles.reshape(n_all, 3)
+        return np.concatenate(
+            [dipoles[: spec.n_states], dipoles[spec.n_states :][selected]]
+        )
     if dipoles.size != 3 * n_dipoles:
         raise ValueError(
             f"Configuration {index}: expected {n_dipoles} dipole vectors (dipole_num), "
@@ -152,6 +292,7 @@ def standardise_excited_configs(
 
     energy  [S]          forces  [n_atoms, S, 3]
     nacs    [n_atoms, n_nacs, 3] (smooth)   socs [n_socs]   dipoles [n_dipoles, 3]
+    soc_vectors [n_pairs, 3]  (soc_mode="spin_orbit", fitted to the SOC matrix)
 
     Missing labels are filled with zeros and get weight 0, so that frame is
     skipped for that term only. Raw NACs are multiplied by the energy gap of
@@ -161,6 +302,7 @@ def standardise_excited_configs(
     """
     n_states = spec.n_states
     counts = {"energy": 0, "forces": 0, "nacs": 0, "socs": 0, "dipoles": 0}
+    worst_residual = 0.0
     for index, config in enumerate(configs):
         props, weights = config.properties, config.property_weights
         n_atoms = len(config.atomic_numbers)
@@ -181,7 +323,7 @@ def standardise_excited_configs(
 
         for name, enabled in (
             ("nacs", spec.n_nacs),
-            ("socs", spec.n_socs),
+            ("socs", spec.n_socs or spec.n_soc_vectors),
             ("dipoles", spec.n_dipoles),
         ):
             if not enabled:
@@ -191,7 +333,7 @@ def standardise_excited_configs(
         if spec.n_nacs:
             nacs = props.get("nacs")
             if nacs is not None:
-                nacs = _as_nacs(nacs, n_atoms, spec.n_nacs, index)
+                nacs = _as_nacs(nacs, n_atoms, spec, index)
                 if spec.nacs_format == "raw":
                     if weights.get("energy", 1.0) == 0.0:
                         logging.warning(
@@ -200,7 +342,11 @@ def standardise_excited_configs(
                         )
                         nacs = None
                     else:
-                        nacs = nacs * energy_gaps(props["energy"])[None, :, None]
+                        energies = props["energy"]
+                        gaps = np.array(
+                            [abs(energies[j] - energies[i]) for i, j in spec.nac_pairs]
+                        )
+                        nacs = nacs * gaps[None, :, None]
             if nacs is None:
                 props["nacs"] = np.zeros((n_atoms, spec.n_nacs, 3))
                 weights["nacs"] = 0.0
@@ -209,7 +355,20 @@ def standardise_excited_configs(
                 weights.setdefault("nacs", 1.0)
                 counts["nacs"] += 1
 
-        if spec.n_socs:
+        if spec.n_soc_vectors:
+            socs = props.pop("socs", None)
+            soc_weight = weights.pop("socs", 1.0)
+            if socs is None:
+                props["soc_vectors"] = np.zeros((spec.n_soc_vectors, 3))
+                weights["soc_vectors"] = 0.0
+            else:
+                matrix = soc_matrix_from_label(socs, spec.states, index)
+                vectors, residual = soc_vectors_from_matrix(matrix, spec.states)
+                worst_residual = max(worst_residual, residual)
+                props["soc_vectors"] = vectors
+                weights["soc_vectors"] = soc_weight
+                counts["socs"] += 1
+        elif spec.n_socs:
             if props.get("socs") is None:
                 props["socs"] = np.zeros(spec.n_socs)
                 weights["socs"] = 0.0
@@ -223,9 +382,15 @@ def standardise_excited_configs(
                 props["dipoles"] = np.zeros((spec.n_dipoles, 3))
                 weights["dipoles"] = 0.0
             else:
-                props["dipoles"] = _as_dipoles(props["dipoles"], spec.n_dipoles, index)
+                props["dipoles"] = _as_dipoles(props["dipoles"], spec, index)
                 weights.setdefault("dipoles", 1.0)
                 counts["dipoles"] += 1
+    if worst_residual > 1e-3:
+        logging.warning(
+            f"The SOC matrices deviate from the Wigner-Eckart form by up to "
+            f"{100 * worst_residual:.1f}% (relative): check that they are M_S-resolved "
+            "in SHARC order (multiplicity, M_S = -S..S, state) with standard phases"
+        )
     return counts
 
 
@@ -233,28 +398,49 @@ def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
     """Build the ExcitedStateSpec from command line arguments.
 
     None for other models. Without a --model argument (mace_preprocess_data),
-    --n_energies switches the excited-state labels on."""
+    --n_energies or --states switches the excited-state labels on."""
+    states = getattr(args, "states", None)
     if hasattr(args, "model"):
         if args.model not in EXCITED_MODELS:
             return None
-    elif getattr(args, "n_energies", None) is None:
+    elif getattr(args, "n_energies", None) is None and states is None:
         return None
-    n_states = args.n_energies if args.n_energies is not None else 1
-    n_pairs = num_state_pairs(n_states)
+    if states is not None:
+        from mace.modules.spin_states import (  # pylint: disable=import-outside-toplevel
+            parse_states,
+        )
+
+        states = parse_states(states)
+        if args.n_energies is not None and args.n_energies != sum(states):
+            raise ValueError(
+                f"--states {states} describes {sum(states)} states, but --n_energies="
+                f"{args.n_energies}"
+            )
+        n_states = sum(states)
+    else:
+        n_states = args.n_energies if args.n_energies is not None else 1
+    coupled = same_multiplicity_pairs(states) if states else state_pairs(n_states)
+    n_pairs = len(coupled)
     n_nacs = 0
     if args.compute_nacs:
         n_nacs = args.nac_num if args.nac_num is not None else n_pairs
         if n_nacs < 1:
             raise ValueError(
-                "--compute_nacs needs at least one NAC: use n_energies >= 2 or set --nac_num"
+                "--compute_nacs needs at least one NAC: use two states of one "
+                "multiplicity or set --nac_num"
             )
+    soc_mode = getattr(args, "soc_mode", "auto")
+    if soc_mode == "auto":
+        soc_mode = "spin_orbit" if states and spin_orbit_pairs(states) else "free"
     n_socs = 0
-    if args.compute_socs:
-        n_socs = args.soc_num if args.soc_num is not None else n_pairs
+    if args.compute_socs and soc_mode == "free":
+        n_socs = args.soc_num if args.soc_num is not None else num_state_pairs(n_states)
         if n_socs < 1:
             raise ValueError(
                 "--compute_socs needs at least one SOC: use n_energies >= 2 or set --soc_num"
             )
+    if not args.compute_socs:
+        soc_mode = "free"
     n_dipoles = 0
     if args.compute_dipoles:
         n_dipoles = (
@@ -266,6 +452,8 @@ def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
         n_socs=n_socs,
         n_dipoles=n_dipoles,
         nacs_format=resolve_nacs_format(args.nacs_format, args.nacs_key),
+        states=states,
+        soc_mode=soc_mode,
     )
 
 

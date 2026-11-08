@@ -3,14 +3,15 @@
 # This program is distributed under the MIT License (see MIT.md)
 ###########################################################################################
 
-from typing import Optional
+from typing import Optional, Sequence
 
+import numpy as np
 import torch
 
 from mace.tools import TensorDict
 from mace.tools.torch_geometric import Batch
 
-from .excited import align_dipoles, align_nacs, align_socs
+from .excited import align_dipoles, align_nacs, align_soc_vectors, align_socs
 from .loss import reduce_loss
 
 # sqrt(x + eps) keeps the gradient of the RMSE-type coupling losses finite at zero
@@ -83,6 +84,26 @@ def phase_free_socs_loss(
     )
 
 
+def phase_free_soc_vectors_loss(
+    ref: Batch,
+    pred: TensorDict,
+    pair_weights: Optional[torch.Tensor] = None,
+    ddp: Optional[bool] = None,
+) -> torch.Tensor:
+    """RMSE of the spin-orbit coupling vectors [n_graphs, Q, 3], best sign per
+    configuration and pair. pair_weights [Q] (mace.modules.spin_states.soc_pair_weights)
+    (normalised to mean 1) make it proportional to the RMSE of the M_S-resolved SOC
+    matrix elements that the vectors give."""
+    target = ref["soc_vectors"]
+    prediction = pred["soc_vectors"].view(target.shape)
+    aligned = align_soc_vectors(target, prediction)
+    err2 = torch.sum(torch.square(target - aligned), dim=-1)  # [n_graphs, Q]
+    if pair_weights is not None:
+        err2 = err2 * pair_weights.to(err2.dtype).unsqueeze(0)
+    weights = _graph_weights(ref, "soc_vectors").unsqueeze(-1)
+    return torch.sqrt(reduce_loss(weights * err2, ddp) + _SQRT_EPS)
+
+
 def phase_free_dipoles_loss(
     ref: Batch, pred: TensorDict, n_permanent: int, ddp: Optional[bool] = None
 ) -> torch.Tensor:
@@ -102,7 +123,9 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
     energy_weight  * MSE(E)   [+ MSE(decoded E) + MSE(latent) for the autoencoder]
     forces_weight  * MSE(F)
     nacs_weight    * RMSE(NACs, phase free)
-    socs_weight    * RMSE(SOCs, phase free)
+    socs_weight    * RMSE(SOCs, phase free); with soc_mode="spin_orbit" the RMSE of the
+                     spin-orbit coupling vectors, weighted per pair in proportion to the
+                     M_S-resolved SOC matrix elements each vector gives
     dipoles_weight * 100 * MSE(dipoles / n_atoms, transition dipoles phase free)
 
     Energies are total energies of all states, as in X-MACE. Per-configuration
@@ -118,6 +141,8 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
         socs_weight: float = 1.0,
         dipoles_weight: float = 1.0,
         n_permanent_dipoles: int = 0,
+        soc_pair_weights: Optional[Sequence[float]] = None,
+        soc_states: Optional[Sequence[int]] = None,
     ) -> None:
         super().__init__()
         for name, value in (
@@ -131,6 +156,14 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
                 name, torch.tensor(value, dtype=torch.get_default_dtype())
             )
         self.n_permanent_dipoles = n_permanent_dipoles
+        # states per multiplicity, used to report SOC errors as matrix elements
+        self.soc_states = list(soc_states) if soc_states else None
+        pair_weights = None
+        if soc_pair_weights is not None and len(soc_pair_weights) > 0:
+            pair_weights = torch.tensor(
+                np.asarray(soc_pair_weights), dtype=torch.get_default_dtype()
+            )
+        self.register_buffer("soc_pair_weights", pair_weights)
 
     def forward(
         self, ref: Batch, pred: TensorDict, ddp: Optional[bool] = None
@@ -151,6 +184,14 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
             loss = loss + self.nacs_weight * phase_free_nacs_loss(ref, pred, ddp)
         if pred.get("socs") is not None and "socs" in ref and self.socs_weight > 0:
             loss = loss + self.socs_weight * phase_free_socs_loss(ref, pred, ddp)
+        if (
+            pred.get("soc_vectors") is not None
+            and "soc_vectors" in ref
+            and self.socs_weight > 0
+        ):
+            loss = loss + self.socs_weight * phase_free_soc_vectors_loss(
+                ref, pred, self.soc_pair_weights, ddp
+            )
         if (
             pred.get("dipoles") is not None
             and "dipoles" in ref
