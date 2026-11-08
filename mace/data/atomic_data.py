@@ -9,6 +9,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional, Sequence
 
+import numpy as np
 import torch.utils.data
 
 from mace.tools import (
@@ -20,6 +21,13 @@ from mace.tools import (
 )
 
 from .neighborhood import get_neighborhood
+
+# Excited-state properties handled by AtomicData.from_config, mapped to whether
+# they are graph-level (True) or per-atom (False) quantities:
+#   nacs    [n_atoms, n_pairs, 3]   non-adiabatic couplings (smooth, i.e. times dE)
+#   socs    [n_socs]                spin-orbit couplings
+#   dipoles [n_dipoles, 3]          permanent and transition dipoles
+EXCITED_STATE_PROPERTIES = {"nacs": False, "socs": True, "dipoles": True}
 
 if TYPE_CHECKING:
     from .utils import Configuration
@@ -118,8 +126,18 @@ class AtomicData(torch_geometric.data.Data):
         assert charges_weight is None or len(charges_weight.shape) == 0
         assert magforces_weight is None or len(magforces_weight.shape) == 0
         assert cell is None or cell.shape == (3, 3)
-        assert forces is None or forces.shape == (num_nodes, 3)
-        assert energy is None or len(energy.shape) == 0
+        # [n_nodes, 3], or [n_nodes, n_states, 3] for several electronic states
+        assert forces is None or (
+            forces.shape[0] == num_nodes
+            and forces.shape[-1] == 3
+            and len(forces.shape) in (2, 3)
+        )
+        # scalar, or [1, n_states] for several electronic states
+        assert (
+            energy is None
+            or len(energy.shape) == 0
+            or (len(energy.shape) == 2 and energy.shape[0] == 1)
+        )
         assert stress is None or stress.shape == (1, 3, 3)
         assert virials is None or virials.shape == (1, 3, 3)
         assert dipole is None or dipole.shape[-1] == 3
@@ -319,6 +337,9 @@ class AtomicData(torch_geometric.data.Data):
             if config.properties.get("energy") is not None
             else torch.tensor(0.0, dtype=torch.get_default_dtype())
         )
+        if len(energy.shape) > 0:
+            # several electronic states: [1, n_states], batched to [n_graphs, n_states]
+            energy = energy.reshape(1, -1)
         stress = (
             voigt_to_matrix(
                 torch.tensor(
@@ -474,6 +495,21 @@ class AtomicData(torch_geometric.data.Data):
             fermi_level=fermi_level,
             external_field=external_field,
         )
+
+        # Excited-state labels (ExcitedMACE). Graph-level tensors get a leading
+        # dimension of one so that batching stacks them per graph.
+        for name, per_graph in EXCITED_STATE_PROPERTIES.items():
+            if name not in config.properties:
+                continue
+            value = config.properties[name]
+            if value is None:
+                continue
+            tensor = torch.tensor(np.asarray(value), dtype=torch.get_default_dtype())
+            cls_kwargs[name] = tensor.unsqueeze(0) if per_graph else tensor
+            cls_kwargs[f"{name}_weight"] = torch.tensor(
+                config.property_weights.get(name, 1.0),
+                dtype=torch.get_default_dtype(),
+            )
 
         # Pass through any extra properties not already handled above.
         for k, v in config.properties.items():

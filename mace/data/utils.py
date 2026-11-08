@@ -200,8 +200,15 @@ def config_from_atoms(
             property_weights[name] = 0.0
 
     for name, atoms_key in key_specification.arrays_keys.items():
-        properties[name] = atoms.arrays.get(atoms_key, None)
-        if not atoms_key in atoms.arrays:
+        if atoms_key in atoms.arrays:
+            properties[name] = atoms.arrays[atoms_key]
+        elif atoms_key in atoms.info:
+            # Per-atom labels with more than two dimensions, such as the
+            # [n_atoms, n_states, 3] forces of excited-state data sets, cannot be
+            # stored in atoms.arrays by extxyz and are kept in atoms.info instead.
+            properties[name] = np.asarray(atoms.info[atoms_key])
+        else:
+            properties[name] = None
             property_weights[name] = 0.0
 
     return Configuration(
@@ -292,7 +299,10 @@ def load_from_xyz(
     final_forces_key = key_specification.arrays_keys["forces"]
     final_dipole_key = key_specification.info_keys.get("dipole", "REF_dipole")
     has_energy = any(final_energy_key in atoms.info for atoms in atoms_list)
-    has_forces = any(final_forces_key in atoms.arrays for atoms in atoms_list)
+    has_forces = any(
+        final_forces_key in atoms.arrays or final_forces_key in atoms.info
+        for atoms in atoms_list
+    )
     has_dipole = any(final_dipole_key in atoms.info for atoms in atoms_list)
 
     if not has_energy and not has_forces and not has_dipole:
@@ -328,7 +338,11 @@ def load_from_xyz(
             if isolated_atom_config:
                 atomic_number = int(atoms.get_atomic_numbers()[0])
                 if energy_key in atoms.info.keys():
-                    atomic_energies_dict[atomic_number] = float(atoms.info[energy_key])
+                    # several electronic states: the E0 is state independent,
+                    # so the mean over states is used
+                    atomic_energies_dict[atomic_number] = float(
+                        np.mean(atoms.info[energy_key])
+                    )
                 else:
                     logging.warning(
                         f"Configuration '{idx}' is marked as 'IsolatedAtom' "
@@ -365,14 +379,24 @@ def compute_average_E0s(
     Function to compute the average interaction energy of each chemical element
     returns dictionary of E0s
     """
-    len_train = len(collections_train)
+    # Configurations without an energy label (or with zero energy weight) carry
+    # no information about the E0s and are left out of the regression.
+    labelled = [
+        config
+        for config in collections_train
+        if config.properties.get("energy") is not None
+        and config.property_weights.get("energy", 1.0) != 0.0
+    ]
+    len_train = len(labelled)
     len_zs = len(z_table)
     A = np.zeros((len_train, len_zs))
     B = np.zeros(len_train)
-    for i in range(len_train):
-        B[i] = collections_train[i].properties["energy"]
+    for i, config in enumerate(labelled):
+        # For several electronic states the E0s are fitted to the mean energy
+        # over the states, since the isolated-atom energy is state independent.
+        B[i] = np.mean(config.properties["energy"])
         for j, z in enumerate(z_table.zs):
-            A[i, j] = np.count_nonzero(collections_train[i].atomic_numbers == z)
+            A[i, j] = np.count_nonzero(config.atomic_numbers == z)
     try:
         E0s = np.linalg.lstsq(A, B, rcond=None)[0]
         atomic_energies_dict = {}
