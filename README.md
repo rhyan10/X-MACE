@@ -193,10 +193,10 @@ mace_eval_configs \
 
 ### Excited states (X-MACE)
 
-`ExcitedMACE` and `AutoencoderExcitedMACE` learn several electronic states at once: energies and forces of every state, non-adiabatic couplings, spin-orbit couplings and permanent/transition dipoles, with an optional ZBL core repulsion. They come with an ASE calculator (`ExcitedMACECalculator`) and a SHARC 4 interface for surface hopping:
+`ExcitedMACE` and `AutoencoderExcitedMACE` learn several electronic states at once: energies and forces of every state, non-adiabatic couplings, spin-orbit couplings and permanent/transition dipoles, with an optional ZBL core repulsion. States can have any spin multiplicity (singlets, doublets, triplets, quartets, quintets, ...): their M_S components are exactly degenerate, NACs couple states of equal multiplicity, and spin-orbit couplings follow the Wigner-Eckart theorem, so they are Hermitian and rotate with the spins. They come with an ASE calculator (`ExcitedMACECalculator`) and a SHARC 4.1 interface for surface hopping:
 
 ```sh
-mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_socs \
+mace_run_train --model=ExcitedMACE --states="2 0 2" --compute_nacs --compute_socs \
     --pair_repulsion --train_file=train.xyz --E0s=average ...
 ```
 

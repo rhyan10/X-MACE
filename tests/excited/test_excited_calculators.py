@@ -9,6 +9,7 @@ import ase
 import numpy as np
 import pytest
 import torch
+from conftest import atoms_to_batch, build_excited  # pylint: disable=import-error
 
 from mace.calculators import ExcitedMACECalculator, MACECalculator
 from mace.calculators.excited import evaluate_excited_configs, raw_nacs_from_smooth
@@ -17,8 +18,6 @@ from mace.calculators.sharc_calculator import (
     HARTREE_TO_EV,
     SharcCalculator,
 )
-
-from conftest import atoms_to_batch, build_excited  # pylint: disable=import-error
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -44,10 +43,16 @@ def test_ase_calculator_matches_model(model_file, molecules):
     out = _model_output(model_file, atoms)
     np.testing.assert_allclose(atoms.get_potential_energy(), out["energy"][0, 2].item())
     np.testing.assert_allclose(atoms.get_forces(), out["forces"][:, 2].detach().numpy())
-    np.testing.assert_allclose(calc.results["energies"], out["energy"][0].detach().numpy())
-    np.testing.assert_allclose(calc.results["smooth_nacs"], out["nacs"].detach().numpy())
+    np.testing.assert_allclose(
+        calc.results["energies"], out["energy"][0].detach().numpy()
+    )
+    np.testing.assert_allclose(
+        calc.results["smooth_nacs"], out["nacs"].detach().numpy()
+    )
     np.testing.assert_allclose(calc.results["socs"], out["socs"][0].detach().numpy())
-    np.testing.assert_allclose(calc.results["dipoles"], out["dipoles"][0].detach().numpy())
+    np.testing.assert_allclose(
+        calc.results["dipoles"], out["dipoles"][0].detach().numpy()
+    )
     np.testing.assert_allclose(
         calc.results["nacs"],
         raw_nacs_from_smooth(calc.results["smooth_nacs"], calc.results["energies"]),
@@ -105,11 +110,13 @@ def test_glob_pattern_and_errors(tmp_path, model_file):
 
 
 def test_ground_state_models_are_refused(tmp_path):
-    from mace import modules
-
     from conftest import model_config  # pylint: disable=import-error
 
-    model = modules.ScaleShiftMACE(**model_config(), atomic_inter_scale=1.0, atomic_inter_shift=0.0)
+    from mace import modules
+
+    model = modules.ScaleShiftMACE(
+        **model_config(), atomic_inter_scale=1.0, atomic_inter_shift=0.0
+    )
     torch.save(model, tmp_path / "gs.model")
     with pytest.raises(ValueError, match="not an excited-state model"):
         ExcitedMACECalculator(tmp_path / "gs.model")
@@ -130,8 +137,12 @@ def test_evaluate_excited_configs(model_file, molecules):
     evaluate_excited_configs(model, atoms_list, batch_size=3, info_prefix="P_")
     for atoms in atoms_list:
         out = _model_output(model_file, atoms)
-        np.testing.assert_allclose(atoms.info["P_energies"], out["energy"][0].detach().numpy())
-        np.testing.assert_allclose(atoms.info["P_forces"], out["forces"].detach().numpy())
+        np.testing.assert_allclose(
+            atoms.info["P_energies"], out["energy"][0].detach().numpy()
+        )
+        np.testing.assert_allclose(
+            atoms.info["P_forces"], out["forces"].detach().numpy()
+        )
         assert atoms.info["P_nacs"].shape == (4, 3, 3)
         assert atoms.info["P_socs"].shape == (3,)
         assert atoms.info["P_dipoles"].shape == (6, 3)
@@ -165,7 +176,9 @@ def test_sharc_singlets_units(model_file, molecules):
     np.testing.assert_allclose(
         qm["grad"], -np.transpose(forces, (1, 0, 2)) / HARTREE_TO_EV * BOHR_TO_ANGSTROM
     )
-    nacs = raw_nacs_from_smooth(out["nacs"].detach().numpy(), energies) * BOHR_TO_ANGSTROM
+    nacs = (
+        raw_nacs_from_smooth(out["nacs"].detach().numpy(), energies) * BOHR_TO_ANGSTROM
+    )
     np.testing.assert_allclose(qm["nacdr"][0, 1], nacs[:, 0])
     np.testing.assert_allclose(qm["nacdr"][1, 2], nacs[:, 2])
     np.testing.assert_allclose(qm["nacdr"], -np.transpose(qm["nacdr"], (1, 0, 2, 3)))
@@ -205,13 +218,15 @@ def test_sharc_spatial_singlets_and_triplets(tmp_path, molecules, complex_socs):
     n_upper = 5 * 4 // 2
     path = _spatial_triplet_model(tmp_path, 2 * n_upper if complex_socs else n_upper)
     sharc = _sharc(path, singlets=2, triplets=1)
-    assert sharc.mode == "spatial"
+    assert sharc.mode == "multiplicities"
     qm = sharc.calculate(molecules[0].positions / BOHR_TO_ANGSTROM)
     out = _model_output(path, molecules[0])
     energies = out["energy"][0].detach().numpy() / HARTREE_TO_EV
     h = qm["h"]
     assert h.shape == (5, 5)
-    np.testing.assert_allclose(np.diag(h).real, [energies[0], energies[1]] + [energies[2]] * 3)
+    np.testing.assert_allclose(
+        np.diag(h).real, [energies[0], energies[1]] + [energies[2]] * 3
+    )
     np.testing.assert_allclose(h, h.conj().T)  # Hermitian
     socs = out["socs"][0].detach().numpy() / HARTREE_TO_EV
     if complex_socs:
@@ -243,7 +258,7 @@ def test_sharc_ms_resolved_model(tmp_path, molecules):
 
 
 def test_sharc_error_messages(tmp_path, model_file):
-    with pytest.raises(ValueError, match="singlets and"):
+    with pytest.raises(ValueError, match="--states"):
         _sharc(model_file, singlets=2, triplets=2)
     no_nacs = build_excited(nacs=False)
     torch.save(no_nacs, tmp_path / "no_nacs.model")
@@ -278,15 +293,17 @@ def test_sharc_phase_continuity(tmp_path, molecules):
 
 
 def _load_sharc_interface(monkeypatch):
-    """Import scripts/sharc/SHARC_MACE.py with minimal stand-ins for SHARC's modules."""
+    """Import scripts/sharc/SHARC_MACE.py with minimal stand-ins for SHARC 4.1's
+    modules (the real SHARC is exercised in test_sharc_real.py)."""
 
     class _Fields(dict):
         def __init__(self):
             super().__init__()
-            self.types, self.data = {}, {}
+            self.types = {}
 
-        def __getitem__(self, key):
-            return self.data[key]
+        @property
+        def data(self):
+            return self
 
     class _QMin:
         def __init__(self):
@@ -294,21 +311,47 @@ def _load_sharc_interface(monkeypatch):
             self.resources = _Fields()
             self.molecule = {}
             self.coords = {}
-            self.requests = {}
+            self.requests = _Fields()
+            self.save = {"savedir": None, "step": 0}
+
+    class _QMout(dict):
+        def allocate(self, states=(), natom=0, npc=0, requests=()):
+            nm = sum((m + 1) * n for m, n in enumerate(states))
+            self.clear()
+            if "h" in requests or "soc" in requests:
+                self["h"] = np.zeros((nm, nm), dtype=complex)
+            if "dm" in requests:
+                self["dm"] = np.zeros((3, nm, nm))
+            if "grad" in requests:
+                self["grad"] = np.zeros((nm, natom, 3))
+            if "nacdr" in requests:
+                self["nacdr"] = np.zeros((nm, nm, natom, 3))
+            if "phases" in requests:
+                self["phases"] = np.zeros(nm, dtype=complex)
+
+        def __getattr__(self, key):
+            return self[key]
 
     class SHARC_FAST:  # pylint: disable=invalid-name
         def __init__(self, *args, **kwargs):
+            self.persistent = True
             self.QMin = _QMin()
-            self.QMout = types.SimpleNamespace()
-            self.log = types.SimpleNamespace(warning=lambda *a: None, info=lambda *a: None)
+            self.QMout = _QMout()
+            self.clock = types.SimpleNamespace(measuretime=lambda *a: 0.0)
+            noop = lambda *a, **k: None  # noqa: E731
+            self.log = types.SimpleNamespace(warning=noop, info=noop, debug=noop)
 
         def setup_interface(self):
+            pass
+
+        def create_restart_files(self):
             pass
 
     sharc_fast = types.ModuleType("SHARC_FAST")
     sharc_fast.SHARC_FAST = SHARC_FAST
     utils = types.ModuleType("utils")
-    utils.expand_path = utils.link = utils.question = lambda *a, **k: None
+    utils.expand_path = lambda path: path
+    utils.link = utils.question = lambda *a, **k: None
     monkeypatch.setitem(sys.modules, "SHARC_FAST", sharc_fast)
     monkeypatch.setitem(sys.modules, "utils", utils)
     spec = importlib.util.spec_from_file_location(
@@ -319,26 +362,47 @@ def _load_sharc_interface(monkeypatch):
     return module
 
 
-def test_sharc_interface_run(monkeypatch, model_file, molecules):
-    module = _load_sharc_interface(monkeypatch)
+def _interface(module, model_file, states, coords, properties):
     interface = module.SHARC_MACE()
     qmin = interface.QMin
-    qmin.template.data.update(
-        {"model_file": str(model_file), "properties": [["energy", "forces", "nacs", "dipoles"]]}
+    assert qmin.template["properties"] == ["energy", "forces"]  # defaults registered
+    assert (
+        qmin.template.types["soc_unit"] is str and "modelpath" in qmin.resources.types
     )
+    qmin.template.update({"model_file": str(model_file), "properties": [properties]})
+    nm = sum((m + 1) * n for m, n in enumerate(states))
     qmin.molecule.update(
         {
-            "states": [3],
+            "states": states,
             "elements": ["C", "H", "H", "O"],
-            "nmstates": 3,
-            "nstates": 3,
+            "nmstates": nm,
+            "nstates": sum(states),
             "natom": 4,
             "npc": 0,
         }
     )
-    qmin.coords["coords"] = molecules[0].positions / BOHR_TO_ANGSTROM
-    qmin.requests.update({"h": True, "grad": True, "nacdr": True, "dm": True, "phases": True})
+    qmin.coords["coords"] = coords
     interface.setup_interface()
+    return interface
+
+
+def test_sharc_interface_run(monkeypatch, model_file, molecules):
+    module = _load_sharc_interface(monkeypatch)
+    coords = molecules[0].positions / BOHR_TO_ANGSTROM
+    interface = _interface(
+        module, model_file, [3], coords, ["energy", "forces", "nacs", "dipoles"]
+    )
+    interface.QMin.requests.update(
+        {
+            "h": True,
+            "grad": [1, 2, 3],
+            "nacdr": True,
+            "dm": True,
+            "phases": True,
+            "retain": 5,
+        }
+    )
+    assert module.ALL_FEATURES >= {"h", "soc", "grad", "nacdr", "dm", "phases"}
     interface.run()
     qmout = interface.getQMout()
     assert qmout.h.shape == (3, 3)
@@ -346,6 +410,33 @@ def test_sharc_interface_run(monkeypatch, model_file, molecules):
     assert qmout.nacdr.shape == (3, 3, 4, 3)
     assert qmout.dm.shape == (3, 3, 3)
     np.testing.assert_allclose(qmout.phases, np.ones(3))
-    with pytest.raises(ValueError, match="doublets"):
-        qmin.molecule["states"] = [1, 1]
-        interface.setup_interface()
+    with pytest.raises(ValueError, match="--states"):
+        _interface(module, model_file, [1, 0, 1], coords, ["energy", "forces"])
+
+
+def test_sharc_interface_spin_orbit(monkeypatch, molecules, tmp_path):
+    module = _load_sharc_interface(monkeypatch)
+    torch.manual_seed(4)
+    path = tmp_path / "so.model"
+    torch.save(build_excited(n_states=3, states=[1, 0, 2], soc_mode="spin_orbit"), path)
+    coords = molecules[0].positions / BOHR_TO_ANGSTROM
+    properties = ["energy", "forces", "nacs", "socs"]
+    interface = _interface(module, path, [1, 0, 2], coords, properties)
+    interface.QMin.requests.update({"h": True, "soc": True, "grad": True})
+    interface.run()
+    h = interface.getQMout().h
+    assert h.shape == (7, 7) and np.any(np.abs(h.imag) > 0)
+    np.testing.assert_allclose(h, h.conj().T)
+    # without the soc request only the diagonal is passed on
+    interface.QMin.requests.update({"soc": False})
+    interface.run()
+    np.testing.assert_allclose(interface.getQMout().h, np.diag(np.diag(h)))
+    # SOCs in another unit than the energies
+    interface.QMin.template.update({"soc_unit": "cm-1"})
+    interface.setup_interface()
+    interface.QMin.requests.update({"soc": True})
+    interface.run()
+    h_cm = interface.getQMout().h
+    ratio = module.SOC_UNITS_TO_HARTREE["cm-1"] / module.SOC_UNITS_TO_HARTREE["eV"]
+    off = ~np.eye(7, dtype=bool)
+    np.testing.assert_allclose(h_cm[off], h[off] * ratio, rtol=1e-10)

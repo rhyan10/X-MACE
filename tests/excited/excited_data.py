@@ -119,3 +119,80 @@ def make_excited_configs(
             atoms.info["REF_dipoles"] = dipoles
         atoms_list.append(atoms)
     return atoms_list
+
+
+MASSES = {"C": 12.0, "H": 1.0, "O": 16.0}
+
+
+def axial_vector(positions: np.ndarray, power: int = 1, symbols=None) -> np.ndarray:
+    """An axial (pseudo)vector of the molecule, sum_ij q_i m_j |c_i - c_j|^power
+    (c_i x c_j): rotation-equivariant, invariant under inversion and permutations of
+    equal atoms."""
+    symbols = symbols or SYMBOLS
+    q = np.array([CHARGES[s] for s in symbols])
+    m = np.array([MASSES[s] for s in symbols]) / 10.0
+    centred = positions - positions.mean(axis=0)
+    vector = np.zeros(3)
+    for i in range(len(positions)):
+        for j in range(len(positions)):
+            d = np.linalg.norm(centred[i] - centred[j])
+            vector += q[i] * m[j] * d**power * np.cross(centred[i], centred[j])
+    return vector
+
+
+def multiplicity_labels(positions: np.ndarray, states, rng=None):
+    """Labels for states of several multiplicities ([n_singlets, n_doublets, ...]).
+
+    Energies, forces, NACs and dipoles as in excited_labels (NACs/transition dipoles
+    given for every pair, only same-multiplicity pairs are physical); the SOC matrix
+    comes from axial coupling vectors by Wigner-Eckart. With rng every spatial state
+    gets a random sign, as in quantum chemistry outputs."""
+    from mace.modules.spin_states import (  # pylint: disable=import-outside-toplevel
+        ms_resolved_map,
+        soc_matrix_from_vectors,
+        spin_orbit_pairs,
+    )
+
+    n_states = int(sum(states))
+    labels = excited_labels(positions, n_states)
+    pairs = spin_orbit_pairs(states)
+    base, other = axial_vector(positions), axial_vector(positions, power=2)
+    vectors = np.array(
+        [(0.2 + 0.1 * p) * base + 0.05 * (p + 1) * other for p in range(len(pairs))]
+    ).reshape(len(pairs), 3)
+    signs = np.ones(n_states) if rng is None else rng.choice([-1.0, 1.0], size=n_states)
+    for p, (i, j) in enumerate(pairs):
+        vectors[p] *= signs[i] * signs[j]
+    labels["soc_vectors"] = vectors
+    labels["soc_matrix"] = soc_matrix_from_vectors(vectors, states)
+    iu, ju = np.triu_indices(n_states, k=1)
+    labels["raw_nacs"] = labels["raw_nacs"] * (signs[iu] * signs[ju])[None, :, None]
+    labels["smooth_nacs"] = (
+        labels["smooth_nacs"] * (signs[iu] * signs[ju])[None, :, None]
+    )
+    labels["dipoles"][n_states:] *= (signs[iu] * signs[ju])[:, None]
+    labels["ms_map"] = ms_resolved_map(states)
+    return labels
+
+
+def make_multiplicity_configs(
+    n_configs: int, states, seed: int = 0, displacement: float = 0.1, random_phases=True
+) -> List[ase.Atoms]:
+    """Molecules with labels for several multiplicities; SOCs as the upper triangle of
+    the M_S-resolved SOC matrix, (re, im) interleaved."""
+    rng = np.random.default_rng(seed)
+    atoms_list = []
+    for _ in range(n_configs):
+        positions = _base_positions() + displacement * rng.standard_normal((4, 3))
+        labels = multiplicity_labels(positions, states, rng if random_phases else None)
+        atoms = ase.Atoms(SYMBOLS, positions=positions)
+        atoms.info["REF_energy"] = labels["energies"]
+        atoms.info["REF_forces"] = labels["forces"]
+        atoms.info["REF_nacs"] = labels["raw_nacs"]
+        upper = labels["soc_matrix"][
+            np.triu_indices(labels["soc_matrix"].shape[0], k=1)
+        ]
+        atoms.info["REF_socs"] = np.stack([upper.real, upper.imag], axis=-1).reshape(-1)
+        atoms.info["REF_dipoles"] = labels["dipoles"]
+        atoms_list.append(atoms)
+    return atoms_list

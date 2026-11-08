@@ -7,11 +7,13 @@ import ase.io
 import numpy as np
 import pytest
 import torch
+from excited_data import (  # pylint: disable=import-error
+    make_excited_configs,
+    make_multiplicity_configs,
+)
 
 from mace.calculators import ExcitedMACECalculator
 from tests.helpers import run_mace_train
-
-from excited_data import make_excited_configs  # pylint: disable=import-error
 
 pytestmark = pytest.mark.slow
 
@@ -52,7 +54,9 @@ def _params(tmp_path, **overrides):
 
 
 def _write_data(tmp_path, n_train=24, **kwargs):
-    ase.io.write(tmp_path / "train.xyz", make_excited_configs(n_train, 3, seed=1, **kwargs))
+    ase.io.write(
+        tmp_path / "train.xyz", make_excited_configs(n_train, 3, seed=1, **kwargs)
+    )
     ase.io.write(tmp_path / "test.xyz", make_excited_configs(6, 3, seed=2, **kwargs))
 
 
@@ -79,7 +83,13 @@ def test_excited_mace_all_properties(tmp_path):
         error_table="EnergyNacsDipoleRMSE",
     )
     run_mace_train(
-        params, extra_argv=["--compute_nacs", "--compute_socs", "--compute_dipoles", "--pair_repulsion"]
+        params,
+        extra_argv=[
+            "--compute_nacs",
+            "--compute_socs",
+            "--compute_dipoles",
+            "--pair_repulsion",
+        ],
     )
     losses = _valid_losses(tmp_path)
     assert losses[-1] < 0.5 * losses[0]
@@ -101,13 +111,19 @@ def test_excited_mace_all_properties(tmp_path):
     batch = next(
         iter(
             torch_geometric.dataloader.DataLoader(
-                [data.AtomicData.from_config(config, z_table=AtomicNumberTable([1, 6, 8]), cutoff=4.0)],
+                [
+                    data.AtomicData.from_config(
+                        config, z_table=AtomicNumberTable([1, 6, 8]), cutoff=4.0
+                    )
+                ],
                 batch_size=1,
             )
         )
     )
     out = compiled(batch.to_dict())
-    np.testing.assert_allclose(out["energy"][0].detach().numpy(), ref["energies"], rtol=1e-10)
+    np.testing.assert_allclose(
+        out["energy"][0].detach().numpy(), ref["energies"], rtol=1e-10
+    )
 
 
 def test_xmace_readme_command_line(tmp_path):
@@ -148,7 +164,9 @@ def test_autoencoder_with_stage_two(tmp_path):
 
 
 def test_smooth_nacs_key_and_missing_labels(tmp_path):
-    configs = make_excited_configs(24, 3, seed=1, smooth_key="smooth_nacs", with_socs=False)
+    configs = make_excited_configs(
+        24, 3, seed=1, smooth_key="smooth_nacs", with_socs=False
+    )
     for atoms in configs[::3]:
         atoms.info.pop("smooth_nacs")  # a third of the frames without NACs
     ase.io.write(tmp_path / "train.xyz", configs)
@@ -179,7 +197,9 @@ def test_foundation_model_transfer(tmp_path):
 
 
 def test_single_state_float32(tmp_path):
-    configs = make_excited_configs(20, 1, seed=1, with_nacs=False, with_socs=False, with_dipoles=False)
+    configs = make_excited_configs(
+        20, 1, seed=1, with_nacs=False, with_socs=False, with_dipoles=False
+    )
     ase.io.write(tmp_path / "train.xyz", configs)
     params = _params(tmp_path, n_energies=1, default_dtype="float32", max_num_epochs=2)
     run_mace_train(params)
@@ -232,7 +252,10 @@ def test_hdf5_preprocessing_and_training(tmp_path):
             "compute_nacs": None,
             "compute_socs": None,
         },
-        script=Path(__file__).resolve().parents[2] / "mace" / "cli" / "preprocess_data.py",
+        script=Path(__file__).resolve().parents[2]
+        / "mace"
+        / "cli"
+        / "preprocess_data.py",
     )
     statistics = json.loads((tmp_path / "h5" / "statistics.json").read_text())
     assert len(statistics["mean"]) == 3  # one shift per state
@@ -247,3 +270,102 @@ def test_hdf5_preprocessing_and_training(tmp_path):
     params.pop("E0s")
     run_mace_train(params, extra_argv=["--compute_nacs", "--compute_socs"])
     assert "MAE NACs" in _log(tmp_path)
+
+
+def test_multiplicities_with_spin_orbit_couplings(tmp_path):
+    # S0, T0, T1: NACs only T0-T1, SOCs as Wigner-Eckart coupling vectors
+    states = [1, 0, 2]
+    ase.io.write(tmp_path / "train.xyz", make_multiplicity_configs(24, states, seed=1))
+    ase.io.write(tmp_path / "test.xyz", make_multiplicity_configs(6, states, seed=2))
+    params = _params(
+        tmp_path,
+        test_file=str(tmp_path / "test.xyz"),
+        error_table="EnergyNacsDipoleRMSE",
+        max_num_epochs=8,
+    )
+    params.pop("n_energies")
+    run_mace_train(
+        params,
+        extra_argv=[
+            "--states=1 0 2",
+            "--compute_nacs",
+            "--compute_socs",
+            "--compute_dipoles",
+        ],
+    )
+    losses = _valid_losses(tmp_path)
+    assert losses[-1] < 0.5 * losses[0]
+    log = _log(tmp_path)
+    assert "3 states (1 singlet, 2 triplets), NACs=1 (raw)" in log
+    assert "SOCs=3 coupling vectors (spin_orbit), dipoles=4" in log
+    assert "RMSE SOCs" in log
+    model = torch.load(tmp_path / "xmace.model", weights_only=False)
+    assert model.multiplicity_states == states and model.soc_mode == "spin_orbit"
+
+    # evaluation writes the SOC matrix in a layout training reads back
+    run_mace_train(
+        {
+            "configs": str(tmp_path / "test.xyz"),
+            "model": str(tmp_path / "xmace.model"),
+            "output": str(tmp_path / "pred.xyz"),
+            "device": "cpu",
+        },
+        script=EVAL_SCRIPT,
+    )
+    atoms = ase.io.read(tmp_path / "pred.xyz", 0)
+    assert np.shape(atoms.info["MACE_soc_vectors"]) == (3, 3)
+    assert np.size(atoms.info["MACE_socs"]) == 7 * 6  # 7 M_S states, upper triangle
+    assert np.shape(atoms.info["MACE_nacs"]) == (4, 1, 3)
+
+    # the SHARC layer reads the multiplicities from the model
+    from mace.calculators.sharc_calculator import (  # pylint: disable=import-outside-toplevel
+        SharcCalculator,
+    )
+
+    sharc = SharcCalculator(
+        atom_types=atoms.get_chemical_symbols(),
+        model_paths=str(tmp_path / "xmace.model"),
+        states=states,
+        properties=["energy", "forces", "nacs", "socs", "dipoles"],
+    )
+    qm = sharc.calculate(atoms.positions / 0.529177210903)
+    assert qm["h"].shape == (7, 7) and np.any(np.abs(qm["h"].imag) > 0)
+
+
+def test_multiplicities_hdf5(tmp_path):
+    states = [0, 2, 0, 1]  # doublets and a quartet
+    ase.io.write(tmp_path / "train.xyz", make_multiplicity_configs(20, states, seed=1))
+    run_mace_train(
+        {
+            "train_file": str(tmp_path / "train.xyz"),
+            "valid_fraction": 0.2,
+            "h5_prefix": str(tmp_path / "h5") + "/",
+            "r_max": 4.0,
+            "E0s": "average",
+            "states": "0 2 0 1",
+            "seed": 1,
+            "num_process": 1,
+            "compute_statistics": None,
+            "compute_nacs": None,
+            "compute_socs": None,
+        },
+        script=Path(__file__).resolve().parents[2]
+        / "mace"
+        / "cli"
+        / "preprocess_data.py",
+    )
+    params = _params(
+        tmp_path,
+        train_file=str(tmp_path / "h5" / "train" / "train_0.h5"),
+        valid_file=str(tmp_path / "h5" / "val" / "val_0.h5"),
+        statistics_file=str(tmp_path / "h5" / "statistics.json"),
+        max_num_epochs=2,
+    )
+    for key in ("valid_fraction", "E0s", "n_energies"):
+        params.pop(key)
+    run_mace_train(
+        params, extra_argv=["--states=0 2 0 1", "--compute_nacs", "--compute_socs"]
+    )
+    log = _log(tmp_path)
+    assert "SOCs=3 coupling vectors" in log
+    assert "MAE SOCs" in log

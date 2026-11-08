@@ -7,10 +7,11 @@ X-MACE extends MACE to several electronic states. One network predicts, for S st
 | energies | `energy` | `[n_graphs, S]` | per-atom invariant readouts, plus E0s and the ZBL core repulsion |
 | forces | `forces` | `[n_atoms, S, 3]` | −∂E_s/∂r for every state |
 | non-adiabatic couplings | `nacs` | `[n_atoms, P, 3]` | per-atom equivariant vectors (l = 1); smooth NACs, NAC × ΔE |
-| spin–orbit couplings | `socs` | `[n_graphs, L]` | sums of per-atom invariant scalars |
+| spin–orbit couplings | `socs` | `[n_graphs, L]` | sums of per-atom invariant scalars (`--soc_mode=free`) |
+| spin–orbit coupling vectors | `soc_vectors` | `[n_graphs, Q, 3]` | sums of per-atom axial vectors (`--soc_mode=spin_orbit`), see [Spin multiplicities](#spin-multiplicities) |
 | permanent and transition dipoles | `dipoles` | `[n_graphs, D, 3]` | sums of per-atom equivariant vectors |
 
-P = S(S−1)/2 state pairs in the order (0,1), (0,2), …, (1,2), …. By default L = P and D = S + P (S permanent dipoles, then one transition dipole per pair).
+P = S(S−1)/2 state pairs in the order (0,1), (0,2), …, (1,2), …. By default L = P and D = S + P (S permanent dipoles, then one transition dipole per pair). With `--states`, P counts only pairs of the same multiplicity.
 
 There are two models:
 
@@ -38,6 +39,37 @@ Each frame of an extended XYZ file carries its labels in `atoms.info`, as in X-M
 
 The training log lists how many frames carry each label.
 
+## Spin multiplicities
+
+`--states` gives the spatial states per multiplicity, in SHARC's order: `--states="3 0 2"` is three singlets and two triplets, `--states="0 2 0 1"` two doublets and a quartet, `--states="2 0 2 0 1"` adds a quintet. The model's states are listed in that order (S0, S1, S2, T1, T2, …), and `--n_energies` is optional (it must equal the total). Any multiplicity SHARC supports can be used.
+
+The symmetry of the spin states is part of the model, not something it has to learn:
+
+* **Degenerate M_S components.** The model predicts one energy, one set of forces and one permanent dipole per spatial state. They are shared by all its M_S components, so a triplet's three components are exactly degenerate.
+* **NACs and transition dipoles** couple states of the same multiplicity only (and, in SHARC, only equal M_S). The model predicts one NAC and one transition dipole per such pair, so `--nac_num` defaults to the number of same-multiplicity pairs. Labels may give every pair of states (X-MACE layout); the coupled pairs are picked out.
+* **Spin–orbit couplings (`--soc_mode=spin_orbit`, the default when there are spin-orbit-coupled multiplicities).** By the Wigner–Eckart theorem, all M_S-resolved SOC matrix elements between two spatial states follow from one complex vector of reduced matrix elements, which is i·**a** for real wavefunctions. The model predicts **a**, an axial vector, for each pair of spatial states the selection rules allow: ΔS ∈ {0, ±1}, not singlet–singlet, and not within one spatial state. Singlet–doublet and singlet–quintet pairs, for example, have no coupling. The SOC matrix is then built exactly:
+  H[(I,M),(J,M′)] = (−1)^q A_q c(S,S′) ⟨S′ M′ 1 −q | S M⟩, with q = M′ − M, A = i·**a** in spherical components, and c(S,S) = √(S(S+1)), else 1.
+  So the predicted SOC matrix is always Hermitian. It obeys the ΔM_S selection rules, and when the molecule rotates it rotates with the spins, H(R**x**) = U(R) H(**x**) U(R)†. Under inversion it is unchanged, because the coupling vectors are axial (built from 1o ⊗ 1o → 1e features).
+* **Phases.** The sign of each spatial state is arbitrary. NACs, transition dipoles and SOC vectors are compared with the best sign per configuration and pair.
+
+**SOC labels** are M_S-resolved matrices in SHARC order (for each multiplicity, for M_S = −S…S, for each state), in any unit, as:
+
+* a complex `[nm, nm]` array,
+* `[nm, nm, 2]` or `[2, nm, nm]` (re, im),
+* the upper triangle as nm(nm−1)/2 complex values,
+* or nm(nm−1) real values with re and im interleaved, which is X-MACE's layout and what `mace_eval_configs` writes.
+
+The coupling vectors are fitted to each matrix by least squares. If a matrix is not of Wigner–Eckart form (wrong state order, M_S basis or phase convention), the log warns with the largest relative residual. The SOC loss is weighted per pair so that it measures the M_S-resolved matrix elements. The SOC errors in the error table are those of the real and imaginary parts of the allowed matrix elements.
+
+```bash
+mace_run_train --model=ExcitedMACE --states="2 0 2 0 1" --compute_nacs --compute_socs \
+  --compute_dipoles --socs_key=REF_socs --hidden_irreps='64x0e + 64x1o' ...
+# log: ExcitedMACE: 5 states (2 singlets, 2 triplets, 1 quintet), NACs=2 (raw),
+#      SOCs=7 coupling vectors (spin_orbit), dipoles=7, ...
+```
+
+`--soc_mode=free` keeps X-MACE's invariant SOC outputs (`--soc_num` numbers, any layout). `mace.modules.spin_states` has the tools: the state order, selection rules, Clebsch–Gordan coefficients, `soc_matrix_from_vectors`, `soc_vectors_from_matrix` and `spin_rotation`.
+
 ## Training
 
 ```bash
@@ -56,8 +88,10 @@ The X-MACE command lines keep working, apart from `python scripts/run_train.py` 
 |---|---|---|
 | `--model` | | `ExcitedMACE` or `AutoencoderExcitedMACE` |
 | `--n_energies` (`--n_states`) | 1 | number of states S |
+| `--states` | S states of one multiplicity | states per multiplicity, e.g. `"3 0 2"` |
+| `--soc_mode` | `auto` | `spin_orbit`, `free` or `auto` (spin_orbit when `--states` has spin-orbit-coupled multiplicities) |
 | `--compute_nacs` / `--compute_socs` / `--compute_dipoles` | off | bare flag or `=True` |
-| `--nac_num` / `--soc_num` / `--dipole_num` | P / P / S + P | sizes of the outputs |
+| `--nac_num` / `--soc_num` / `--dipole_num` | P / P / S + P | sizes of the outputs (P: coupled pairs) |
 | `--nacs_format` | `auto` | `raw`, `smooth` or `auto`, see above |
 | `--nacs_weight` / `--socs_weight` / `--dipoles_weight` | 100 / 100 / 1 | loss weights |
 | `--num_permutational_invariant` | 16 | latent size of `AutoencoderExcitedMACE` |
@@ -75,11 +109,11 @@ The energies are total energies, and the couplings are phase free. The autoencod
 
 **Scaling.** The atomic interaction energies are scaled by the RMS of the forces of all states, and shifted by one value per state: the mean interaction energy per atom of that state. `--scaling=no_scaling` turns this off, as in X-MACE.
 
-**Vectors in the last layer.** MACE reduces its last layer to scalars. When NACs or dipoles are predicted, the last layer keeps its l = 1 features, so every layer contributes to them. In X-MACE the last layer could not contribute to NACs.
+**Vectors in the last layer.** MACE reduces its last layer to scalars. When NACs, dipoles or SOC vectors are predicted, the last layer keeps its l = 1 features, so every layer contributes to them. In X-MACE the last layer could not contribute to NACs.
 
 **Transfer learning.** `--foundation_model=medium_off` (or `small`, `medium`, `large`, `*_off`, or a path to a MACE model) takes the architecture and weights of the backbone from a ground-state MACE model. With `--foundation_model_readout=True` (the default), every state starts from the foundation's energy readout and scale/shift. The model then reproduces the foundation's potential energy surface for every state before training. Where the last layer keeps l = 1 features, the foundation weights fill the scalar part.
 
-**Large data sets.** `mace_preprocess_data` stores the excited-state labels in HDF5 when given `--n_energies` and the property options. With `--compute_statistics` it writes one shift per state:
+**Large data sets.** `mace_preprocess_data` stores the excited-state labels in HDF5 when given `--n_energies` (or `--states`) and the property options. With `--compute_statistics` it writes one shift per state:
 
 ```bash
 mace_preprocess_data --train_file=train.xyz --valid_fraction=0.1 --h5_prefix=h5/ --r_max=5.0 \
@@ -94,7 +128,7 @@ mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_socs 
 mace_eval_configs --configs=test.xyz --model=ch2nh2.model --output=pred.xyz
 ```
 
-`pred.xyz` gets `MACE_energies` `[S]`, `MACE_energy` (state 0) and `MACE_forces` `[n_atoms, S, 3]` in `atoms.info`. If the model predicts them, it also gets `MACE_smooth_nacs`, `MACE_nacs`, `MACE_socs` and `MACE_dipoles`.
+`pred.xyz` gets `MACE_energies` `[S]`, `MACE_energy` (state 0) and `MACE_forces` `[n_atoms, S, 3]` in `atoms.info`. If the model predicts them, it also gets `MACE_smooth_nacs`, `MACE_nacs`, `MACE_socs` and `MACE_dipoles`. Spin–orbit models write `MACE_soc_vectors` `[Q, 3]`, and `MACE_socs` holds the SOC matrix as an interleaved upper triangle.
 
 ```python
 from mace.calculators import ExcitedMACECalculator
@@ -104,30 +138,37 @@ atoms.calc = calc
 atoms.get_potential_energy(), atoms.get_forces()          # state 1, for ASE MD
 calc.results["energies"], calc.results["forces_states"]   # all states
 calc.results["nacs"], calc.results["smooth_nacs"], calc.results["socs"], calc.results["dipoles"]
+calc.results["soc_vectors"], calc.results["soc_matrix"]  # spin_orbit models: complex [nm, nm]
+calc.layout   # which states the couplings belong to (multiplicities, NAC pairs, ...)
 ```
 
 For a committee, each member's couplings are sign-aligned to the first model before averaging. `energies_var` and `forces_states_var` give the spread.
 
 ## Surface hopping with SHARC 4
 
-`scripts/sharc/SHARC_MACE.py` is a SHARC 4 interface (`SHARC_FAST`). Copy or link it into `$SHARC/bin`, and put `scripts/sharc/MACE.template` into the `QM` directory:
+`scripts/sharc/SHARC_MACE.py` is a SHARC interface (`SHARC_FAST`) for the SHARC 4.1 interface API. Copy or link it into `$SHARC/bin` (or put `scripts/sharc` on `PYTHONPATH`), and put `scripts/sharc/MACE.template` into the `QM` directory:
 
 ```
-model_file     /path/to/model.model     # glob pattern -> committee
-properties     energy forces nacs        # add socs / dipoles; smooth_nacs passes NAC*dE
+model_file     /path/to/model.model     # glob pattern -> committee; or modelpath in MACE.resources
+properties     energy forces nacs socs dipoles   # smooth_nacs passes NAC*dE instead of NACs
 device         cuda
-energy_unit    eV                        # units the model was trained in
-distance_unit  Ang
+energy_unit    eV                        # units the model was trained in (eV, Hartree)
+distance_unit  Ang                       # Ang or Bohr
+soc_unit       cm-1                      # optional: unit of the SOC labels (Hartree, eV, cm-1)
 ```
 
-`mace.calculators.sharc_calculator.SharcCalculator` does the work and can be used without SHARC. It converts to atomic units and returns `h` (energies, plus SOCs if requested), `grad`, `nacdr` and `dm`.
+The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls `SHARC_MACE.py QM.in` once per step. With pysharc, run `$SHARC/driver.py -i MACE input`; the model stays in memory, which is about ten times faster. It answers `h`, `soc`, `grad`, `nacdr`, `dm` and `phases`. `MACE.resources` is optional.
 
-* **Spatial model.** A model with `n_energies` = singlets + triplets, singlets first. Each triplet's energy, gradient and permanent dipole are copied to its three M_S components. NACs and transition dipoles couple states of the same multiplicity and M_S only.
-* **M_S-resolved model.** A model with `n_energies` = nmstates, in SHARC order.
-* **Singlet-only run.** A singlet-only run may use a model with more states; the lowest ones are used.
-* **SOCs.** These are the upper triangle of the nmstates × nmstates SOC matrix (X-MACE layout). Use nmstates(nmstates−1)/2 real values, or twice as many as (re, im) pairs.
-* **Phases.** Couplings are sign-aligned with the previous step, so they change smoothly along a trajectory, and the interface reports all phases as +1.
-* **Requests the model cannot answer.** These fail with a clear error, for example NACs from a model without NACs, or a mismatch between the number of states and SHARC's `states` line.
+`mace.calculators.sharc_calculator.SharcCalculator` does the work and can be used without SHARC. It converts to atomic units and returns `h` (energies, plus SOCs if requested), `grad`, `nacdr` and `dm` for SHARC's `states`, for any multiplicities:
+
+* **Models trained with `--states`.** SHARC may ask for as many states per multiplicity as the model has, or fewer (the lowest are used). Each spatial state's energy, gradient and permanent dipole go to all its M_S components. NACs and transition dipoles go between states of equal multiplicity and equal M_S. Spin–orbit models give the full Wigner–Eckart SOC matrix.
+* **Models without multiplicities (X-MACE).** n_energies states of one multiplicity, for example singlets only or doublets only. Or singlets + triplets, singlets first (spatial). Or nmstates states in SHARC order (M_S-resolved). Their SOCs are the upper triangle of the nmstates × nmstates SOC matrix: nmstates(nmstates−1)/2 real values, or twice as many as (re, im) pairs.
+* **Phases.** Couplings are sign-aligned with the previous step, so they change smoothly along a trajectory, and the interface reports all phases as +1. With `sharc.x` the previous couplings are kept in the save directory (`mace_phases.<step>`), so continuity holds across the separate processes.
+* **Requests the model cannot answer.** These fail with a clear error, for example NACs from a model without NACs, or more states of a multiplicity than the model predicts. SOCs requested from a model without them are zero, with a warning.
+
+**Tested with SHARC 4.1** (sharc-md/sharc4, main): single points, and `sharc.x` and pysharc trajectories with 2 singlets, 2 triplets and 1 quintet (13 M_S states), NACs, SOCs, dipoles and gradient correction. The total energy is conserved to < 0.3 meV over 10 fs, and the pysharc and `sharc.x` trajectories are identical. Doublets and quartets were checked in single points.
+
+**pysharc input bug in SHARC 4.1.** In `source/input_list.f90`, `next_keyword` never sets its `stat` argument when it reads a line (`! stat = 0` is commented out). With optimisation, whether SHARC reads its `input` file then depends on leftover stack contents. When it fails, pysharc stops with `Keyword CHARGE not found.` and an empty input echo in `output.log`. Importing packages such as numpy's linear algebra or scipy (and so PyTorch models) is enough to trigger it, even with the LVC interface. The fix is to uncomment that line (`stat = 0`) and rebuild SHARC; `tests/excited/test_sharc_real.py` detects the problem and says so.
 
 ## What changed compared with X-MACE
 
@@ -142,6 +183,12 @@ distance_unit  Ang
 * **Dipoles.** Dipoles were declared but never predicted. They are now predicted as permanent and transition dipoles, with phase-free transition dipoles.
 * **Decoder.** The autoencoder's decoder looped over the batch and used a general eigensolver. It now builds the batch of symmetric matrices at once and uses `eigvalsh`.
 * **SHARC triplets and units.** The SHARC interface built `h` for spatial states but the SOC matrix for M_S states, so it failed with triplets, and it passed NACs to SHARC without unit conversion. Triplets, units and phases are now handled, see above.
+* **SHARC 4.1.** The interface used the SHARC 4.0 template API (`template.types = {...}`, `.data`) and failed with SHARC 4.1. It now uses the 4.1 API, and allocates `QMout` per request.
+
+**Added**
+
+* **Spin multiplicities.** Doublets, quartets, quintets and any other multiplicity, with exactly degenerate M_S components and the NAC and dipole selection rules built in.
+* **Wigner–Eckart SOCs.** Rotation-equivariant SOC matrices, see [Spin multiplicities](#spin-multiplicities).
 
 **Removed**
 
@@ -160,9 +207,12 @@ distance_unit  Ang
 * **Models.** Invariance and equivariance under rotation, translation, inversion and atom permutation. Finite-difference forces for every state. The ZBL repulsion against a direct calculation. Batching, TorchScript, float32, and transfer from a foundation model, which must reproduce the ground state exactly.
 * **Losses and metrics.** Phase invariance, per-frame weights, autoencoder terms, and optimizer coverage.
 * **Calculators.** ASE, committees, MD energy conservation, and the SHARC layer in all state modes and units, including phase continuity.
-* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing and `mace_eval_configs`.
+* **Spin states** (`test_spin_states.py`, `test_multiplicities.py`). Clebsch–Gordan coefficients against sympy. The same-spin SOC block against **a**·i**S** for doublets to quintets. Hermiticity, selection rules and rotation covariance H(R**a**) = U(R) H(**a**) U(R)† for six state layouts. SOC label layouts and the Wigner–Eckart residual warning. Axial SOC vectors (rotation, inversion) and TorchScript. The phase-free SOC loss and matrix-element metrics, and that a model learns the couplings. The SHARC layer with singlets/triplets/quintets and doublets/quartets: M_S degeneracy, NAC/dipole selection rules, the SOC matrix, rotation covariance, finite-difference gradients, fewer states than the model, and phase continuity.
+* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer.
+* **Real SHARC** (`test_sharc_real.py`, skipped without `$SHARC`). A `SHARC_MACE.py` single point against `SharcCalculator`, read with SHARC's own `QM.out` parser. A `sharc.x` trajectory with energy conservation. A pysharc trajectory that must match `sharc.x`.
 
 ```bash
-pytest tests/excited            # about 3 minutes on a CPU
+pytest tests/excited            # about 5 minutes on a CPU
 pytest tests/excited -m "not slow"
+source $SHARC/sharcvars.sh && pytest tests/excited/test_sharc_real.py
 ```
