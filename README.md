@@ -37,6 +37,7 @@ over.
   - [Usage](#usage)
     - [Training](#training)
     - [Evaluation](#evaluation)
+    - [Excited states (X-MACE)](#excited-states-x-mace)
   - [Tutorials](#tutorials)
   - [CUDA acceleration with cuEquivariance](#cuda-acceleration-with-cuequivariance)
   - [Weights and Biases for experiment tracking](#weights-and-biases-for-experiment-tracking)
@@ -189,6 +190,17 @@ mace_eval_configs \
     --model="your_model.model" \
     --output="./your_output.xyz"
 ```
+
+### Excited states (X-MACE)
+
+`ExcitedMACE` and `AutoencoderExcitedMACE` learn several electronic states at once: energies and forces of every state, non-adiabatic couplings, spin-orbit couplings and permanent/transition dipoles, with an optional ZBL core repulsion. They come with an ASE calculator (`ExcitedMACECalculator`) and a SHARC 4 interface for surface hopping:
+
+```sh
+mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_socs \
+    --pair_repulsion --train_file=train.xyz --E0s=average ...
+```
+
+See [XMACE.md](XMACE.md) for the data format, all options and the SHARC interface.
 
 ## Tutorials
 
