@@ -3,9 +3,10 @@
 # This program is distributed under the MIT License (see MIT.md)
 ###########################################################################################
 
+from dataclasses import dataclass
 from glob import glob
 from pathlib import Path
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Sequence, Tuple, Union
 
 import ase
 import numpy as np
@@ -13,6 +14,12 @@ import torch
 from ase.calculators.calculator import Calculator, all_changes
 
 from mace import data
+from mace.modules.spin_states import (
+    same_multiplicity_pairs,
+    soc_matrix_from_vectors,
+    spin_orbit_pairs,
+    state_pairs,
+)
 from mace.tools import torch_geometric, torch_tools, utils
 
 EXCITED_MODEL_CLASSES = ("ExcitedMACE", "AutoencoderExcitedMACE")
@@ -29,13 +36,71 @@ def _model_dtype(model: torch.nn.Module) -> str:
 
 
 def raw_nacs_from_smooth(
-    smooth_nacs: np.ndarray, energies: np.ndarray, min_gap: float = 1e-8
+    smooth_nacs: np.ndarray,
+    energies: np.ndarray,
+    min_gap: float = 1e-8,
+    pairs: Optional[Sequence[Tuple[int, int]]] = None,
 ) -> np.ndarray:
-    """NACs [n_atoms, P, 3] = smooth NACs / |E_j - E_i| for the pairs (0,1), (0,2), ..."""
+    """NACs [n_atoms, P, 3] = smooth NACs / |E_j - E_i| for the given state pairs
+    (default: all pairs (0,1), (0,2), ...)."""
     energies = np.asarray(energies).reshape(-1)
-    i, j = np.triu_indices(energies.size, k=1)
+    if pairs is None:
+        pairs = state_pairs(energies.size)
+    i = np.array([p[0] for p in pairs], dtype=int)
+    j = np.array([p[1] for p in pairs], dtype=int)
     gaps = np.maximum(np.abs(energies[j] - energies[i]), min_gap)
     return smooth_nacs / gaps[None, :, None]
+
+
+def soc_upper_triangle(matrix: np.ndarray) -> np.ndarray:
+    """Upper triangle of a complex SOC matrix as interleaved (re, im) values."""
+    upper = matrix[np.triu_indices(matrix.shape[0], k=1)]
+    return np.stack([upper.real, upper.imag], axis=-1).reshape(-1)
+
+
+@dataclass
+class ExcitedModelLayout:
+    """What the outputs of an excited-state model mean.
+
+    states       states per multiplicity ([n_singlets, n_doublets, ...])
+    nac_pairs    state pair of every NAC (None: custom layout)
+    n_permanent  number of permanent dipoles (then transition dipoles of dipole_pairs)
+    dipole_pairs state pair of every transition dipole
+    soc_mode     "free" (soc_num numbers) or "spin_orbit" (coupling vectors)
+    soc_pairs    spatial state pair of every SOC vector (spin_orbit)
+    """
+
+    states: List[int]
+    nac_pairs: Optional[List[Tuple[int, int]]]
+    n_permanent: int
+    dipole_pairs: List[Tuple[int, int]]
+    soc_mode: str
+    soc_pairs: List[Tuple[int, int]]
+
+    @classmethod
+    def from_model(cls, model: torch.nn.Module) -> "ExcitedModelLayout":
+        n_states = int(model.n_energies)
+        states = [int(s) for s in getattr(model, "multiplicity_states", [n_states])]
+        if sum(states) != n_states:
+            states = [n_states]
+        coupled = same_multiplicity_pairs(states)
+        every = state_pairs(n_states)
+        nac_pairs = None
+        if bool(model.compute_nacs):
+            nac_num = int(model.nac_num)
+            if nac_num == len(coupled):
+                nac_pairs = coupled
+            elif nac_num == len(every):
+                nac_pairs = every  # X-MACE models without multiplicities: all pairs
+        n_dipoles = int(model.dipole_num) if bool(model.compute_dipoles) else 0
+        n_permanent, dipole_pairs = n_dipoles, []
+        if n_dipoles == n_states + len(coupled):
+            n_permanent, dipole_pairs = n_states, coupled
+        elif n_dipoles == n_states + len(every):
+            n_permanent, dipole_pairs = n_states, every
+        soc_mode = str(getattr(model, "soc_mode", "free"))
+        soc_pairs = spin_orbit_pairs(states) if soc_mode == "spin_orbit" else []
+        return cls(states, nac_pairs, n_permanent, dipole_pairs, soc_mode, soc_pairs)
 
 
 def coupling_signs(
@@ -63,16 +128,20 @@ class ExcitedMACECalculator(Calculator):
     model_paths  a path, a glob pattern ("model_*.model") or a list for a committee
     state        electronic state whose energy and forces ASE uses ("energy", "forces")
 
-    results (S states, P state pairs, L SOCs, D dipoles):
+    results (S states, P coupled state pairs, L SOCs, D dipoles, Q spin-orbit pairs):
       energy, free_energy   energy of `state` (eV)
       forces                forces of `state` [n_atoms, 3] (eV/A)
       energies              [S]
       forces_states         [n_atoms, S, 3]
       smooth_nacs           [n_atoms, P, 3]  NAC * dE, as predicted
-      nacs                  [n_atoms, P, 3]  smooth NACs / dE  (one NAC per state pair only)
-      socs                  [L]
+      nacs                  [n_atoms, P, 3]  smooth NACs / dE  (one NAC per coupled pair)
+      socs                  [L]              (soc_mode="free")
+      soc_vectors           [Q, 3]           (soc_mode="spin_orbit")
+      soc_matrix            [nm, nm] complex M_S-resolved SOC matrix (spin_orbit)
       dipoles               [D, 3]
       energies_var, forces_states_var   committee variances (several models)
+
+    self.layout (ExcitedModelLayout) says which states the couplings belong to.
 
     Couplings are in the units of the training data. For a committee, the
     couplings of every model are sign-aligned to the first model before averaging.
@@ -87,6 +156,8 @@ class ExcitedMACECalculator(Calculator):
         "nacs",
         "smooth_nacs",
         "socs",
+        "soc_vectors",
+        "soc_matrix",
         "dipoles",
     ]
 
@@ -134,6 +205,10 @@ class ExcitedMACECalculator(Calculator):
                 )
             if float(model.r_max) != float(reference.r_max):
                 raise ValueError("Committee members have different r_max")
+            if ExcitedModelLayout.from_model(model) != ExcitedModelLayout.from_model(
+                reference
+            ):
+                raise ValueError("Committee members predict different couplings")
         self.num_models = len(self.models)
         self.n_states = int(reference.n_energies)
         if not 0 <= state < self.n_states:
@@ -146,10 +221,8 @@ class ExcitedMACECalculator(Calculator):
         self.energy_units_to_eV = float(energy_units_to_eV)
         self.length_units_to_A = float(length_units_to_A)
         self.charges_key = charges_key
-        self.nacs_per_pair = (
-            bool(reference.compute_nacs)
-            and int(reference.nac_num) == self.n_states * (self.n_states - 1) // 2
-        )
+        self.layout = ExcitedModelLayout.from_model(reference)
+        self.nacs_per_pair = self.layout.nac_pairs is not None
 
     @staticmethod
     def _expand_paths(model_paths) -> List[str]:
@@ -191,7 +264,8 @@ class ExcitedMACECalculator(Calculator):
                 {
                     key: torch_tools.to_numpy(value).copy()
                     for key, value in out.items()
-                    if key in ("energy", "forces", "nacs", "socs", "dipoles")
+                    if key
+                    in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
                     and value is not None
                 }
             )
@@ -219,7 +293,9 @@ class ExcitedMACECalculator(Calculator):
             results["smooth_nacs"] = smooth
             if self.nacs_per_pair:
                 model_energies = np.mean([p["energy"][0] for p in per_model], axis=0)
-                results["nacs"] = raw_nacs_from_smooth(smooth, model_energies)
+                results["nacs"] = raw_nacs_from_smooth(
+                    smooth, model_energies, pairs=self.layout.nac_pairs
+                )
         if "socs" in first:
             socs = [first["socs"][0]]
             for p in per_model[1:]:
@@ -228,12 +304,18 @@ class ExcitedMACECalculator(Calculator):
                     value = -value
                 socs.append(value)
             results["socs"] = np.mean(socs, axis=0)
-        if "dipoles" in first:
-            n_pairs = self.n_states * (self.n_states - 1) // 2
-            n_dipoles = first["dipoles"].shape[1]
-            n_permanent = (
-                self.n_states if n_dipoles == self.n_states + n_pairs else n_dipoles
+        if "soc_vectors" in first:
+            vectors = [first["soc_vectors"][0]] + [
+                _align_sign(first["soc_vectors"][0], p["soc_vectors"][0], axis_pairs=0)
+                for p in per_model[1:]
+            ]
+            results["soc_vectors"] = np.mean(vectors, axis=0)
+            results["soc_matrix"] = soc_matrix_from_vectors(
+                results["soc_vectors"], self.layout.states
             )
+        if "dipoles" in first:
+            n_dipoles = first["dipoles"].shape[1]
+            n_permanent = self.layout.n_permanent
             dipoles = [first["dipoles"][0]]
             for p in per_model[1:]:
                 value = p["dipoles"][0].copy()
@@ -265,7 +347,9 @@ def evaluate_excited_configs(
 
     <prefix>energy (state 0), <prefix>energies [S], <prefix>forces [n_atoms, S, 3],
     and if predicted <prefix>smooth_nacs, <prefix>nacs [n_atoms, P, 3],
-    <prefix>socs [L], <prefix>dipoles [D, 3]."""
+    <prefix>socs [L] (free) or <prefix>soc_vectors [Q, 3] and <prefix>socs, the upper
+    triangle of the M_S-resolved SOC matrix as (re, im) pairs [nm (nm - 1)]
+    (spin_orbit; the layout --socs_key reads back), <prefix>dipoles [D, 3]."""
     calc = ExcitedMACECalculator(model_paths=None, models=[model], device=device)
     z_table, r_max = calc.z_table, calc.r_max
     configs = [
@@ -294,6 +378,11 @@ def evaluate_excited_configs(
         socs = (
             torch_tools.to_numpy(out["socs"]) if out.get("socs") is not None else None
         )
+        soc_vectors = (
+            torch_tools.to_numpy(out["soc_vectors"])
+            if out.get("soc_vectors") is not None
+            else None
+        )
         dipoles = (
             torch_tools.to_numpy(out["dipoles"])
             if out.get("dipoles") is not None
@@ -310,10 +399,15 @@ def evaluate_excited_configs(
                 atoms.info[info_prefix + "smooth_nacs"] = nacs[start:stop]
                 if calc.nacs_per_pair:
                     atoms.info[info_prefix + "nacs"] = raw_nacs_from_smooth(
-                        nacs[start:stop], energies[g]
+                        nacs[start:stop], energies[g], pairs=calc.layout.nac_pairs
                     )
             if socs is not None:
                 atoms.info[info_prefix + "socs"] = socs[g]
+            if soc_vectors is not None:
+                atoms.info[info_prefix + "soc_vectors"] = soc_vectors[g]
+                atoms.info[info_prefix + "socs"] = soc_upper_triangle(
+                    soc_matrix_from_vectors(soc_vectors[g], calc.layout.states)
+                )
             if dipoles is not None:
                 atoms.info[info_prefix + "dipoles"] = dipoles[g]
             index += 1
