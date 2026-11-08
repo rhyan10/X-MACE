@@ -1532,6 +1532,48 @@ def add_excited_state_arguments(parser) -> None:
         default="both",
     )
     parser.add_argument(
+        "--excited_backbone",
+        help=(
+            "Ground-state model under the excited-state heads when no foundation model "
+            "is given (with --foundation_model the foundation's class is used)"
+        ),
+        choices=[
+            "MACE",
+            "ScaleShiftMACE",
+            "MACELES",
+            "PolarMACE",
+            "MagneticScaleShiftMACE",
+        ],
+        default="ScaleShiftMACE",
+    )
+    parser.add_argument(
+        "--excited_long_range",
+        help=(
+            "'shared': the backbone's long-range/electrostatic energy (PolarMACE, MACELES) "
+            "is the same for every state. 'state': every state also gets its own charges "
+            "(backbone charges + learnt, charge-conserving corrections) and the "
+            "corresponding change of the electrostatic energy (molecules only)"
+        ),
+        choices=["shared", "state"],
+        default="shared",
+    )
+    parser.add_argument(
+        "--excited_charge_smearing",
+        help="Width (Å) of the Gaussian charges of --excited_long_range=state",
+        type=float,
+        default=1.0,
+    )
+    parser.add_argument(
+        "--excited_adapter_irreps",
+        help=(
+            "Irreps of the equivariant adapter layer on top of the backbone that provides "
+            "the l=1 features of NACs, dipoles and SOC vectors (default: Kx0e + Kx1o with "
+            "K = min(64, channels of the backbone))"
+        ),
+        type=str,
+        default=None,
+    )
+    parser.add_argument(
         "--compute_nacs",
         help="Predict non-adiabatic couplings (excited-state models)",
         type=str2bool,

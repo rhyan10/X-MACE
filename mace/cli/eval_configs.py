@@ -216,6 +216,7 @@ def run(args: argparse.Namespace) -> None:
             batch_size=args.batch_size,
             device=args.device,
             info_prefix=args.info_prefix,
+            head=args.head,
         )
         ase.io.write(args.output, images=atoms_list, format="extxyz")
         return

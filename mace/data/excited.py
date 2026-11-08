@@ -135,6 +135,14 @@ class ExcitedStateSpec:
         return len(self.soc_pairs)
 
     def describe(self) -> str:
+        if (
+            self.n_states == 1
+            and self.n_nacs == 0
+            and self.n_socs == 0
+            and self.n_soc_vectors == 0
+            and self.n_dipoles == 0
+        ):
+            return "ground state (energy and forces)"
         text = f"{self.n_states} states"
         if self.states is not None:
             text += f" ({describe_states(self.states)})"
@@ -287,7 +295,7 @@ def _as_dipoles(value, spec: ExcitedStateSpec, index: int) -> np.ndarray:
 
 def standardise_excited_configs(
     configs: List[Configuration], spec: ExcitedStateSpec
-) -> Dict[str, int]:
+) -> Dict[str, int]:  # pylint: disable=too-many-branches
     """Bring the labels of every configuration into the shapes ExcitedMACE expects.
 
     energy  [S]          forces  [n_atoms, S, 3]
@@ -463,3 +471,140 @@ def add_excited_state_keys(key_specification, args) -> None:
         info_keys={"socs": args.socs_key, "dipoles": args.dipoles_key},
         arrays_keys={"nacs": args.nacs_key},
     )
+
+
+# --------------------------------------------------------------------------------------
+# Several heads: excited-state and ground-state data sets in one model
+# --------------------------------------------------------------------------------------
+
+EXCITED_HEAD_KEYS = (
+    "n_energies",
+    "n_states",
+    "states",
+    "compute_nacs",
+    "compute_socs",
+    "compute_dipoles",
+    "nac_num",
+    "soc_num",
+    "dipole_num",
+    "soc_mode",
+    "nacs_format",
+    "ground_state",
+)
+
+
+def ground_state_spec() -> ExcitedStateSpec:
+    """A ground-state head: one state, no couplings."""
+    return ExcitedStateSpec(n_states=1)
+
+
+def spec_layout(spec: ExcitedStateSpec) -> Dict:
+    """The model's description of a head (mace.modules.excited.excited_head_layout)."""
+    return {
+        "n_states": spec.n_states,
+        "states": list(spec.layout),
+        "nac_num": spec.n_nacs,
+        "soc_num": spec.n_socs,
+        "soc_vector_num": spec.n_soc_vectors,
+        "dipole_num": spec.n_dipoles,
+        "n_permanent_dipoles": spec.n_permanent_dipoles if spec.n_dipoles else 0,
+    }
+
+
+def excited_specs_for_heads(args, heads: Dict[str, Dict]) -> Dict[str, ExcitedStateSpec]:
+    """The ExcitedStateSpec of every head.
+
+    pt_head (replay data of a foundation model) and heads with ``ground_state: True``
+    or ``n_energies: 1`` are ground-state heads. A head that sets any of the excited
+    options (n_energies, states, compute_nacs, ...) in its dictionary uses them, with
+    the command line as default; other heads use the command-line options."""
+    import argparse  # pylint: disable=import-outside-toplevel
+
+    specs: Dict[str, ExcitedStateSpec] = {}
+    for name, head in heads.items():
+        head = head or {}
+        own = {k: head[k] for k in EXCITED_HEAD_KEYS if k in head}
+        if "n_states" in own:
+            own["n_energies"] = own.pop("n_states")
+        ground = (
+            name == "pt_head"
+            or bool(own.get("ground_state", False))
+            or (own.get("n_energies") == 1 and own.get("states") is None)
+        )
+        if ground:
+            specs[name] = ground_state_spec()
+            continue
+        values = dict(vars(args))
+        for key in ("nacs_key", "socs_key", "dipoles_key"):
+            if key in head:
+                values[key] = head[key]
+        values.update({k: v for k, v in own.items() if k != "ground_state"})
+        if "states" in own and "n_energies" not in own:
+            values["n_energies"] = None
+        spec = excited_spec_from_args(argparse.Namespace(**values))
+        specs[name] = spec if spec is not None else ground_state_spec()
+    return specs
+
+
+@dataclass
+class PaddedLayout:
+    """Largest number of states and couplings over all heads: the shapes every label
+    is padded to, so that frames of different heads can share a batch."""
+
+    n_states: int
+    n_nacs: int
+    n_socs: int
+    n_soc_vectors: int
+    n_dipoles: int
+
+    @classmethod
+    def from_specs(cls, specs) -> "PaddedLayout":
+        specs = list(specs)
+        return cls(
+            n_states=max(s.n_states for s in specs),
+            n_nacs=max(s.n_nacs for s in specs),
+            n_socs=max(s.n_socs for s in specs),
+            n_soc_vectors=max(s.n_soc_vectors for s in specs),
+            n_dipoles=max(s.n_dipoles for s in specs),
+        )
+
+
+def _pad(array: np.ndarray, axis: int, size: int) -> np.ndarray:
+    array = np.asarray(array, dtype=float)
+    missing = size - array.shape[axis]
+    if missing <= 0:
+        return array
+    widths = [(0, 0)] * array.ndim
+    widths[axis] = (0, missing)
+    return np.pad(array, widths)
+
+
+def pad_excited_configs(
+    configs: List[Configuration], spec: ExcitedStateSpec, padded: PaddedLayout
+) -> None:
+    """Pad the standardised labels of one head to the shared layout (in place).
+
+    Padded entries are zero; the model and the loss ignore them through per-head
+    masks. Labels the head does not have but other heads do are added as zeros with
+    weight 0."""
+    for config in configs:
+        props, weights = config.properties, config.property_weights
+        n_atoms = len(config.atomic_numbers)
+        props["energy"] = _pad(np.reshape(props["energy"], -1), 0, padded.n_states)
+        forces = np.asarray(props["forces"], dtype=float).reshape(n_atoms, -1, 3)
+        props["forces"] = _pad(forces, 1, padded.n_states)
+        for name, size, shape in (
+            ("nacs", padded.n_nacs, (n_atoms, 0, 3)),
+            ("socs", padded.n_socs, (0,)),
+            ("soc_vectors", padded.n_soc_vectors, (0, 3)),
+            ("dipoles", padded.n_dipoles, (0, 3)),
+        ):
+            if size == 0:
+                props.pop(name, None)
+                weights.pop(name, None)
+                continue
+            if props.get(name) is None:
+                props[name] = np.zeros(shape)
+                weights[name] = 0.0
+            axis = 1 if name == "nacs" else 0
+            props[name] = _pad(props[name], axis, size)

@@ -678,7 +678,10 @@ class MACELoss(Metric):
         self.total_loss += loss
         self.num_data += batch.num_graphs
 
-        if output.get("energy") is not None and batch.energy is not None:
+        excited = getattr(self.loss_fn, "masks", None) is not None
+        if excited and output.get("energy") is not None and batch.energy is not None:
+            self._update_excited_energies(batch, output)
+        elif output.get("energy") is not None and batch.energy is not None:
             delta_es = batch.energy - output["energy"]
             num_atoms = batch.ptr[1:] - batch.ptr[:-1]
             if delta_es.dim() > 1:  # several electronic states: [n_graphs, n_states]
@@ -688,7 +691,9 @@ class MACELoss(Metric):
             self.E_computed += filter_nonzero_weight(
                 batch, self.delta_es, batch.weight, batch.energy_weight
             )
-        if output.get("forces") is not None and batch.forces is not None:
+        if excited and output.get("forces") is not None and batch.forces is not None:
+            pass  # handled by _update_excited_energies
+        elif output.get("forces") is not None and batch.forces is not None:
             self.fs.append(batch.forces)
             self.delta_fs.append(batch.forces - output["forces"])
             self.Fs_computed += filter_nonzero_weight(
@@ -758,76 +763,136 @@ class MACELoss(Metric):
                 spread_quantity_vector=False,
             )
 
+    def _masks(self):
+        getter = getattr(self.loss_fn, "_current_masks", None)
+        return getter() if getter is not None else None
+
+    def _update_excited_energies(self, batch, output):
+        """Energies and forces of models with several heads: only real (unpadded)
+        states of every configuration's head count."""
+        # pylint: disable=import-outside-toplevel
+        from mace.modules.excited_loss import head_mask
+
+        masks = self._masks()
+        energy = output["energy"]
+        ref = batch.energy.view(energy.shape)
+        mask = head_mask(masks, "energy", batch, energy.shape[1])
+        weight = (batch.weight * batch.energy_weight).unsqueeze(-1) * mask
+        num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).unsqueeze(-1).to(energy.dtype)
+        keep = weight > 0
+        if bool(keep.any()):
+            self.delta_es.append((ref - energy)[keep])
+            self.delta_es_per_atom.append(((ref - energy) / num_atoms)[keep])
+            self.E_computed += 1.0
+        forces = output.get("forces")
+        if forces is not None and batch.forces is not None:
+            ref_f = batch.forces.view(forces.shape)
+            mask_f = head_mask(masks, "energy", batch, forces.shape[1], per_atom=True)
+            atom_weight = torch.repeat_interleave(
+                batch.weight * batch.forces_weight, batch.ptr[1:] - batch.ptr[:-1]
+            )
+            keep_f = (atom_weight.unsqueeze(-1) * mask_f) > 0
+            if bool(keep_f.any()):
+                self.fs.append(ref_f[keep_f])
+                self.delta_fs.append((ref_f - forces)[keep_f])
+                self.Fs_computed += 1.0
+
+    def _select(self, batch, delta, ref, weight_name, mask_name, per_atom=False):
+        """Keep the entries of labelled configurations and real (unpadded) entries."""
+        # pylint: disable=import-outside-toplevel
+        from mace.modules.excited_loss import head_mask
+
+        mask = head_mask(self._masks(), mask_name, batch, delta.shape[1], per_atom)
+        weight = batch.weight * batch[f"{weight_name}_weight"]
+        if per_atom:
+            weight = torch.repeat_interleave(weight, batch.ptr[1:] - batch.ptr[:-1])
+        keep = (weight.unsqueeze(-1) * mask) > 0
+        return delta[keep], ref[keep]
+
     def _update_excited_states(self, batch, output):
         # pylint: disable=import-outside-toplevel
-        from mace.modules.excited import align_dipoles, align_nacs, align_socs
+        from mace.modules.excited import align_nacs, align_socs
+        from mace.modules.excited_loss import align_dipoles_masked, transition_table
 
         if output.get("nacs") is not None and "nacs" in batch:
             ref = batch.nacs
             aligned = align_nacs(
                 ref, output["nacs"].view(ref.shape), batch.batch, batch.num_graphs
             )
-            self.delta_nacs.append(ref - aligned)
-            self._add_excited(
-                "nacs",
-                ref,
-                filter_nonzero_weight(
-                    batch,
-                    self.delta_nacs,
-                    batch.weight,
-                    batch.nacs_weight,
-                    spread_atoms=True,
-                ),
-            )
+            delta, kept = self._select(batch, ref - aligned, ref, "nacs", "nacs", True)
+            self._append_excited("nacs", delta, kept)
         if output.get("socs") is not None and "socs" in batch:
             ref = batch.socs
             aligned = align_socs(ref, output["socs"].view(ref.shape))
-            self.delta_socs.append(ref - aligned)
-            self._add_excited(
-                "socs",
-                ref,
-                filter_nonzero_weight(
-                    batch, self.delta_socs, batch.weight, batch.socs_weight
-                ),
-            )
+            delta, kept = self._select(batch, ref - aligned, ref, "socs", "socs")
+            self._append_excited("socs", delta, kept)
         if output.get("soc_vectors") is not None and "soc_vectors" in batch:
             # errors of the M_S-resolved SOC matrix elements (real and imaginary parts)
-            from mace.modules.excited import (  # pylint: disable=import-outside-toplevel
-                align_soc_vectors,
-            )
             from mace.modules.spin_states import (  # pylint: disable=import-outside-toplevel
                 soc_entries_from_vectors,
             )
 
             ref = batch.soc_vectors
-            aligned = align_soc_vectors(ref, output["soc_vectors"].view(ref.shape))
-            states = getattr(self.loss_fn, "soc_states", None)
-            if states:
-                ref_entries = soc_entries_from_vectors(ref, states)
-                delta = ref_entries - soc_entries_from_vectors(aligned, states)
-            else:
-                ref_entries, delta = ref.flatten(1), (ref - aligned).flatten(1)
-            self.delta_socs.append(delta)
-            self._add_excited(
-                "socs",
-                ref_entries,
-                filter_nonzero_weight(
-                    batch, self.delta_socs, batch.weight, batch.soc_vectors_weight
-                ),
+            pred = output["soc_vectors"].view(ref.shape)
+            signs = torch.where(
+                torch.sum((ref + pred) ** 2, -1) < torch.sum((ref - pred) ** 2, -1),
+                -torch.ones_like(ref[..., 0]),
+                torch.ones_like(ref[..., 0]),
             )
+            aligned = pred * signs.unsqueeze(-1)
+            states = getattr(self.loss_fn, "soc_states", None)
+            heads = (
+                batch.head.view(-1).to(torch.long)
+                if "head" in batch and batch.head is not None
+                else torch.zeros(batch.num_graphs, dtype=torch.long)
+            )
+            labelled = (batch.weight * batch.soc_vectors_weight) > 0
+            for h in torch.unique(heads).tolist():
+                rows = (heads == h) & labelled
+                if not bool(rows.any()):
+                    continue
+                head_states = None
+                if states:
+                    head_states = states[h] if h < len(states) else states[0]
+                if head_states:
+                    from mace.modules.spin_states import (  # pylint: disable=import-outside-toplevel
+                        spin_orbit_pairs,
+                    )
+
+                    q = len(spin_orbit_pairs(head_states))
+                    if q == 0:
+                        continue
+                    ref_entries = soc_entries_from_vectors(ref[rows, :q], head_states)
+                    delta = ref_entries - soc_entries_from_vectors(
+                        aligned[rows, :q], head_states
+                    )
+                else:
+                    ref_entries = ref[rows].flatten(1)
+                    delta = (ref[rows] - aligned[rows]).flatten(1)
+                self._append_excited("socs", delta.reshape(-1), ref_entries.reshape(-1))
         if output.get("dipoles") is not None and "dipoles" in batch:
             ref = batch.dipoles
             n_permanent = getattr(self.loss_fn, "n_permanent_dipoles", ref.shape[1])
-            aligned = align_dipoles(ref, output["dipoles"].view(ref.shape), n_permanent)
-            self.delta_state_dipoles.append(ref - aligned)
-            count = filter_nonzero_weight(
-                batch, self.delta_state_dipoles, batch.weight, batch.dipoles_weight
+            transition = transition_table(
+                self._masks(), batch, ref.shape[1], n_permanent
             )
-            if count:
-                self.delta_state_dipoles_per_atom.append(
-                    (ref - aligned) / (batch.ptr[1:] - batch.ptr[:-1]).view(-1, 1, 1)
-                )
-            self._add_excited("state_dipoles", ref, count)
+            aligned = align_dipoles_masked(
+                ref, output["dipoles"].view(ref.shape), transition
+            )
+            num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).view(-1, 1, 1)
+            delta, kept = self._select(batch, ref - aligned, ref, "dipoles", "dipoles")
+            per_atom, _ = self._select(
+                batch, (ref - aligned) / num_atoms, ref, "dipoles", "dipoles"
+            )
+            if delta.numel():
+                self.delta_state_dipoles_per_atom.append(per_atom)
+            self._append_excited("state_dipoles", delta, kept)
+
+    def _append_excited(self, name: str, delta: torch.Tensor, ref: torch.Tensor):
+        if delta.numel() == 0:
+            return
+        getattr(self, f"delta_{name}").append(delta)
+        self._add_excited(name, ref, 1.0)
 
     def _add_excited(self, name: str, ref: torch.Tensor, count: float) -> None:
         """keep the reference of a batch whose errors filter_nonzero_weight kept"""

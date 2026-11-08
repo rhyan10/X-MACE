@@ -1,5 +1,7 @@
 """ExcitedMACE / AutoencoderExcitedMACE: symmetries, forces, core repulsion, TorchScript."""
 
+import copy
+
 import ase
 import numpy as np
 import pytest
@@ -12,11 +14,12 @@ from mace.modules.excited import (
     AutoencoderExcitedMACE,
     ExcitedMACE,
     PermutationInvariantDecoder,
+    coulomb_energies,
     compute_excited_scaling,
     compute_multistate_forces,
-    load_foundations_excited,
+    excited_head_layout,
+    fit_excited_shifts,
 )
-from mace.modules.radial import ZBLBasis
 from mace.tools import torch_geometric
 
 from conftest import (  # pylint: disable=import-error
@@ -62,10 +65,7 @@ def test_output_shapes(molecules, autoencoder):
         assert out["invariant_vals"].shape == (4, 6)
         assert out["encoded_energy"].shape == (4, 6)
         assert out["decoded_energy"].shape == (4, 3)
-    else:
-        assert out["node_energy"].shape == (n_atoms, 3)
-        assert out["contributions"].shape == (4, 3, 4)
-        torch.testing.assert_close(out["contributions"].sum(-1), out["energy"])
+    assert out["ground_energy"].shape == (4,)
 
 
 def test_energy_only_single_state_model(molecules):
@@ -74,16 +74,23 @@ def test_energy_only_single_state_model(molecules):
     out = model(batch.to_dict())
     assert out["energy"].shape == (4, 1)
     assert out["nacs"] is None and out["socs"] is None and out["dipoles"] is None
-    # without vector outputs the last layer is reduced to scalars, as in MACE
-    assert not model.keep_last_layer_irreps
 
 
-def test_vector_outputs_keep_l1_in_last_layer():
-    model = build_excited(nacs=True, socs=False, dipoles=False)
-    assert model.keep_last_layer_irreps
-    last_irreps = o3.Irreps(str(model.products[-1].linear.irreps_out))
-    assert last_irreps.count(o3.Irrep(1, -1)) > 0
-    assert len(model.nacs_readouts) == 2  # both layers contribute to the NACs
+def test_adapter_gives_vectors_to_scalar_backbones(molecules):
+    """A backbone without l=1 features (e.g. a scalar foundation model): the adapter
+    layer provides the equivariant features of the couplings."""
+    model = ExcitedMACE(
+        **model_config(hidden_irreps=o3.Irreps("8x0e")),
+        n_energies=3,
+        compute_nacs=True,
+        compute_dipoles=True,
+    )
+    assert o3.Irreps(str(model.backbone.model.products[-1].linear.irreps_out)).lmax == 0
+    out = model(atoms_to_batch(molecules, None).to_dict())
+    assert out["nacs"].abs().max() > 0 and out["dipoles"].abs().max() > 0
+    rotation = o3.rand_matrix().numpy()
+    out_r = model(atoms_to_batch(_rotated(molecules, rotation), None).to_dict())
+    torch.testing.assert_close(out_r["nacs"], out["nacs"] @ torch.tensor(rotation).T)
 
 
 @pytest.mark.parametrize("autoencoder", BOTH)
@@ -175,24 +182,23 @@ def test_core_repulsion_is_state_independent(molecules, autoencoder):
     with_zbl = build_excited(autoencoder=autoencoder, pair_repulsion=True)
     without = build_excited(autoencoder=autoencoder, pair_repulsion=False)
     without.load_state_dict(
-        {k: v for k, v in with_zbl.state_dict().items() if not k.startswith("pair_repulsion_fn")}
+        {
+            k: v
+            for k, v in with_zbl.state_dict().items()
+            if "pair_repulsion_fn" not in k
+        }
     )
     batch = atoms_to_batch(molecules, None)
     out_zbl = with_zbl(batch.to_dict())
     out = without(batch.clone().to_dict())
     difference = (out_zbl["energy"] - out["energy"]).detach()
-    # the same repulsion for every state ...
+    # the repulsion is part of the backbone: the same for every state ...
     torch.testing.assert_close(difference, difference[:, :1].expand_as(difference))
-    # ... equal to the ZBL energy of each molecule
-    zbl = ZBLBasis(p=5)
-    vectors, lengths = modules.utils.get_edge_vectors_and_lengths(
-        batch.positions, batch.edge_index, batch.shifts
+    torch.testing.assert_close(
+        difference[:, 0], (out_zbl["ground_energy"] - out["ground_energy"]).detach()
     )
-    node = zbl(lengths, batch.node_attrs, batch.edge_index, with_zbl.atomic_numbers)
-    expected = torch.zeros(len(molecules)).index_add(0, batch.batch, node)
-    torch.testing.assert_close(difference[:, 0], expected.detach())
-    torch.testing.assert_close(out_zbl["pair_energy"].detach(), expected.detach())
-    # couplings do not see the repulsion
+    assert torch.all(difference[:, 0].abs() > 0)
+    # ... and the couplings do not see it
     torch.testing.assert_close(out_zbl["nacs"], out["nacs"])
 
 
@@ -206,23 +212,36 @@ def test_core_repulsion_dominates_at_short_range():
     assert torch.all(energies[0] - energies[2] > 10.0)  # eV
 
 
-def test_scale_and_shift(molecules):
-    torch.manual_seed(2)
-    base = build_excited(nacs=False, socs=False, dipoles=False)
-    shifted = build_excited(
-        nacs=False, socs=False, dipoles=False, atomic_inter_scale=2.0, atomic_inter_shift=[0.1, 0.2, 0.3]
+def test_states_start_on_the_backbone_surface(molecules):
+    """Energy readouts start at zero: E_s = E_backbone + n_atoms * shift_s."""
+    model = build_excited(
+        nacs=False, socs=False, dipoles=False, perturb=False, atomic_inter_shift=[0.1, 0.2, 0.6]
     )
-    state = base.state_dict()
-    state["scale_shift.scale"] = shifted.scale_shift.scale
-    state["scale_shift.shift"] = shifted.scale_shift.shift
-    shifted.load_state_dict(state)
     batch = atoms_to_batch(molecules, None)
-    e0 = base.atomic_energies_fn(batch.node_attrs)[:, 0]
-    e0 = torch.zeros(4).index_add(0, batch.batch, e0)
-    inter = base(batch.to_dict())["energy"].detach() - e0[:, None]
-    expected = 2.0 * inter + 4 * torch.tensor([0.1, 0.2, 0.3])
-    out = shifted(batch.clone().to_dict())["energy"].detach() - e0[:, None]
-    torch.testing.assert_close(out, expected)
+    out = model(batch.to_dict())
+    num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).double()
+    # the backbone gets the mean shift, the states the differences
+    torch.testing.assert_close(model.delta_shift[0], torch.tensor([-0.2, -0.1, 0.3]))
+    expected = out["ground_energy"][:, None] + num_atoms[:, None] * model.delta_shift[0]
+    torch.testing.assert_close(out["energy"], expected)
+    torch.testing.assert_close(
+        out["forces"], out["forces"][:, :1].expand_as(out["forces"])
+    )
+
+
+def test_delta_scale_and_shift(molecules):
+    model = build_excited(nacs=False, socs=False, dipoles=False)
+    batch = atoms_to_batch(molecules, None)
+    out = model(batch.to_dict())
+    delta = (out["energy"] - out["ground_energy"][:, None]).detach()
+    model.delta_scale.fill_(2.0)
+    model.delta_shift[0] = torch.tensor([0.1, 0.2, 0.3])
+    out2 = model(batch.clone().to_dict())
+    num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).double()
+    expected = 2.0 * delta + num_atoms[:, None] * torch.tensor([0.1, 0.2, 0.3])
+    torch.testing.assert_close(
+        (out2["energy"] - out2["ground_energy"][:, None]).detach(), expected
+    )
 
 
 @pytest.mark.parametrize("autoencoder", BOTH)
@@ -238,11 +257,10 @@ def test_batching_matches_single_configurations(molecules, autoencoder):
         torch.testing.assert_close(alone["forces"], together["forces"][4 * g : 4 * g + 4])
 
 
-def test_isolated_atom_has_e0_energy():
+def test_isolated_atom_has_no_forces():
     model = build_excited(nacs=False, socs=False, dipoles=False, atomic_inter_shift=0.0)
     atoms = ase.Atoms("O", positions=[[0, 0, 0]])
     out = model(atoms_to_batch([atoms], None).to_dict())
-    # no neighbours: only E0 and the (zero-shift) readouts of the bare embedding
     assert out["energy"].shape == (1, 3)
     torch.testing.assert_close(out["forces"], torch.zeros(1, 3, 3))
 
@@ -283,25 +301,27 @@ def test_autoencoder_energies_are_sorted(molecules):
 
 
 def test_autoencoder_reconstruction_path(molecules):
-    model = build_excited(autoencoder=True, atomic_inter_scale=1.5, atomic_inter_shift=[0.1, 0.2, 0.3])
+    model = build_excited(autoencoder=True, atomic_inter_shift=[0.1, 0.2, 0.3])
+    model.delta_scale.fill_(1.5)
     batch = atoms_to_batch(molecules, full_spec())
     out = model(batch.to_dict())
     # decoded_energy = baseline + scale * decoder(encoder((E_ref - baseline) / scale))
     num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).double()
-    e0 = torch.zeros(4).index_add(0, batch.batch, model.atomic_energies_fn(batch.node_attrs)[:, 0])
-    shift = model.shift_average @ model.scale_shift.shift  # one shift per multiplicity
-    baseline = e0[:, None] + num_atoms[:, None] * shift
-    encoded = model.perm_encoder((batch.energy - baseline) / 1.5)
+    shift = model.shift_average[0] @ model.delta_shift[0]  # one shift per multiplicity
+    baseline = out["ground_energy"][:, None] + num_atoms[:, None] * shift
+    encoded = model.perm_encoders[0]((batch.energy - baseline) / 1.5)
     torch.testing.assert_close(out["encoded_energy"], encoded)
-    torch.testing.assert_close(out["decoded_energy"], baseline + 1.5 * model.perm_decoder(encoded))
+    torch.testing.assert_close(
+        out["decoded_energy"], baseline + 1.5 * model.perm_decoders[0](encoded)
+    )
 
 
 def test_autoencoder_is_permutation_invariant_over_states():
     torch.manual_seed(3)
     model = build_excited(autoencoder=True, nacs=False, socs=False, dipoles=False)
     energies = torch.randn(5, 3)
-    latent = model.perm_encoder(energies)
-    torch.testing.assert_close(model.perm_encoder(energies[:, [2, 0, 1]]), latent)
+    latent = model.perm_encoders[0](energies)
+    torch.testing.assert_close(model.perm_encoders[0](energies[:, [2, 0, 1]]), latent)
 
 
 def test_decoder_handles_one_state():
@@ -310,16 +330,16 @@ def test_decoder_handles_one_state():
 
 
 def test_invalid_configurations_are_rejected():
+    with pytest.raises(ValueError, match="at least 1"):
+        ExcitedMACE(**model_config(), n_energies=0)
+    with pytest.raises(ValueError, match="long_range_mode"):
+        ExcitedMACE(**model_config(), n_energies=2, long_range_mode="ewald")
+    with pytest.raises(ValueError, match="coupling_parity"):
+        ExcitedMACE(**model_config(), n_energies=2, coupling_parity="odd")
+    # one state has no NAC pairs, unless a custom count is given
     with pytest.raises(ValueError, match="n_energies >= 2"):
         ExcitedMACE(**model_config(), n_energies=1, compute_nacs=True)
-    with pytest.raises(ValueError, match="l=1"):
-        ExcitedMACE(
-            **model_config(hidden_irreps=o3.Irreps("8x0e")), n_energies=2, compute_nacs=True
-        )
-    with pytest.raises(NotImplementedError):
-        ExcitedMACE(**model_config(), n_energies=2, heads=["a", "b"])
-    # custom NAC count with one state is allowed
-    ExcitedMACE(**model_config(), n_energies=1, compute_nacs=True, nac_num=2)
+    assert ExcitedMACE(**model_config(), n_energies=1, compute_nacs=True, nac_num=2).nac_num == 2
 
 
 def test_excited_scaling_statistics():
@@ -345,49 +365,188 @@ def test_excited_scaling_statistics():
     assert compute_excited_scaling(loader, e0s[0], "no_scaling", 3) == (1.0, [0.0] * 3)
 
 
-def _foundation(pair_repulsion=False):
+# ------------------------------------------------------------------------------------
+# foundation backbones
+# ------------------------------------------------------------------------------------
+
+
+def _foundation(pair_repulsion=False, heads=None, **overrides):
     torch.manual_seed(4)
+    if heads is not None:
+        e0 = np.array([-1.0, -3.0, -5.0])
+        overrides["atomic_energies"] = np.stack([e0 + 0.1 * h for h in range(len(heads))])
     return modules.ScaleShiftMACE(
-        **model_config(),
-        atomic_inter_scale=1.3,
-        atomic_inter_shift=0.2,
+        **model_config(**overrides),
+        atomic_inter_scale=[1.3] * len(heads or [0]),
+        atomic_inter_shift=[0.2] * len(heads or [0]),
         pair_repulsion=pair_repulsion,
+        heads=heads,
     )
 
 
-@pytest.mark.parametrize("nacs", [False, True])
-def test_foundation_transfer_reproduces_ground_state(molecules, nacs):
-    foundation = _foundation()
-    model = build_excited(nacs=nacs, socs=False, dipoles=False)
-    load_foundations_excited(model, foundation, Z_TABLE, load_readout=True, max_L=1)
+def _wrap(backbone, layouts, autoencoder=False, **kwargs):
+    cls = AutoencoderExcitedMACE if autoencoder else ExcitedMACE
+    extra = {"num_permutational_invariant": 6} if autoencoder else {}
+    return cls(
+        backbone=backbone,
+        head_layouts=layouts,
+        MLP_irreps=o3.Irreps("8x0e"),
+        gate=torch.nn.functional.silu,
+        adapter_irreps=o3.Irreps("8x0e + 8x1o"),
+        **extra,
+        **kwargs,
+    )
+
+
+@pytest.mark.parametrize("hidden", ["8x0e + 8x1o", "8x0e"])
+@pytest.mark.parametrize("pair_repulsion", [False, True])
+def test_foundation_backbone_reproduces_ground_state(molecules, hidden, pair_repulsion):
+    foundation = _foundation(pair_repulsion, hidden_irreps=o3.Irreps(hidden))
+    layout = excited_head_layout(3, compute_nacs=True, compute_dipoles=True)
+    model = _wrap(copy.deepcopy(foundation), [layout])
     batch = atoms_to_batch(molecules, None)
     out = model(batch.to_dict())
     ref = foundation(batch.clone().to_dict())
     for state in range(3):
         torch.testing.assert_close(out["energy"][:, state], ref["energy"])
         torch.testing.assert_close(out["forces"][:, state], ref["forces"])
-
-
-def test_foundation_transfer_without_readouts_keeps_backbone(molecules):
-    foundation = _foundation()
-    model = build_excited(nacs=True, socs=False, dipoles=False)
-    load_foundations_excited(model, foundation, Z_TABLE, load_readout=False, max_L=1)
+    assert out["nacs"].shape == (16, 3, 3)
+    # the backbone's weights are the foundation's
     torch.testing.assert_close(
-        model.interactions[0].linear_up.weight, foundation.interactions[0].linear_up.weight
+        model.backbone.model.interactions[0].linear_up.weight,
+        foundation.interactions[0].linear_up.weight,
     )
-    # the l=1 block of the last product stays trainable and freshly initialised
-    assert model.products[-1].linear.weight.numel() > foundation.products[-1].linear.weight.numel()
 
 
-def test_core_repulsion_is_not_scaled(molecules):
-    """ScaleShiftMACE multiplies its ZBL energy by the scale; ExcitedMACE adds the
-    ZBL energy in eV, so a transferred model differs by (scale - 1) * E_ZBL."""
-    foundation = _foundation(pair_repulsion=True)
-    model = build_excited(nacs=False, socs=False, dipoles=False, pair_repulsion=True)
-    load_foundations_excited(model, foundation, Z_TABLE, load_readout=True, max_L=1)
+def test_fit_excited_shifts_to_the_foundation(molecules):
+    foundation = _foundation()
+    layout = excited_head_layout(3)
+    model = _wrap(copy.deepcopy(foundation), [layout])
+    atoms_list = [a.copy() for a in molecules]
+    batch = atoms_to_batch(atoms_list, None)
+    ground = foundation(batch.to_dict())["energy"].detach()
+    offsets = np.array([0.0, 0.5, 1.25])
+    for atoms, e in zip(atoms_list, ground.numpy()):
+        atoms.info["REF_energy"] = e + len(atoms) * offsets
+        atoms.arrays["REF_forces"] = np.zeros((len(atoms), 3, 3))
+    loader = [atoms_to_batch(atoms_list, full_spec(nacs_format="raw"))]
+    fit_excited_shifts(model, loader)
+    torch.testing.assert_close(model.delta_shift[0], torch.tensor(offsets))
+    out = model(loader[0].clone().to_dict())
+    torch.testing.assert_close(out["energy"], loader[0].energy)
+
+
+@pytest.mark.parametrize("autoencoder", BOTH)
+def test_mixed_ground_and_excited_heads(molecules, autoencoder):
+    """One backbone, a ground-state head (one state) and an excited head (3 states
+    with couplings): outputs are padded to the larger head; masks say what is real."""
+    torch.manual_seed(5)
+    backbone = _foundation(heads=["ground", "excited"])
+    layouts = [
+        excited_head_layout(1),
+        excited_head_layout(3, compute_nacs=True, compute_socs=True, compute_dipoles=True),
+    ]
+    model = _wrap(backbone, layouts, autoencoder=autoencoder)
+    assert model.heads == ["ground", "excited"] and model.head_n_states == [1, 3]
+    masks = model.mask_tables()
+    torch.testing.assert_close(masks["energy"], torch.tensor([[1.0, 0, 0], [1, 1, 1]]))
+    torch.testing.assert_close(masks["nacs"], torch.tensor([[0.0, 0, 0], [1, 1, 1]]))
+    batch = atoms_to_batch(molecules, None)
+    batch.head = torch.tensor([0, 1, 0, 1])
+    out = model(batch.to_dict())
+    assert out["energy"].shape == (4, 3) and out["nacs"].shape == (16, 3, 3)
+    node_heads = batch.head[batch.batch]
+    # the ground-state head has no couplings
+    assert torch.all(out["nacs"][node_heads == 0] == 0)
+    assert torch.all(out["socs"][batch.head == 0] == 0)
+    assert out["nacs"][node_heads == 1].abs().max() > 0
+    # each frame gets its own head's backbone energy
+    backbone_out = backbone(batch.clone().to_dict())
+    torch.testing.assert_close(out["ground_energy"], backbone_out["energy"])
+    # a frame alone gives the same results as in a mixed batch
+    for g in range(4):
+        alone = atoms_to_batch([molecules[g]], None)
+        alone.head = batch.head[g : g + 1]
+        single = model(alone.to_dict())
+        n = model.head_n_states[int(batch.head[g])]
+        torch.testing.assert_close(single["energy"][0, :n], out["energy"][g, :n])
+    jit.compile(model)
+
+
+def test_lora_on_backbone_keeps_excited_heads_trainable(molecules):
+    from mace.modules.lora import inject_LoRAs
+
+    foundation = _foundation()
+    model = _wrap(foundation, [excited_head_layout(3, compute_nacs=True)])
+    batch = atoms_to_batch(molecules, None)
+    before = model(batch.to_dict())["energy"].detach()
+    inject_LoRAs(model.backbone.model, rank=2, alpha=1.0)
+    after = model(batch.clone().to_dict())["energy"].detach()
+    torch.testing.assert_close(after, before)  # LoRA starts as the identity
+    trainable = {n for n, p in model.named_parameters() if p.requires_grad}
+    assert any("lora" in n.lower() for n in trainable)
+    assert any(n.startswith("readouts") for n in trainable)
+    assert any(n.startswith("nacs_readouts") for n in trainable)
+    assert any(n.startswith("adapter_product") for n in trainable)
+    assert not any(
+        n.startswith("backbone.model.interactions") and "lora" not in n.lower()
+        for n in trainable
+    )
+
+
+# ------------------------------------------------------------------------------------
+# state-specific electrostatics
+# ------------------------------------------------------------------------------------
+
+
+def test_coulomb_energy_of_two_point_like_charges():
+    positions = torch.tensor([[0.0, 0.0, 0.0], [0.0, 0.0, 30.0]])
+    charges = torch.tensor([[1.0], [-1.0]])
+    energy = coulomb_energies(charges, positions, torch.zeros(2, dtype=torch.long), 1, 1.0)
+    torch.testing.assert_close(energy, torch.tensor([[-14.399645 / 30.0]]))
+
+
+@pytest.mark.parametrize("autoencoder", BOTH)
+def test_state_charges(molecules, autoencoder):
+    model = build_excited(autoencoder=autoencoder, long_range_mode="state")
     batch = atoms_to_batch(molecules, None)
     out = model(batch.to_dict())
-    ref = foundation(batch.clone().to_dict())
-    scale = float(foundation.scale_shift.scale)
-    expected = ref["energy"] - (scale - 1.0) * out["pair_energy"]
-    torch.testing.assert_close(out["energy"][:, 0], expected)
+    # charge readouts start at zero: no electrostatic correction
+    torch.testing.assert_close(
+        out["state_electrostatic_energy"], torch.zeros_like(out["energy"])
+    )
+    with torch.no_grad():
+        for readout in model.charge_readouts:
+            last = getattr(readout, "linear_2", None) or readout.linear
+            last.weight.normal_(0.0, 0.5)
+    out = model(batch.clone().to_dict())
+    assert out["state_electrostatic_energy"].abs().max() > 1e-6
+    # every state's charges sum to the backbone's total charge (zero here)
+    total = torch.zeros(4, 3).index_add(0, batch.batch, out["state_charges"])
+    torch.testing.assert_close(total, torch.zeros(4, 3))
+    # invariant energies, forces consistent with the energy
+    rotation = o3.rand_matrix().numpy()
+    out_r = model(atoms_to_batch(_rotated(molecules, rotation), None).to_dict())
+    torch.testing.assert_close(out_r["energy"], out["energy"])
+    atoms = molecules[0]
+    forces = model(atoms_to_batch([atoms], None).to_dict())["forces"].detach().numpy()
+    h = 1e-5
+    displaced = [atoms.copy(), atoms.copy()]
+    displaced[0].positions[1, 2] += h
+    displaced[1].positions[1, 2] -= h
+    e = [model(atoms_to_batch([d], None).to_dict())["energy"].detach().numpy()[0] for d in displaced]
+    np.testing.assert_allclose(forces[1, :, 2], -(e[0] - e[1]) / (2 * h), atol=1e-6, rtol=1e-5)
+
+
+# ------------------------------------------------------------------------------------
+# other backbone classes
+# ------------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("autoencoder", BOTH)
+def test_plain_mace_backbone(molecules, autoencoder):
+    model = build_excited(autoencoder=autoencoder, backbone_cls=modules.MACE)
+    assert model.backbone_class == "MACE"
+    out = model(atoms_to_batch(molecules, None).to_dict())
+    assert out["energy"].shape == (4, 3)
+    jit.compile(model)

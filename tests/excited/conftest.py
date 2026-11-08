@@ -50,7 +50,8 @@ def build_excited(
     cls = AutoencoderExcitedMACE if autoencoder else ExcitedMACE
     extra = {"num_permutational_invariant": 6} if autoencoder else {}
     extra.update(kwargs)
-    return cls(
+    perturb = extra.pop("perturb", True)
+    model = cls(
         **model_config(),
         n_energies=n_states,
         compute_nacs=nacs,
@@ -58,6 +59,22 @@ def build_excited(
         compute_dipoles=dipoles,
         **extra,
     )
+    if perturb:
+        perturb_energy_readouts(model)
+    return model
+
+
+def perturb_energy_readouts(model, size=0.3):
+    """Energy readouts start at zero (every state on the backbone's surface); give
+    them random weights so that the states of a test model differ, as after training."""
+    generator = torch.Generator().manual_seed(123)
+    with torch.no_grad():
+        for readout in model.readouts:
+            last = getattr(readout, "linear_2", None) or getattr(readout, "linear", None)
+            if last is not None and float(last.weight.abs().max()) == 0.0:
+                last.weight.copy_(
+                    size * torch.randn(last.weight.shape, generator=generator)
+                )
 
 
 KEYSPEC = data.KeySpecification(
@@ -107,8 +124,11 @@ def fixture_molecules():
 
 
 def flip_nac_readouts(model):
-    """Change the sign of a model's NACs (its polar and axial NAC readouts)."""
-    model.nacs_readouts[0].linear.weight.data.mul_(-1)
-    model.nacs_readouts[1].linear_2.weight.data.mul_(-1)
-    for readout in getattr(model, "nacs_axial_readouts", []):
-        readout.tensor_product.weight.data.mul_(-1)
+    """Change the sign of a model's NACs (all its polar and axial NAC readouts)."""
+    readouts = list(model.nacs_readouts) + list(getattr(model, "nacs_axial_readouts", []))
+    for readout in readouts:
+        readout.register_forward_hook(_negate)
+
+
+def _negate(_module, _inputs, output):
+    return -output

@@ -71,6 +71,7 @@ class SharcCalculator:
     properties     any of "energy", "forces", "nacs" (physical NACs) or "smooth_nacs"
                    (NAC * dE, as the model predicts them), "socs", "dipoles"
     energy_unit, distance_unit   units the model was trained in
+    head           head of a multi-head model to use (default: the first excited head)
 
     Models trained with --states (multiplicities) give, for every multiplicity, as many
     states as SHARC asks for or more (the lowest ones are used). The symmetry of the
@@ -105,6 +106,7 @@ class SharcCalculator:
         dipole_to_au: Optional[float] = None,
         calculator: Optional[ExcitedMACECalculator] = None,
         states: Optional[Sequence[int]] = None,
+        head: Optional[str] = None,
     ):
         if energy_unit not in ENERGY_UNITS_TO_HARTREE:
             raise ValueError(
@@ -156,7 +158,7 @@ class SharcCalculator:
         self.molecule = ase.Atoms(symbols=list(atom_types))
         self.n_atoms = len(self.molecule)
         self.calc = calculator or ExcitedMACECalculator(
-            model_paths=model_paths, device=device
+            model_paths=model_paths, device=device, head=head
         )
         self.layout = self.calc.layout
         self.n_model_states = self.calc.n_states
@@ -232,7 +234,7 @@ class SharcCalculator:
             )
 
     def _check_properties(self):
-        model = self.calc.models[0]
+        model = self.calc.head_view  # what the selected head predicts
         layout = self.layout
         if self.nac_key is not None:
             if not model.compute_nacs:

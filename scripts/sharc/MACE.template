@@ -8,3 +8,5 @@ energy_unit    eV                          # units the model was trained in (eV,
 distance_unit  Ang                         # Ang or Bohr
 # soc_unit     cm-1                        # unit of the SOC labels if not energy_unit
                                            # (Hartree, eV, cm-1)
+# head         excited                     # head of a multi-head model (default: the
+                                           # first head that is not pt_head)

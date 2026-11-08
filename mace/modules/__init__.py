@@ -32,7 +32,8 @@ from .excited import (
     AutoencoderExcitedMACE,
     ExcitedMACE,
     compute_excited_scaling,
-    load_foundations_excited,
+    excited_head_layout,
+    fit_excited_shifts,
 )
 from .excited_loss import WeightedExcitedStatesLoss
 from .extensions import (
@@ -135,7 +136,8 @@ __all__ = [
     "AutoencoderExcitedMACE",
     "WeightedExcitedStatesLoss",
     "compute_excited_scaling",
-    "load_foundations_excited",
+    "excited_head_layout",
+    "fit_excited_shifts",
     "MagneticScaleShiftMACE",
     "MagneticSCFMACE",
     "TimeReversalSymmetrizedMACE",

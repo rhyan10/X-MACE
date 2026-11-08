@@ -98,7 +98,7 @@ def test_excited_mace_all_properties(tmp_path):
     assert "RMSE NACs" in log and "Error-table on TEST" in log
     model = torch.load(tmp_path / "xmace.model", weights_only=False)
     assert model.__class__.__name__ == "ExcitedMACE"
-    assert hasattr(model, "pair_repulsion_fn")
+    assert hasattr(model.backbone.model, "pair_repulsion_fn")
     assert (tmp_path / "xmace_compiled.model").exists()
     compiled = torch.jit.load(tmp_path / "xmace_compiled.model")
     atoms = ase.io.read(tmp_path / "test.xyz", 0)
@@ -189,8 +189,8 @@ def test_foundation_model_transfer(tmp_path):
     params = {k: v for k, v in params.items() if v is not None}
     run_mace_train(params, extra_argv=["--compute_nacs"])
     log = _log(tmp_path)
-    assert "Architecture taken from the foundation model" in log
-    assert "Every state starts from the foundation energy readout" in log
+    assert "Backbone architecture taken from the foundation model" in log
+    assert "every state starts from the foundation energy" in log
     foundation = torch.load(GOLDEN_FOUNDATION, weights_only=False)
     model = torch.load(tmp_path / "xmace.model", weights_only=False)
     assert float(model.r_max) == float(foundation.r_max)
@@ -369,3 +369,169 @@ def test_multiplicities_hdf5(tmp_path):
     log = _log(tmp_path)
     assert "SOCs=3 coupling vectors" in log
     assert "MAE SOCs" in log
+
+
+# ------------------------------------------------------------------------------------
+# heads, foundation backbones, multihead fine-tuning and LoRA
+# ------------------------------------------------------------------------------------
+
+GOLDEN = GOLDEN_FOUNDATION.parent
+
+
+def _ground_state_data(path, n_configs, seed):
+    """Plain ground-state frames (one energy, forces as an array), as in MACE data."""
+    frames = []
+    for atoms in make_excited_configs(
+        n_configs, 1, seed=seed, with_nacs=False, with_socs=False, with_dipoles=False
+    ):
+        energy = float(np.atleast_1d(atoms.info.pop("REF_energy"))[0])
+        forces = np.asarray(atoms.info.pop("REF_forces")).reshape(len(atoms), -1, 3)
+        atoms.info["REF_energy"] = energy
+        atoms.arrays["REF_forces"] = forces[:, 0]
+        frames.append(atoms)
+    ase.io.write(path, frames)
+
+
+def _heads(tmp_path, ground=True, **excited):
+    heads = {
+        "excited": {
+            "train_file": str(tmp_path / "train.xyz"),
+            "valid_fraction": 0.2,
+            **excited,
+        }
+    }
+    if ground:
+        heads["ground"] = {
+            "train_file": str(tmp_path / "ground.xyz"),
+            "valid_fraction": 0.2,
+            "ground_state": True,
+        }
+    return heads
+
+
+@pytest.mark.parametrize("model", ["ExcitedMACE", "AutoencoderExcitedMACE"])
+def test_mixed_ground_and_excited_heads(tmp_path, model):
+    _write_data(tmp_path, with_socs=False)
+    _ground_state_data(tmp_path / "ground.xyz", 16, seed=5)
+    params = _params(tmp_path, model=model, max_num_epochs=3)
+    params.pop("train_file")
+    params.pop("valid_fraction")
+    params["heads"] = repr(_heads(tmp_path))
+    extra = ["--compute_nacs", "--compute_dipoles"]
+    if model == "AutoencoderExcitedMACE":
+        extra.append("--num_permutational_invariant=4")
+    run_mace_train(params, extra_argv=extra)
+    log = _log(tmp_path)
+    assert "Head ground: ground state" in log
+    trained = torch.load(tmp_path / "xmace.model", weights_only=False)
+    assert trained.heads == ["excited", "ground"]
+    assert trained.head_n_states == [3, 1]
+    masks = trained.mask_tables()
+    assert masks["nacs"][1].sum() == 0 and masks["nacs"][0].sum() == 3
+    atoms = ase.io.read(tmp_path / "test.xyz", 0)
+    excited = ExcitedMACECalculator(tmp_path / "xmace.model", head="excited")
+    assert excited.predict(atoms)["energies"].shape == (3,)
+    ground = ExcitedMACECalculator(tmp_path / "xmace.model", head="ground")
+    results = ground.predict(atoms)
+    assert results["energies"].shape == (1,)
+    assert "nacs" not in results or results["nacs"] is None
+
+
+@pytest.mark.parametrize("foundation", ["tiny_scaleshift", "tiny_mace", "tiny_magnetic"])
+def test_foundation_backbones(tmp_path, foundation):
+    """ScaleShiftMACE / MACELES / PolarMACE foundations are re-built for the training
+    elements (as in MACE fine-tuning); others (plain MACE, magnetic) are used as they
+    are. (tiny_maceles keeps l=1 skip connections in its last layer, which MACE's
+    element transfer does not support, so it is not used here.)"""
+    if foundation == "tiny_magnetic":
+        pytest.importorskip("sphericart.torch")
+    _write_data(tmp_path, with_socs=False, with_dipoles=False)
+    if foundation == "tiny_magnetic":  # an O/Fe model: the same frames as Fe2O2
+        for name in ("train.xyz", "test.xyz"):
+            frames = ase.io.read(tmp_path / name, ":")
+            for atoms in frames:
+                atoms.set_chemical_symbols(["Fe", "O", "O", "Fe"])
+                atoms.arrays["REF_magmom"] = np.zeros((len(atoms), 3))
+            ase.io.write(tmp_path / name, frames)
+    params = _params(
+        tmp_path,
+        foundation_model=str(GOLDEN / f"{foundation}.model"),
+        max_num_epochs=2,
+    )
+    for key in ("hidden_irreps", "MLP_irreps", "num_interactions", "correlation", "r_max"):
+        params.pop(key)
+    run_mace_train(params, extra_argv=["--compute_nacs"])
+    log = _log(tmp_path)
+    assert "every state starts from the foundation energy" in log
+    foundation_model = torch.load(GOLDEN / f"{foundation}.model", weights_only=False)
+    trained = torch.load(tmp_path / "xmace.model", weights_only=False)
+    assert trained.backbone_class == foundation_model.__class__.__name__
+    atoms = ase.io.read(tmp_path / "test.xyz", 0)
+    results = ExcitedMACECalculator(tmp_path / "xmace.model").predict(atoms)
+    assert np.all(np.isfinite(results["energies"]))
+
+
+@pytest.mark.parametrize("lora", [False, True])
+def test_multihead_finetuning_with_excited_and_ground_heads(tmp_path, lora):
+    """Fine-tune a foundation model on excited-state and ground-state data at once,
+    with replay of the foundation's data (pt_head), optionally with LoRA."""
+    _write_data(tmp_path, with_socs=False, with_dipoles=False)
+    _ground_state_data(tmp_path / "ground.xyz", 16, seed=5)
+    _ground_state_data(tmp_path / "replay.xyz", 16, seed=9)
+    params = _params(
+        tmp_path,
+        foundation_model=str(GOLDEN_FOUNDATION),
+        max_num_epochs=2,
+        multiheads_finetuning=True,
+        pt_train_file=str(tmp_path / "replay.xyz"),
+        num_samples_pt=8,
+        force_mh_ft_lr=True,
+        E0s="foundation",
+    )
+    for key in ("hidden_irreps", "MLP_irreps", "num_interactions", "correlation", "r_max"):
+        params.pop(key)
+    params.pop("train_file")
+    params.pop("valid_fraction")
+    params["heads"] = repr(_heads(tmp_path))
+    extra = ["--compute_nacs"]
+    if lora:
+        extra += ["--lora=True", "--lora_rank=2"]
+    run_mace_train(params, extra_argv=extra)
+    log = _log(tmp_path)
+    assert "Head pt_head: ground state" in log
+    trained = torch.load(tmp_path / "xmace.model", weights_only=False)
+    assert trained.heads[0] == "pt_head"
+    assert sorted(trained.heads) == ["excited", "ground", "pt_head"]
+    n_states = dict(zip(trained.heads, trained.head_n_states))
+    assert n_states == {"pt_head": 1, "excited": 3, "ground": 1}
+    if lora:
+        assert "LoRA" in log
+    atoms = ase.io.read(tmp_path / "test.xyz", 0)
+    calc = ExcitedMACECalculator(tmp_path / "xmace.model")  # default: first excited head
+    assert calc.predict(atoms)["energies"].shape == (3,)
+
+
+@pytest.mark.parametrize("backbone", ["MACE", "MACELES", "PolarMACE"])
+@pytest.mark.parametrize("long_range", ["shared", "state"])
+def test_backbones_from_scratch(tmp_path, backbone, long_range):
+    if backbone == "MACELES":
+        pytest.importorskip("les")
+    if backbone == "PolarMACE":
+        pytest.importorskip("graph_longrange")
+    _write_data(tmp_path, with_socs=False)
+    params = _params(tmp_path, max_num_epochs=2)
+    run_mace_train(
+        params,
+        extra_argv=[
+            "--compute_nacs",
+            "--compute_dipoles",
+            f"--excited_backbone={backbone}",
+            f"--excited_long_range={long_range}",
+        ],
+    )
+    trained = torch.load(tmp_path / "xmace.model", weights_only=False)
+    # (MACE's --model=MACE builds a ScaleShiftMACE without shift)
+    assert trained.backbone_class == {"MACE": "ScaleShiftMACE"}.get(backbone, backbone)
+    assert trained.long_range_mode == long_range
+    losses = _valid_losses(tmp_path)
+    assert np.all(np.isfinite(losses))

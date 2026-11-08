@@ -842,14 +842,27 @@ def get_loss_fn(
 def _excited_loss(
     args: argparse.Namespace, energy_weight: float, forces_weight: float
 ) -> torch.nn.Module:
-    spec = args.excited_spec
+    # pylint: disable=import-outside-toplevel
+    from mace.data.excited import spec_layout
+    from mace.modules.excited import mask_tables_from_layouts
+
+    specs = getattr(args, "excited_specs", None) or {"Default": args.excited_spec}
+    heads = getattr(args, "excited_heads", None) or list(specs.keys())
+    head_specs = [specs[name] for name in heads]
+    masks = mask_tables_from_layouts([spec_layout(spec) for spec in head_specs])
     # Default layout: S permanent dipoles, then one transition dipole per coupled pair
-    # (phase free). Any other layout is compared as it is.
-    n_permanent = spec.n_permanent_dipoles
+    # (phase free); per head through the transition-dipole mask.
+    n_permanent = head_specs[0].n_permanent_dipoles
+    max_vectors = max(spec.n_soc_vectors for spec in head_specs)
     soc_weights = None
-    if spec.n_soc_vectors > 0:
-        soc_weights = modules.spin_states.soc_pair_weights(spec.states)
-        soc_weights = (soc_weights / soc_weights.mean()).tolist()
+    soc_states = None
+    if max_vectors > 0:
+        soc_weights = np.zeros((len(head_specs), max_vectors))
+        for h, spec in enumerate(head_specs):
+            if spec.n_soc_vectors > 0:
+                weights = modules.spin_states.soc_pair_weights(spec.states)
+                soc_weights[h, : len(weights)] = weights / weights.mean()
+        soc_states = [list(spec.layout) for spec in head_specs]
     return modules.WeightedExcitedStatesLoss(
         energy_weight=energy_weight,
         forces_weight=forces_weight,
@@ -858,7 +871,8 @@ def _excited_loss(
         dipoles_weight=args.dipoles_weight,
         n_permanent_dipoles=n_permanent,
         soc_pair_weights=soc_weights,
-        soc_states=spec.states if spec.n_soc_vectors > 0 else None,
+        soc_states=soc_states,
+        masks=masks,
     )
 
 
@@ -961,9 +975,60 @@ def freeze_module(module: torch.nn.Module, freeze: bool = True):
         p.requires_grad = not freeze
 
 
+EXCITED_SUBMODULES = (
+    "adapter_in",
+    "adapter_radial",
+    "adapter_interaction",
+    "adapter_product",
+    "readouts",
+    "socs_readouts",
+    "nacs_readouts",
+    "nacs_axial_readouts",
+    "dipoles_readouts",
+    "dipoles_axial_readouts",
+    "soc_vectors_readouts",
+    "charge_readouts",
+    "perm_encoders",
+    "perm_decoders",
+)
+
+
+def _excited_params_options(
+    args: argparse.Namespace, model: torch.nn.Module
+) -> Dict[str, Any]:
+    """Backbone groups as for the ground-state model, plus one group per part of the
+    excited-state heads (adapter layer, readouts, autoencoder)."""
+    param_options = get_params_options(args, model.backbone.model)
+    for name in EXCITED_SUBMODULES:
+        submodule = getattr(model, name, None)
+        if submodule is None:
+            continue
+        parameters = [p for p in submodule.parameters() if p.requires_grad]
+        if not parameters:
+            continue
+        param_options["params"].append(
+            {"name": f"excited_{name}", "params": parameters, "weight_decay": 0.0}
+        )
+    claimed = {id(p) for group in param_options["params"] for p in group["params"]}
+    missing = [
+        name
+        for name, parameter in model.named_parameters()
+        if parameter.requires_grad and id(parameter) not in claimed
+    ]
+    if missing:
+        raise ValueError(
+            f"{len(missing)} trainable parameters of {type(model).__name__} are not "
+            "registered in any optimizer parameter group:\n" + "\n".join(missing)
+        )
+    return param_options
+
+
 def get_params_options(
     args: argparse.Namespace, model: torch.nn.Module
 ) -> Dict[str, Any]:
+    backbone = getattr(model, "backbone", None)
+    if backbone is not None and hasattr(backbone, "model"):
+        return _excited_params_options(args, model)
     decay_interactions = {}
     no_decay_interactions = {}
     for name, param in model.interactions.named_parameters():
@@ -1046,15 +1111,6 @@ def get_params_options(
         "field_dependent_charges_maps",
         "local_electron_energy",
         "layer_feature_mixer",
-        # excited-state models
-        "nacs_readouts",
-        "socs_readouts",
-        "soc_vectors_readouts",
-        "nacs_axial_readouts",
-        "dipoles_axial_readouts",
-        "dipoles_readouts",
-        "perm_encoder",
-        "perm_decoder",
     ]
     for submodule_name in optional_submodule_names:
         submodule = getattr(model, submodule_name, None)

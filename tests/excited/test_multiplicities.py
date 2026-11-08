@@ -251,14 +251,16 @@ def test_model_scripts_and_errors(molecules):
         build_excited(n_states=2, soc_mode="spin_orbit")
     with pytest.raises(ValueError, match="No spin-orbit"):
         build_excited(n_states=2, states=[1, 1], soc_mode="spin_orbit")
-    with pytest.raises(ValueError, match="l=1"):
-        modules.ExcitedMACE(
-            **model_config(hidden_irreps=o3.Irreps("8x0e")),
-            n_energies=2,
-            compute_socs=True,
-            states=[1, 0, 1],
-            soc_mode="spin_orbit",
-        )
+    # a backbone without l=1 features: the adapter layer provides them
+    scalar = modules.ExcitedMACE(
+        **model_config(hidden_irreps=o3.Irreps("8x0e")),
+        n_energies=2,
+        compute_socs=True,
+        states=[1, 0, 1],
+        soc_mode="spin_orbit",
+    )
+    out = scalar(atoms_to_batch(molecules[:1]).to_dict())
+    assert out["soc_vectors"].abs().max() > 0
 
 
 def test_autoencoder_with_multiplicities(molecules):
@@ -572,10 +574,10 @@ def test_autoencoder_orders_states_within_each_multiplicity(molecules):
     torch.manual_seed(6)
     states = [2, 0, 3]
     model = build_excited(n_states=5, states=states, soc_mode="spin_orbit", autoencoder=True)
-    assert model.perm_decoder.block_sizes == [2, 3]
-    assert model.perm_encoder.n_groups == 2
+    assert model.perm_decoders[0].block_sizes == [2, 3]
+    assert model.perm_encoders[0].n_groups == 2
     # the energies of each multiplicity are sorted (one shift per multiplicity)
-    model.scale_shift.shift.data[:] = torch.tensor([0.3, -0.2, 1.0, -1.0, 0.5])
+    model.delta_shift[0] = torch.tensor([0.3, -0.2, 1.0, -1.0, 0.5])
     energies = _predict(model, molecules[:3])["energy"].detach()
     assert torch.all(energies[:, 1] >= energies[:, 0] - 1e-9)
     assert torch.all(torch.diff(energies[:, 2:], dim=1) >= -1e-9)
@@ -584,7 +586,7 @@ def test_autoencoder_orders_states_within_each_multiplicity(molecules):
     reference = torch.tensor([[0.0, 1.0, 2.0, 3.0, 4.0]])
     swap_triplets = reference[:, [0, 1, 3, 2, 4]]
     swap_mult = reference[:, [2, 1, 0, 3, 4]]
-    enc = model.perm_encoder
+    enc = model.perm_encoders[0]
     torch.testing.assert_close(enc(swap_triplets), enc(reference))
     assert (enc(swap_mult) - enc(reference)).abs().max() > 1e-6
     from e3nn.util import jit

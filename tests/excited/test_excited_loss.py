@@ -144,8 +144,8 @@ def test_autoencoder_loss_terms(molecules):
     )
     assert float(total) > float(plain)  # reconstruction + latent terms are included
     total.backward()
-    assert model.perm_encoder.post_aggregation_nn[-1].weight.grad is not None
-    assert model.perm_decoder.decoder_nn[-1].weight.grad is not None
+    assert model.perm_encoders[0].post_aggregation_nn[-1].weight.grad is not None
+    assert model.perm_decoders[0].decoder_nn[-1].weight.grad is not None
 
 
 def test_metrics_use_phase_aligned_couplings(molecules):
@@ -192,9 +192,14 @@ def test_every_parameter_is_in_an_optimizer_group(autoencoder):
     names = [n for n, p in model.named_parameters() if id(p) not in claimed]
     assert not names
     group_names = {group["name"] for group in options["params"]}
-    assert {"nacs_readouts", "socs_readouts", "dipoles_readouts"} <= group_names
+    assert {
+        "excited_nacs_readouts",
+        "excited_socs_readouts",
+        "excited_dipoles_readouts",
+        "excited_adapter_product",
+    } <= group_names
     if autoencoder:
-        assert {"perm_encoder", "perm_decoder"} <= group_names
+        assert {"excited_perm_encoders", "excited_perm_decoders"} <= group_names
 
 
 def test_training_steps_reduce_the_loss():

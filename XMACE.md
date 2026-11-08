@@ -4,7 +4,7 @@ X-MACE extends MACE to several electronic states. One network predicts, for S st
 
 | quantity | output | shape | how |
 |---|---|---|---|
-| energies | `energy` | `[n_graphs, S]` | per-atom invariant readouts, plus E0s and the ZBL core repulsion |
+| energies | `energy` | `[n_graphs, S]` | the backbone's ground-state energy plus per-state invariant readouts |
 | forces | `forces` | `[n_atoms, S, 3]` | −∂E_s/∂r for every state |
 | non-adiabatic couplings | `nacs` | `[n_atoms, P, 3]` | per-atom equivariant vectors (l = 1); smooth NACs, NAC × ΔE |
 | spin–orbit couplings | `socs` | `[n_graphs, L]` | sums of per-atom invariant scalars (`--soc_mode=free`) |
@@ -18,7 +18,13 @@ There are two models:
 * **`ExcitedMACE`** predicts all states directly.
 * **`AutoencoderExcitedMACE`** predicts a permutation-invariant latent vector. A decoder turns it into a symmetric tridiagonal S × S matrix, and the energies are its eigenvalues. This keeps the states ordered and their crossings smooth near conical intersections. With several multiplicities, the matrix has one block per multiplicity, the encoder tags each energy with its multiplicity, and the energy shift is shared within a multiplicity. The states are then ordered within each multiplicity, as SHARC's MCH states are. During training an encoder (a deep set over the states) maps the reference energies to the latent space. The loss asks the decoder to reconstruct them and the network to reproduce the encoded vector.
 
-Both live in `mace/modules/excited.py` and work with the rest of MACE: the CLI, checkpoints, Stage Two, EMA, foundation models, TorchScript export, ASE and SHARC.
+Both live in `mace/modules/excited.py` and work with the rest of MACE: the CLI, checkpoints, Stage Two, EMA, multi-head fine-tuning, LoRA, foundation models, TorchScript export, ASE and SHARC.
+
+**Architecture.** Both models sit on top of a ground-state MACE model of any class, the *backbone*: `ScaleShiftMACE` (default), `MACE`, `MACELES`, `PolarMACE` or `MagneticScaleShiftMACE`, built from scratch or taken from a foundation model. For a frame of head h,
+
+  E_{h,s} = E_backbone,h + scale_h · Σ_layers readout_{h,s} + n_atoms · shift_{h,s}  [+ state electrostatics]
+
+The energy readouts start at zero, so before training every state lies on the backbone's surface (a foundation model's ground state, exactly). An *adapter* layer (one MACE interaction and product block with l = 1 features) on top of the backbone's last features feeds the coupling readouts, so NACs, dipoles and SOC vectors also work with scalar-only foundation models (MACE-MP small, MACE-OFF, MACE-POLAR-1, ...). The readouts read the features of every backbone layer and of the adapter. See [Backbones, heads, foundation models and LoRA](#backbones-heads-foundation-models-and-lora).
 
 **Tutorials.** `tutorials/xmace/` has six Jupyter notebooks for new users, from the physics (smooth NACs, phases, multiplicities, Wigner–Eckart SOCs, equivariance) through building a data set with SHARC, training and validation, to surface-hopping dynamics with SHARC. They use SO2 with SHARC's LVC model as the reference.
 
@@ -110,6 +116,10 @@ The X-MACE command lines keep working, apart from `python scripts/run_train.py` 
 | `--nacs_format` | `auto` | `raw`, `smooth` or `auto`, see above |
 | `--nacs_weight` / `--socs_weight` / `--dipoles_weight` | 100 / 100 / 1 | loss weights |
 | `--num_permutational_invariant` | 16 | latent size of `AutoencoderExcitedMACE` |
+| `--excited_backbone` | `ScaleShiftMACE` | backbone built from scratch: `ScaleShiftMACE`, `MACE`, `MACELES`, `PolarMACE`, `MagneticScaleShiftMACE` (a foundation model sets it) |
+| `--excited_long_range` | `shared` | `shared`: the backbone's electrostatics for every state; `state`: state-specific charges, see below |
+| `--excited_charge_smearing` | 1.0 | width (Å) of the Gaussian charges of `--excited_long_range=state` |
+| `--excited_adapter_irreps` | `Cx0e + Cx1o` | irreps of the adapter layer |
 | `--pair_repulsion` | off | ZBL core repulsion, the same for every state |
 | `--scaling` | `rms_forces_scaling` | `no_scaling` reproduces X-MACE |
 | `--error_table` | `EnergyNacsDipoleMAE` | or `EnergyNacsDipoleRMSE` |
@@ -120,13 +130,57 @@ The X-MACE command lines keep working, apart from `python scripts/run_train.py` 
 
 The energies are total energies, and the couplings are phase free. The autoencoder adds the reconstruction and latent terms to the energy term. These are X-MACE's definitions, so its weights carry over.
 
-**Core repulsion.** `--pair_repulsion` adds a ZBL pair potential to every state. The repulsion between nuclei does not depend on the electronic state, and it keeps dynamics stable at short distances where there is no training data. The ZBL energy is added in eV and is not scaled (`ScaleShiftMACE` multiplies its ZBL energy by the scale).
+**Core repulsion.** `--pair_repulsion` gives the backbone a ZBL pair potential, so it is the same for every state. The repulsion between nuclei does not depend on the electronic state, and it keeps dynamics stable at short distances where there is no training data.
 
-**Scaling.** The atomic interaction energies are scaled by the RMS of the forces of all states, and shifted by one value per state: the mean interaction energy per atom of that state. `--scaling=no_scaling` turns this off, as in X-MACE.
+**Scaling.** Per head, the backbone is scaled by the RMS of the forces of all states and shifted by the mean interaction energy per atom over the states; each state's readouts have the same scale and their own shift (that state's mean minus the head's mean). With a foundation backbone, the per-state shifts are fitted instead to the mean difference between the data and the foundation's energy per atom. `--scaling=no_scaling` turns the statistics off.
 
-**Vectors in the last layer.** MACE reduces its last layer to scalars. When NACs, dipoles or SOC vectors are predicted, the last layer keeps its l = 1 features, so every layer contributes to them. In X-MACE the last layer could not contribute to NACs.
+**Vectors.** A backbone built from scratch keeps l = 1 features in its last layer when `--hidden_irreps` has them, and the adapter layer always has them (`--excited_adapter_irreps`, default `Cx0e + Cx1o` with C = the backbone's channels, between 8 and 64). Every layer with l = 1 features contributes to the couplings. In X-MACE the last layer could not contribute to NACs.
 
-**Transfer learning.** `--foundation_model=medium_off` (or `small`, `medium`, `large`, `*_off`, or a path to a MACE model) takes the architecture and weights of the backbone from a ground-state MACE model. With `--foundation_model_readout=True` (the default), every state starts from the foundation's energy readout and scale/shift. The model then reproduces the foundation's potential energy surface for every state before training. Where the last layer keeps l = 1 features, the foundation weights fill the scalar part.
+**Transfer learning.** `--foundation_model=...` makes a foundation model the backbone, see the next section.
+
+## Backbones, heads, foundation models and LoRA
+
+**Backbones from scratch.** `--excited_backbone=MACELES` or `PolarMACE` builds that model (with its own options: `--les_arguments`, `--field_feature_widths`, ...) as the backbone; `MagneticScaleShiftMACE` needs magnetic moments in the data.
+
+**Long-range electrostatics** (`--excited_long_range`). With a backbone that has electrostatics (MACELES, PolarMACE), `shared` (default) gives every state the backbone's long-range energy. `state` gives each state its own atomic charges, q_s = q_backbone + Δq_s, where Δq_s comes from readouts and sums to zero over each molecule (each state keeps the total charge). The energy of state s then changes by C(q_s) − C(q_backbone), with C the Coulomb energy of Gaussian charges of width `--excited_charge_smearing` (molecules only, no periodic cells). Δq starts at zero. The model outputs `state_charges` `[n_atoms, S]` and `state_electrostatic_energy` `[n_graphs, S]`; with a non-electrostatic backbone q_backbone = 0.
+
+**Foundation models.** `--foundation_model` (a name or a path) makes a foundation model the backbone, with every state starting from its energy. Tested end to end (excited-state fine-tuning, multi-head fine-tuning with replay, LoRA) with:
+
+| foundation | class | `--foundation_model` | notes |
+|---|---|---|---|
+| MACE-MP-0, MPA-0, OMAT-0, MATPES | `ScaleShiftMACE` | `small`, `medium-mpa-0`, `small-omat-0`, `mace-matpes-pbe-0`, ... or a path | |
+| MACE-OFF23 | `ScaleShiftMACE` | `small_off`, `medium_off`, `large_off` | |
+| MACE-OMOL-0 | `ScaleShiftMACE` (charge/spin embedding) | `mace_omol` or a path | optional `total_charge`, `total_spin` in `atoms.info` |
+| MACE-MH-1 | `ScaleShiftMACE`, 6 heads | `mh-1` | pick the head with `--foundation_head` (e.g. `omol`, `spice_wB97M`, `omat_pbe`) |
+| MACE-POLAR-1 | `PolarMACE` | `polar-1-s`, `polar-1-m`, `polar-1-l` | `--excited_long_range=shared` or `state` |
+
+ScaleShiftMACE, MACELES and PolarMACE foundations are re-built for the elements of the training data, as in MACE fine-tuning (`--foundation_model_elements=True` keeps all of them). Other classes (plain `MACE`, `MagneticScaleShiftMACE`) are used as they are, which needs the training data to use the foundation's elements; every head then uses the foundation's head.
+
+```bash
+mace_run_train --model=ExcitedMACE --foundation_model=polar-1-s --n_energies=3 \
+  --compute_nacs --compute_dipoles --excited_long_range=state --train_file=train.xyz ...
+```
+
+**Heads.** `--heads` takes a dictionary of heads, as in MACE. Every head has its own data and its own number of states and couplings: the keys `n_energies` (or `n_states`), `states`, `compute_nacs`, `compute_socs`, `compute_dipoles`, `nac_num`, `soc_num`, `dipole_num`, `soc_mode`, `nacs_format`, `nacs_key`, `socs_key`, `dipoles_key` override the command line for that head. A head with `ground_state: True` (or `n_energies: 1`) is a ground-state head: one energy and forces, plain MACE data (`REF_energy` a number, `REF_forces` an `[n_atoms, 3]` array). Each head has its own backbone head, readouts, scale and shifts; frames of different heads share batches, with labels padded to the largest head and masked in the loss and the metrics.
+
+```bash
+mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_dipoles \
+  --heads="{'excited': {'train_file': 'excited.xyz', 'valid_fraction': 0.1},
+            'ground': {'train_file': 'ground.xyz', 'valid_fraction': 0.1, 'ground_state': True},
+            'triplets': {'train_file': 't.xyz', 'states': [0, 0, 3], 'compute_dipoles': False}}" ...
+```
+
+**Multi-head fine-tuning.** With a foundation model, `--multiheads_finetuning=True` adds MACE's `pt_head` (replay of the foundation's data from `--pt_train_file`, or the downloaded MP data for MP models, optionally with `--pseudolabel_replay`), a ground-state head, next to the excited-state and ground-state heads. Use `--E0s=foundation`.
+
+```bash
+mace_run_train --model=ExcitedMACE --foundation_model=small_off --multiheads_finetuning=True \
+  --pt_train_file=replay.xyz --E0s=foundation --n_energies=3 --compute_nacs \
+  --heads="{'excited': {...}, 'ground': {..., 'ground_state': True}}" ...
+```
+
+**LoRA.** `--lora=True --lora_rank=4 --lora_alpha=1` freezes the backbone and trains low-rank adapters in it; the excited-state readouts and the adapter layer stay fully trainable. It works with single-head and multi-head fine-tuning, and the LoRA weights are merged into the backbone at the end.
+
+**Using a head.** `ExcitedMACECalculator(model, head="ground")`, `SharcCalculator(..., head=...)`, `head <name>` in `MACE.template` and `mace_eval_configs --head=...` select a head; the default is the first head that is not `pt_head`. The calculator returns only that head's states and couplings. `model.heads`, `model.head_layouts` and `model.mask_tables()` describe what each head predicts.
 
 **Large data sets.** `mace_prepare_data` stores the excited-state labels in HDF5 when given `--n_energies` (or `--states`) and the property options. With `--compute_statistics` it writes one shift per state:
 
@@ -170,6 +224,7 @@ device         cuda
 energy_unit    eV                        # units the model was trained in (eV, Hartree)
 distance_unit  Ang                       # Ang or Bohr
 soc_unit       cm-1                      # optional: unit of the SOC labels (Hartree, eV, cm-1)
+head           excited                   # optional: head of a multi-head model
 ```
 
 The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls `SHARC_MACE.py QM.in` once per step. With pysharc, run `$SHARC/driver.py -i MACE input`; the model stays in memory, which is about ten times faster. It answers `h`, `soc`, `grad`, `nacdr`, `dm` and `phases`. `MACE.resources` is optional.
@@ -203,6 +258,8 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 **Added**
 
 * **Spin multiplicities.** Doublets, quartets, quintets and any other multiplicity, with exactly degenerate M_S components and the NAC and dipole selection rules built in.
+* **Any backbone.** Excited states on MACE, ScaleShiftMACE, MACELES, PolarMACE and MagneticScaleShiftMACE, from scratch or from MACE-MP/MPA/OMAT/MATPES, MACE-OFF, MACE-OMOL, MACE-MH-1 and MACE-POLAR-1, with shared or state-specific electrostatics.
+* **Heads.** Several excited-state and ground-state heads in one model, multi-head fine-tuning with replay of the foundation's data, and LoRA.
 * **Wigner–Eckart SOCs.** Rotation-equivariant SOC matrices, see [Spin multiplicities](#spin-multiplicities).
 
 **Removed**
@@ -212,29 +269,32 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 
 **Known limitations**
 
+* **Multi-head HDF5 data.** `mace_prepare_data` writes each head's labels with its own layout, so frames of heads with different numbers of states or couplings cannot share preprocessed HDF5 batches; use extended XYZ for such heads.
+* **TorchScript with PolarMACE.** PolarMACE models cannot be compiled to TorchScript (an upstream limitation); the `.model` file works in Python, the ASE calculator and SHARC.
+
 * **Couplings at symmetric geometries.** At a geometry with a rotation axis (e.g. a C2v molecule), an exactly equivariant model can only produce coupling vectors that are unchanged by that rotation. Couplings between states of different symmetry species change sign under it, because the phase of the states absorbs the sign. So the model gives zero for them exactly at the symmetric geometry and is accurate again a little way off it. For SO2 the dip is about 0.01 Å wide along the antisymmetric stretch (tutorial 4). Mirror planes are handled by `--coupling_parity=both`. Sign-free outputs such as **v v**ᵀ would remove the restriction; that is not implemented.
 * **Phase alignment per pair.** The losses choose the best sign per state pair, not per state (2^(S−1) combinations), so they do not constrain the sign of products of couplings around a loop of states.
 
 **Not supported**
 
-* **Training and deployment features.** Multi-head fine-tuning, stress/virials, cuEquivariance/OpenEquivariance acceleration and LAMMPS.
+* **Training and deployment features.** Stress/virials, cuEquivariance/OpenEquivariance acceleration and LAMMPS.
 
 ## Tests
 
 `tests/excited` covers the data pipeline, the models, the losses and metrics, the calculators, SHARC and CLI training:
 
 * **Data pipeline.** Layouts, smooth NACs and missing labels.
-* **Models.** Invariance and equivariance under rotation, translation, inversion and atom permutation. Finite-difference forces for every state. The ZBL repulsion against a direct calculation. Batching, TorchScript, float32, and transfer from a foundation model, which must reproduce the ground state exactly.
+* **Models.** Invariance and equivariance under rotation, translation, inversion and atom permutation. Finite-difference forces for every state. State-independent ZBL repulsion. Batching, TorchScript, float32. Foundation backbones (with and without l = 1 features), which must reproduce the ground state exactly, and the fit of the per-state shifts. Mixed ground- and excited-state heads (padding, masks, a frame alone equals the frame in a mixed batch). LoRA on the backbone. State-specific charges (charge conservation, invariance, finite-difference forces).
 * **Losses and metrics.** Phase invariance, per-frame weights, autoencoder terms, and optimizer coverage.
 * **Calculators.** ASE, committees, MD energy conservation, and the SHARC layer in all state modes and units, including phase continuity.
 * **Spin states** (`test_spin_states.py`, `test_multiplicities.py`). Clebsch–Gordan coefficients against sympy. The same-spin SOC block against **a**·i**S** for doublets to quintets. Hermiticity, selection rules and rotation covariance H(R**a**) = U(R) H(**a**) U(R)† for six state layouts. SOC label layouts and the Wigner–Eckart residual warning. Axial SOC vectors (rotation, inversion) and TorchScript. The phase-free SOC loss and matrix-element metrics, and that a model learns the couplings. The SHARC layer with singlets/triplets/quintets and doublets/quartets: M_S degeneracy, NAC/dipole selection rules, the SOC matrix, rotation covariance, finite-difference gradients, fewer states than the model, and phase continuity.
-* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer.
+* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer. Mixed ground/excited heads for both models, ScaleShiftMACE/MACE/MagneticScaleShiftMACE foundation backbones, multi-head fine-tuning with `pt_head` replay with and without LoRA, and MACE/MACELES/PolarMACE backbones from scratch with shared and state-specific electrostatics.
 * **Parity and autoencoder.** Polar and axial parts of couplings under inversion. Planar geometries: `fixed` gives no out-of-plane transition dipoles and no in-plane SOC vectors, `both` does. Autoencoder states ordered within each multiplicity, and its encoder distinguishes multiplicities.
 * **SHARC labels.** `labels_from_sharc` applied to the SHARC layer's own output gives back the model's predictions, and it rejects non-degenerate multiplets.
 * **Real SHARC** (`test_sharc_real.py`, skipped without `$SHARC`). A `SHARC_MACE.py` single point against `SharcCalculator`, read with SHARC's own `QM.out` parser. A `sharc.x` trajectory with energy conservation. A pysharc trajectory that must match `sharc.x`.
 
 ```bash
-pytest tests/excited            # about 5 minutes on a CPU
+pytest tests/excited            # about 15 minutes on a CPU
 pytest tests/excited -m "not slow"
 source $SHARC/sharcvars.sh && pytest tests/excited/test_sharc_real.py
 ```

@@ -17,7 +17,7 @@ SHARC: energies, gradients, NACs, spin–orbit couplings and dipoles.
 | [03 Training](03_training.ipynb) | every training option; reading the log; learning curves; error tables; phase-consistent parity plots; choosing loss weights | 02 | 30 min |
 | [04 Using a trained model](04_using_a_trained_model.ipynb) | the ASE calculator; potential-energy and coupling scans against the reference; symmetry checks; `SharcCalculator`; ASE dynamics; `mace_eval_configs` | 03, SHARC | 3 min |
 | [05 Surface hopping with SHARC](05_surface_hopping_with_sharc.ipynb) | how SHARC calls X-MACE; `MACE.template`; single points; pysharc and `sharc.x` trajectories; energy conservation; populations compared with the reference | 03, SHARC | 15 min |
-| [06 More models and data](06_more_models_and_data.ipynb) | committees and uncertainty; the autoencoder model; missing labels and weights; HDF5 for large data; free SOCs and X-MACE data; doublets and quartets; foundation models; the Python API | 03 | 15 min |
+| [06 More models and data](06_more_models_and_data.ipynb) | committees and uncertainty; the autoencoder model; missing labels and weights; HDF5 for large data; free SOCs and X-MACE data; doublets and quartets; backbones, foundation models (MP, OFF, OMOL, MH-1, POLAR-1), multi-head fine-tuning and LoRA; the Python API | 03 | 15 min |
 
 ## Setup
 

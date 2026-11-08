@@ -59,6 +59,98 @@ def soc_upper_triangle(matrix: np.ndarray) -> np.ndarray:
 
 
 @dataclass
+class HeadView:
+    """What one head of an excited-state model predicts (sizes of its outputs)."""
+
+    index: int
+    name: str
+    n_energies: int
+    multiplicity_states: List[int]
+    compute_nacs: bool
+    nac_num: int
+    compute_socs: bool
+    soc_num: int
+    soc_mode: str
+    soc_vector_num: int
+    compute_dipoles: bool
+    dipole_num: int
+
+    @classmethod
+    def from_model(
+        cls, model: torch.nn.Module, head: Optional[Union[str, int]] = None
+    ) -> "HeadView":
+        """head: name or index; default the model's default head (the first head that
+        is not pt_head)."""
+        heads = [str(h) for h in getattr(model, "heads", ["Default"])]
+        layouts = getattr(model, "head_layouts", None)
+        if head is None:
+            index = int(getattr(model, "default_head", 0))
+        elif isinstance(head, int):
+            index = head
+        elif head in heads:
+            index = heads.index(head)
+        else:
+            raise ValueError(f"Head {head!r} not in the model's heads {heads}")
+        if not 0 <= index < len(heads):
+            raise ValueError(f"Head index {index} out of range for heads {heads}")
+        if layouts is None:  # single-head model of an older version
+            n_states = int(model.n_energies)
+            return cls(
+                index=index,
+                name=heads[index],
+                n_energies=n_states,
+                multiplicity_states=[
+                    int(x) for x in getattr(model, "multiplicity_states", [n_states])
+                ],
+                compute_nacs=bool(model.compute_nacs),
+                nac_num=int(model.nac_num) if bool(model.compute_nacs) else 0,
+                compute_socs=bool(model.compute_socs),
+                soc_num=int(getattr(model, "soc_num", 0)),
+                soc_mode=str(getattr(model, "soc_mode", "free")),
+                soc_vector_num=int(getattr(model, "soc_vector_num", 0)),
+                compute_dipoles=bool(model.compute_dipoles),
+                dipole_num=int(model.dipole_num) if bool(model.compute_dipoles) else 0,
+            )
+        layout = layouts[index]
+        soc_vectors = int(layout["soc_vector_num"])
+        return cls(
+            index=index,
+            name=heads[index],
+            n_energies=int(layout["n_states"]),
+            multiplicity_states=[int(x) for x in layout["states"]],
+            compute_nacs=int(layout["nac_num"]) > 0,
+            nac_num=int(layout["nac_num"]),
+            compute_socs=int(layout["soc_num"]) > 0 or soc_vectors > 0,
+            soc_num=int(layout["soc_num"]),
+            soc_mode="spin_orbit" if soc_vectors > 0 else "free",
+            soc_vector_num=soc_vectors,
+            compute_dipoles=int(layout["dipole_num"]) > 0,
+            dipole_num=int(layout["dipole_num"]),
+        )
+
+    def select(self, out: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
+        """Cut the (padded) outputs of a batch of this head to its own sizes."""
+        sizes = {
+            "energy": (1, self.n_energies),
+            "forces": (1, self.n_energies),
+            "nacs": (1, self.nac_num),
+            "socs": (1, self.soc_num),
+            "soc_vectors": (1, self.soc_vector_num),
+            "dipoles": (1, self.dipole_num),
+        }
+        selected = {}
+        for key, value in out.items():
+            if key not in sizes:
+                selected[key] = value
+                continue
+            axis, size = sizes[key]
+            if size == 0:
+                continue
+            selected[key] = np.take(value, np.arange(size), axis=axis)
+        return selected
+
+
+@dataclass
 class ExcitedModelLayout:
     """What the outputs of an excited-state model mean.
 
@@ -78,7 +170,11 @@ class ExcitedModelLayout:
     soc_pairs: List[Tuple[int, int]]
 
     @classmethod
-    def from_model(cls, model: torch.nn.Module) -> "ExcitedModelLayout":
+    def from_model(
+        cls, model: torch.nn.Module, head: Optional[Union[str, int]] = None
+    ) -> "ExcitedModelLayout":
+        if not isinstance(model, HeadView):
+            model = HeadView.from_model(model, head)
         n_states = int(model.n_energies)
         states = [int(s) for s in getattr(model, "multiplicity_states", [n_states])]
         if sum(states) != n_states:
@@ -127,6 +223,8 @@ class ExcitedMACECalculator(Calculator):
 
     model_paths  a path, a glob pattern ("model_*.model") or a list for a committee
     state        electronic state whose energy and forces ASE uses ("energy", "forces")
+    head         head of a multi-head model (name or index); default the first head
+                 that is not pt_head. A ground-state head predicts one state.
 
     results (S states, P coupled state pairs, L SOCs, D dipoles, Q spin-orbit pairs):
       energy, free_energy   energy of `state` (eV)
@@ -171,6 +269,7 @@ class ExcitedMACECalculator(Calculator):
         length_units_to_A: float = 1.0,
         charges_key: str = "Qs",
         models: Optional[List[torch.nn.Module]] = None,
+        head: Optional[Union[str, int]] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -198,19 +297,22 @@ class ExcitedMACECalculator(Calculator):
             for param in model.parameters():
                 param.requires_grad = False
         reference = self.models[0]
+        self.head_view = HeadView.from_model(reference, head)
+        self.head = self.head_view.name
         for model in self.models[1:]:
-            if int(model.n_energies) != int(reference.n_energies):
+            view = HeadView.from_model(model, self.head)
+            if view.n_energies != self.head_view.n_energies:
                 raise ValueError(
                     "Committee members predict different numbers of states"
                 )
             if float(model.r_max) != float(reference.r_max):
                 raise ValueError("Committee members have different r_max")
-            if ExcitedModelLayout.from_model(model) != ExcitedModelLayout.from_model(
-                reference
+            if ExcitedModelLayout.from_model(view) != ExcitedModelLayout.from_model(
+                self.head_view
             ):
                 raise ValueError("Committee members predict different couplings")
         self.num_models = len(self.models)
-        self.n_states = int(reference.n_energies)
+        self.n_states = self.head_view.n_energies
         if not 0 <= state < self.n_states:
             raise ValueError(f"state must be in [0, {self.n_states - 1}], got {state}")
         self.state = state
@@ -221,8 +323,12 @@ class ExcitedMACECalculator(Calculator):
         self.energy_units_to_eV = float(energy_units_to_eV)
         self.length_units_to_A = float(length_units_to_A)
         self.charges_key = charges_key
-        self.layout = ExcitedModelLayout.from_model(reference)
+        self.layout = ExcitedModelLayout.from_model(self.head_view)
         self.nacs_per_pair = self.layout.nac_pairs is not None
+
+    def _head_indices(self, model: torch.nn.Module) -> int:
+        heads = [str(h) for h in getattr(model, "heads", ["Default"])]
+        return heads.index(self.head) if self.head in heads else 0
 
     @staticmethod
     def _expand_paths(model_paths) -> List[str]:
@@ -259,15 +365,19 @@ class ExcitedMACECalculator(Calculator):
         batch = self._atoms_to_batch(atoms)
         per_model = []
         for model in self.models:
-            out = model(batch.clone().to_dict(), training=False, compute_force=True)
+            inputs = batch.clone().to_dict()
+            inputs["head"] = torch.full_like(inputs["head"], self._head_indices(model))
+            out = model(inputs, training=False, compute_force=True)
             per_model.append(
-                {
-                    key: torch_tools.to_numpy(value).copy()
-                    for key, value in out.items()
-                    if key
-                    in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
-                    and value is not None
-                }
+                self.head_view.select(
+                    {
+                        key: torch_tools.to_numpy(value).copy()
+                        for key, value in out.items()
+                        if key
+                        in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
+                        and value is not None
+                    }
+                )
             )
         return self._combine(per_model)
 
@@ -342,6 +452,7 @@ def evaluate_excited_configs(
     batch_size: int = 16,
     device: str = "cpu",
     info_prefix: str = "MACE_",
+    head: Optional[Union[str, int]] = None,
 ) -> List[ase.Atoms]:
     """Write the predictions of an excited-state model into atoms.info (in place).
 
@@ -349,8 +460,11 @@ def evaluate_excited_configs(
     and if predicted <prefix>smooth_nacs, <prefix>nacs [n_atoms, P, 3],
     <prefix>socs [L] (free) or <prefix>soc_vectors [Q, 3] and <prefix>socs, the upper
     triangle of the M_S-resolved SOC matrix as (re, im) pairs [nm (nm - 1)]
-    (spin_orbit; the layout --socs_key reads back), <prefix>dipoles [D, 3]."""
-    calc = ExcitedMACECalculator(model_paths=None, models=[model], device=device)
+    (spin_orbit; the layout --socs_key reads back), <prefix>dipoles [D, 3].
+    head selects the head of a multi-head model (default: the first excited head)."""
+    calc = ExcitedMACECalculator(
+        model_paths=None, models=[model], device=device, head=head
+    )
     z_table, r_max = calc.z_table, calc.r_max
     configs = [
         data.config_from_atoms(atoms, key_specification=data.KeySpecification())
@@ -368,26 +482,26 @@ def evaluate_excited_configs(
     index = 0
     for batch in loader:
         batch = batch.to(calc.device)
-        out = calc.models[0](batch.to_dict(), training=False, compute_force=True)
+        inputs = batch.to_dict()
+        inputs["head"] = torch.full(
+            (batch.num_graphs,), calc._head_indices(calc.models[0]), device=calc.device
+        )
+        out = calc.models[0](inputs, training=False, compute_force=True)
+        out = calc.head_view.select(
+            {
+                key: torch_tools.to_numpy(value)
+                for key, value in out.items()
+                if key in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
+                and value is not None
+            }
+        )
         ptr = torch_tools.to_numpy(batch.ptr)
-        energies = torch_tools.to_numpy(out["energy"])
-        forces = torch_tools.to_numpy(out["forces"])
-        nacs = (
-            torch_tools.to_numpy(out["nacs"]) if out.get("nacs") is not None else None
-        )
-        socs = (
-            torch_tools.to_numpy(out["socs"]) if out.get("socs") is not None else None
-        )
-        soc_vectors = (
-            torch_tools.to_numpy(out["soc_vectors"])
-            if out.get("soc_vectors") is not None
-            else None
-        )
-        dipoles = (
-            torch_tools.to_numpy(out["dipoles"])
-            if out.get("dipoles") is not None
-            else None
-        )
+        energies = out["energy"]
+        forces = out["forces"]
+        nacs = out.get("nacs")
+        socs = out.get("socs")
+        soc_vectors = out.get("soc_vectors")
+        dipoles = out.get("dipoles")
         for g in range(len(ptr) - 1):
             atoms = atoms_list[index]
             atoms.calc = None

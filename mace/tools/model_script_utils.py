@@ -6,7 +6,7 @@ import torch
 from e3nn import o3
 
 from mace import modules
-from mace.data.excited import add_excited_state_keys
+from mace.data.excited import add_excited_state_keys, spec_layout
 from mace.modules.wrapper_ops import CuEquivarianceConfig
 from mace.tools.deprecation import warn
 from mace.tools.finetuning_utils import load_foundations_elements, load_foundations_mdp
@@ -32,14 +32,15 @@ def configure_excited_state_args(args, excited_spec) -> None:
         args.loss = "excited"
     if args.error_table not in EXCITED_ERROR_TABLES:
         args.error_table = "EnergyNacsDipoleMAE"
-    args.multiheads_finetuning = False
     args.compute_stress = False
     args.compute_virials = False
     args.compute_forces = True
     logging.info(
         f"{args.model}: {excited_spec.describe()}, "
         f"coupling parity={getattr(args, 'coupling_parity', 'both')}, "
-        f"pair repulsion={'on' if args.pair_repulsion else 'off'}"
+        f"pair repulsion={'on' if args.pair_repulsion else 'off'}, "
+        f"backbone={getattr(args, 'excited_backbone', 'ScaleShiftMACE')}, "
+        f"long range={getattr(args, 'excited_long_range', 'shared')}"
     )
     args.excited_spec = excited_spec
 
@@ -53,6 +54,10 @@ def configure_model(
     z_table=None,
     head_configs=None,
 ):
+    if args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
+        return configure_excited_model(
+            args, train_loader, atomic_energies, model_foundation, heads, z_table
+        )
     # Selecting outputs
     compute_virials = args.loss == "virials"
     compute_stress = args.loss in ("stress", "huber", "universal")
@@ -106,19 +111,6 @@ def configure_model(
                 )
         args.std = atomic_inter_scale
 
-    elif args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
-        scale, shift = modules.compute_excited_scaling(
-            train_loader,
-            np.atleast_2d(atomic_energies)[0],
-            args.scaling,
-            n_states=args.n_energies,
-        )
-        args.std = scale if args.std is None else args.std
-        args.mean = shift if args.mean is None else args.mean
-        logging.info(
-            f"Atomic interaction energy scale: {args.std:.4f}, shift per state: "
-            + ", ".join(f"{x:.4f}" for x in np.atleast_1d(args.mean))
-        )
     elif (args.mean is None or args.std is None) and (
         args.model not in ("AtomicDipolesMACE", "AtomicDielectricMACE")
     ):
@@ -253,40 +245,9 @@ def configure_model(
         )
         model_config_foundation = None
 
-    if model_foundation is not None and args.model in (
-        "ExcitedMACE",
-        "AutoencoderExcitedMACE",
-    ):
-        model_config = _excited_config_from_foundation(model_config, model_foundation)
-        if args.foundation_model_readout:
-            # the readouts of every state start from the foundation's energy readout
-            foundation_mlp = str(
-                extract_config_mace_model(model_foundation)["MLP_irreps"]
-            )
-            if o3.Irreps(foundation_mlp) != o3.Irreps(args.MLP_irreps):
-                logging.info(
-                    f"Using the foundation model's MLP irreps {foundation_mlp} "
-                    "(--foundation_model_readout=True)"
-                )
-            args.MLP_irreps = foundation_mlp
-        args.max_L = model_config["hidden_irreps"].lmax
-        args.avg_num_neighbors = model_config["avg_num_neighbors"]
-
     model = _build_model(args, model_config, model_config_foundation, heads)
 
-    if model_foundation is not None and args.model in (
-        "ExcitedMACE",
-        "AutoencoderExcitedMACE",
-    ):
-        model = modules.load_foundations_excited(
-            model,
-            model_foundation,
-            z_table,
-            load_readout=args.foundation_model_readout,
-            max_L=args.max_L,
-            default_dtype=dtype_dict.get(args.default_dtype, torch.float64),
-        )
-    elif model_foundation is not None:
+    if model_foundation is not None:
         if getattr(args, "finetune_dipoles_polarizabilities", False):
             # MDP fine-tuning: dedicated loader that handles higher-order irreps
             load_foundations_mdp(model, model_foundation, z_table, max_L=args.max_L)
@@ -330,94 +291,225 @@ def _parse_literal_or_none(value):
     return value
 
 
-def _excited_config_from_foundation(model_config, model_foundation):
-    """Architecture of a ground-state foundation model for an excited-state model."""
-    foundation_config = extract_config_mace_model(model_foundation)
-    if "error" in foundation_config:
+FOUNDATION_BACKBONES = {
+    "ScaleShiftMACE": "ScaleShiftMACE",
+    "PolarMACE": "PolarMACE",
+    "MACELES": "MACELES",
+}
+
+
+def _foundation_as_backbone(args, model_foundation, heads, z_table):
+    """A foundation model whose architecture cannot be re-built for the training
+    elements, used unchanged as the backbone (its own E0s, scale and shift)."""
+    import copy  # pylint: disable=import-outside-toplevel
+
+    foundation_cls = model_foundation.__class__.__name__
+    zs = [int(z) for z in model_foundation.atomic_numbers]
+    if list(z_table.zs) != zs:
         raise ValueError(
-            "Excited-state models can start from MACE (ScaleShiftMACE) foundation models only"
+            f"A {foundation_cls} foundation model is used as it is, so the training "
+            f"data must use its elements {zs} (got {list(z_table.zs)}); add "
+            "--foundation_model_elements=True"
         )
-    config = dict(model_config)
-    for key in (
-        "r_max",
-        "num_bessel",
-        "num_polynomial_cutoff",
-        "max_ell",
-        "interaction_cls",
-        "num_interactions",
-        "hidden_irreps",
-        "edge_irreps",
-        "avg_num_neighbors",
-        "correlation",
-        "radial_type",
-        "radial_MLP",
-        "distance_transform",
-        "apply_cutoff",
-        "use_reduced_cg",
-        "use_so3",
-        "use_agnostic_product",
-        "use_edge_irreps_first",
-    ):
-        if key in foundation_config:
-            config[key] = foundation_config[key]
-    config["interaction_cls_first"] = foundation_config["interaction_cls_first"]
+    foundation_heads = [str(h) for h in getattr(model_foundation, "heads", ["Default"])]
+    head = getattr(args, "foundation_head", None) or foundation_heads[0]
+    if head not in foundation_heads:
+        raise ValueError(f"--foundation_head {head} not in {foundation_heads}")
+    backbone_heads = [foundation_heads.index(head)] * len(heads)
+    args.r_max = float(model_foundation.r_max)
+    args.avg_num_neighbors = float(
+        getattr(model_foundation.interactions[0], "avg_num_neighbors", 1.0)
+    )
     logging.info(
-        "Architecture taken from the foundation model: "
-        f"{config['num_interactions']} layers, hidden irreps {config['hidden_irreps']}, "
-        f"correlation {config['correlation']}, r_max {config['r_max']}"
+        f"Ground-state backbone: the {foundation_cls} foundation model as it is "
+        f"(head {head} for every head)"
     )
-    return config
+    output_args = {
+        "energy": True,
+        "forces": True,
+        "virials": False,
+        "stress": False,
+        "dipoles": False,
+        "polarizabilities": False,
+        "magforces": False,
+    }
+    return copy.deepcopy(model_foundation), backbone_heads, output_args
 
 
-def _build_excited_model(args, model_config):
-    model_config = dict(model_config)
-    interaction_cls_first = model_config.pop(
-        "interaction_cls_first",
-        modules.interaction_classes[args.interaction_first],
+def excited_head_statistics(train_loader, atomic_energies, heads, specs, scaling):
+    """(scale, shifts[S]) of every head from its own training frames: shifts are the
+    mean (E_s - sum E0)/n_atoms per state, scale the rms of the forces ("std_scaling":
+    the std of the interaction energies per atom; "no_scaling": 1 and 0)."""
+    from mace.tools.scatter import (  # pylint: disable=import-outside-toplevel
+        scatter_sum,
     )
-    correlation = model_config.pop("correlation", args.correlation)
-    radial_MLP = model_config.pop("radial_MLP", ast.literal_eval(args.radial_MLP))
-    radial_type = model_config.pop("radial_type", args.radial_type)
-    distance_transform = model_config.pop("distance_transform", args.distance_transform)
-    if distance_transform is None:
-        distance_transform = "None"
-    spec = args.excited_spec
+
+    energies = torch.as_tensor(np.atleast_2d(atomic_energies))
+    inter = {h: [] for h in range(len(heads))}
+    forces = {h: [] for h in range(len(heads))}
+    for batch in train_loader:
+        graph_heads = batch.head.view(-1).to(torch.long)
+        num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).to(batch.positions.dtype)
+        element = torch.argmax(batch.node_attrs, dim=1)
+        node_heads = graph_heads[batch.batch]
+        table = energies.to(batch.positions.dtype)
+        node_e0 = table[torch.clamp(node_heads, max=table.shape[0] - 1), element]
+        graph_e0 = scatter_sum(node_e0, batch.batch, dim=0, dim_size=batch.num_graphs)
+        energy = batch.energy.view(batch.num_graphs, -1)
+        per_atom = (energy - graph_e0.unsqueeze(-1)) / num_atoms.unsqueeze(-1)
+        labelled = (batch.weight * batch.energy_weight) > 0
+        atom_labelled = torch.repeat_interleave(
+            (batch.weight * batch.forces_weight) > 0, batch.ptr[1:] - batch.ptr[:-1]
+        )
+        batch_forces = batch.forces.view(batch.forces.shape[0], -1, 3)
+        for h, name in enumerate(heads):
+            n_states = specs[name].n_states
+            rows = (graph_heads == h) & labelled
+            inter[h].append(per_atom[rows, :n_states])
+            atoms = (node_heads == h) & atom_labelled
+            forces[h].append(batch_forces[atoms, :n_states])
+    stats = []
+    for h, name in enumerate(heads):
+        n_states = specs[name].n_states
+        values = torch.cat(inter[h], dim=0)
+        head_forces = torch.cat(forces[h], dim=0)
+        if scaling == "no_scaling":
+            stats.append((1.0, [0.0] * n_states))
+            continue
+        shift = values.mean(dim=0).tolist() if values.shape[0] else [0.0] * n_states
+        if scaling == "std_scaling":
+            scale = float(torch.std(values)) if values.numel() > 1 else 1.0
+        else:
+            scale = (
+                float(torch.sqrt(torch.mean(torch.square(head_forces))))
+                if head_forces.numel()
+                else 1.0
+            )
+        if not np.isfinite(scale) or scale < 1e-8:
+            scale = 1.0
+        stats.append((scale, shift))
+    return stats
+
+
+def configure_excited_model(
+    args, train_loader, atomic_energies, model_foundation, heads, z_table
+):
+    """An excited-state model: a ground-state backbone of any MACE class (built from
+    scratch or from a foundation model, with all heads) and excited-state heads."""
+    import copy  # pylint: disable=import-outside-toplevel
+
+    heads = list(heads)
+    specs = args.excited_specs
+    layouts = [spec_layout(specs[name]) for name in heads]
+    stats = excited_head_statistics(
+        train_loader, atomic_energies, heads, specs, args.scaling
+    )
+    for name, (scale, shift) in zip(heads, stats):
+        logging.info(
+            f"Head {name}: {specs[name].describe()}; interaction energy scale "
+            f"{scale:.4f}, shift per state "
+            + ", ".join(f"{x:.4f}" for x in np.atleast_1d(shift))
+        )
+
+    backbone_args = copy.copy(args)
+    foundation_cls = None
+    backbone_heads = None
+    if model_foundation is not None:
+        foundation_cls = model_foundation.__class__.__name__
+    if foundation_cls is not None and foundation_cls not in FOUNDATION_BACKBONES:
+        # architectures MACE cannot re-build for new elements (plain MACE, magnetic
+        # models, ...): the foundation model is the backbone as it is, every head on
+        # its (selected) head
+        backbone, backbone_heads, output_args = _foundation_as_backbone(
+            args, model_foundation, heads, z_table
+        )
+    else:
+        if foundation_cls is not None:
+            backbone_args.model = FOUNDATION_BACKBONES[foundation_cls]
+        else:
+            backbone_args.model = getattr(args, "excited_backbone", "ScaleShiftMACE")
+        backbone_args.loss = "weighted"
+        backbone_args.error_table = "PerAtomMAE"
+        backbone_args.std = [float(scale) for scale, _ in stats]
+        backbone_args.mean = np.array(
+            [float(np.mean(shift)) for _, shift in stats], dtype=float
+        )
+        logging.info(f"Ground-state backbone: {backbone_args.model}")
+        backbone, output_args = configure_model(
+            backbone_args,
+            train_loader,
+            atomic_energies,
+            model_foundation,
+            heads,
+            z_table,
+        )
+        for key in ("max_L", "avg_num_neighbors", "MLP_irreps", "r_max"):
+            if hasattr(backbone_args, key):
+                setattr(args, key, getattr(backbone_args, key))
+
+    backbone_channels = o3.Irreps(str(backbone.products[-1].linear.irreps_out)).count(
+        o3.Irrep(0, 1)
+    )
+    channels = max(8, min(64, backbone_channels))
+    adapter_irreps = getattr(args, "excited_adapter_irreps", None) or (
+        f"{channels}x0e + {channels}x1o"
+    )
     kwargs = dict(
-        **model_config,
-        pair_repulsion=args.pair_repulsion,
-        distance_transform=distance_transform,
-        correlation=correlation,
+        backbone=backbone,
+        head_layouts=layouts,
+        MLP_irreps=o3.Irreps(
+            getattr(args, "excited_MLP_irreps", None) or args.MLP_irreps
+        ),
         gate=modules.gate_dict[args.gate],
-        interaction_cls_first=interaction_cls_first,
-        MLP_irreps=o3.Irreps(args.MLP_irreps),
-        radial_MLP=radial_MLP,
-        radial_type=radial_type,
-        n_energies=spec.n_states,
-        compute_nacs=spec.n_nacs > 0,
-        nac_num=spec.n_nacs if spec.n_nacs > 0 else None,
-        compute_socs=spec.n_socs > 0 or spec.n_soc_vectors > 0,
-        soc_num=spec.n_socs if spec.n_socs > 0 else None,
-        states=spec.states,
-        soc_mode=spec.soc_mode,
+        adapter_irreps=o3.Irreps(adapter_irreps),
+        adapter_max_ell=args.max_ell,
+        long_range_mode=getattr(args, "excited_long_range", "shared"),
+        charge_smearing=getattr(args, "excited_charge_smearing", 1.0),
         coupling_parity=getattr(args, "coupling_parity", "both"),
-        compute_dipoles=spec.n_dipoles > 0,
-        dipole_num=spec.n_dipoles if spec.n_dipoles > 0 else None,
-        atomic_inter_scale=args.std if args.std is not None else 1.0,
-        atomic_inter_shift=args.mean if args.mean is not None else 0.0,
+        delta_scale=[float(scale) for scale, _ in stats],
+        delta_shift=[
+            [float(x) - float(np.mean(shift)) for x in np.atleast_1d(shift)]
+            for _, shift in stats
+        ],
     )
+    if backbone_heads is not None:
+        kwargs.update(heads=list(heads), backbone_heads=backbone_heads)
     if args.model == "AutoencoderExcitedMACE":
-        return modules.AutoencoderExcitedMACE(
+        model = modules.AutoencoderExcitedMACE(
             **kwargs, num_permutational_invariant=args.num_permutational_invariant
         )
-    return modules.ExcitedMACE(**kwargs)
+    else:
+        model = modules.ExcitedMACE(**kwargs)
+    if model_foundation is not None:
+        # states start from the foundation's energy: fit their shifts to the data
+        logging.info(
+            f"Backbone architecture taken from the foundation model ({foundation_cls}); "
+            "every state starts from the foundation energy"
+        )
+        device = torch.device(args.device)
+        model.to(device)
+        modules.fit_excited_shifts(model, train_loader, device=device)
+        logging.info(
+            "Per-state shifts relative to the foundation backbone: "
+            + "; ".join(
+                f"{name}: "
+                + ", ".join(
+                    f"{x:.4f}"
+                    for x in model.delta_shift[h, : specs[name].n_states].tolist()
+                )
+                for h, name in enumerate(heads)
+            )
+        )
+    logging.info(
+        f"Excited-state model on a {backbone.__class__.__name__} backbone with heads "
+        + ", ".join(f"{name} ({specs[name].describe()})" for name in heads)
+    )
+    return model, output_args
 
 
 def _build_model(
     args, model_config, model_config_foundation, heads
 ):  # pylint: disable=too-many-return-statements
-    if args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
-        return _build_excited_model(args, model_config)
-
     if args.model == "MagneticScaleShiftMACE":
         m_max = resolve_m_max(args.m_max, list(model_config["atomic_numbers"]))
         return modules.MagneticScaleShiftMACE(

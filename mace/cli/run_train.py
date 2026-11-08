@@ -36,7 +36,14 @@ from mace.cli.convert_e3nn_oeq import run as run_e3nn_to_oeq
 from mace.cli.convert_oeq_e3nn import run as run_oeq_to_e3nn
 from mace.cli.visualise_train import TrainingPlotter
 from mace.data import KeySpecification, update_keyspec_from_kwargs
-from mace.data.excited import excited_spec_from_args, standardise_excited_configs
+from mace.data.excited import (
+    PaddedLayout,
+    excited_spec_from_args,
+    excited_specs_for_heads,
+    ground_state_spec,
+    pad_excited_configs,
+    standardise_excited_configs,
+)
 from mace.modules.lora import inject_LoRAs, merge_lora_weights
 from mace.tools import deprecation, torch_geometric
 from mace.tools.distributed_tools import init_distributed, xpu_device_index
@@ -303,6 +310,24 @@ def run(args) -> None:
             args, pt_keyspec, foundation_model_avg_num_neighbors
         )
 
+    excited_specs = None
+    if excited_spec is not None:
+        for head_name, head_dict in args.heads.items():
+            # excited-state label keys given per head
+            for key, kind in (
+                ("nacs_key", "arrays_keys"),
+                ("socs_key", "info_keys"),
+                ("dipoles_key", "info_keys"),
+            ):
+                if key in head_dict:
+                    head_dict["key_specification"].update(
+                        **{kind: {key[: -len("_key")]: head_dict[key]}}
+                    )
+        excited_specs = excited_specs_for_heads(args, args.heads)
+        args.excited_specs = excited_specs
+        for head_name, spec in excited_specs.items():
+            logging.info(f"Head {head_name}: {spec.describe()}")
+
     logging.info("===========LOADING INPUT DATA===========")
     heads = list(args.heads.keys())
     logging.info(f"Using heads: {heads}")
@@ -404,12 +429,14 @@ def run(args) -> None:
                 ),
                 prefix=args.name,
             )
-            if excited_spec is not None:
+            if excited_specs is not None and head_config.head_name != "pt_head":
                 for subset_name, subset in [
                     ("train", collections.train),
                     ("valid", collections.valid),
                 ] + [(f"test {name}", configs) for name, configs in collections.tests]:
-                    counts = standardise_excited_configs(subset, excited_spec)
+                    counts = standardise_excited_configs(
+                        subset, excited_specs[head_config.head_name]
+                    )
                     logging.info(
                         f"Excited-state labels in {subset_name} set of head "
                         f"'{head_config.head_name}' ({len(subset)} configurations): "
@@ -462,7 +489,8 @@ def run(args) -> None:
         logging.info(
             "==================Using multiheads finetuning mode=================="
         )
-        args.loss = "universal"
+        if excited_specs is None:
+            args.loss = "universal"
 
         all_ase_readable = all(
             all(check_path_ase_read(f) for f in head_config.train_file)
@@ -605,6 +633,7 @@ def run(args) -> None:
             for z in z_table.zs
         }
     heads = sorted(heads, key=lambda x: -1000 if x == "pt_head" else 0)
+    args.excited_heads = heads
     # Padding atomic energies if keeping all elements of the foundation model
     if args.foundation_model_elements and model_foundation:
         atomic_energies_dict_padded = {}
@@ -686,6 +715,19 @@ def run(args) -> None:
                 logging.info("Successfully applied pseudolabels to pt_head configurations")
             else:
                 logging.warning("Pseudolabeling was not successful, continuing with original configurations")
+
+        if excited_specs is not None and head_config.collections is not None:
+            # frames of all heads share batches: pad their labels to the largest head
+            padded_layout = PaddedLayout.from_specs(excited_specs.values())
+            head_spec = excited_specs[head_config.head_name]
+            subsets = [head_config.collections.train, head_config.collections.valid] + [
+                configs for _, configs in head_config.collections.tests
+            ]
+            if head_config.head_name == "pt_head":
+                for subset in subsets:
+                    standardise_excited_configs(subset, ground_state_spec())
+            for subset in subsets:
+                pad_excited_configs(subset, head_spec, padded_layout)
 
         ase_files = [f for f in head_config.train_file if check_path_ase_read(f)]
         non_ase_files = [f for f in head_config.train_file if not check_path_ase_read(f)]
@@ -886,7 +928,12 @@ def run(args) -> None:
             tools.count_parameters(model),
         )
 
-        model = inject_LoRAs(model, rank=lora_rank, alpha=lora_alpha)
+        if excited_specs is not None:
+            # LoRA adapters on the ground-state backbone; the excited-state heads,
+            # adapter layer and readouts are new and stay fully trainable
+            inject_LoRAs(model.backbone.model, rank=lora_rank, alpha=lora_alpha)
+        else:
+            model = inject_LoRAs(model, rank=lora_rank, alpha=lora_alpha)
 
         logging.info(
             "Model with LoRA has %s trainable parameters.",

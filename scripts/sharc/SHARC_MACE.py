@@ -56,6 +56,7 @@ TEMPLATE_DEFAULTS = {
     "energy_unit": "eV",
     "distance_unit": "Ang",
     "soc_unit": None,  # default: same unit as the energies
+    "head": None,  # head of a multi-head model (default: the first excited head)
 }
 TEMPLATE_TYPES = {
     "model_file": str,
@@ -64,6 +65,7 @@ TEMPLATE_TYPES = {
     "energy_unit": str,
     "distance_unit": str,
     "soc_unit": str,
+    "head": str,
 }
 
 
@@ -220,6 +222,7 @@ class SHARC_MACE(SHARC_FAST):
             states=list(self.QMin.molecule["states"]),
             properties=template["properties"],
             soc_to_au=soc_to_au,
+            head=template["head"],
         )
         self.log.info(
             f"MACE model {self._model_file()} ({self.calculator.mode}), SHARC states "
