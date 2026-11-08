@@ -15,6 +15,7 @@ import torch
 from e3nn import o3
 
 from mace import data
+from mace.calculators.excited import evaluate_excited_configs, is_excited_model
 from mace.calculators.mace import get_model_dtype
 from mace.cli.convert_e3nn_cueq import run as run_e3nn_to_cueq
 from mace.data import KeySpecification, update_keyspec_from_kwargs
@@ -205,6 +206,19 @@ def run(args: argparse.Namespace) -> None:
 
     # Load data and prepare input
     atoms_list = ase.io.read(args.configs, index=":")
+
+    if is_excited_model(model):
+        # several electronic states: energies [S], forces [n_atoms, S, 3] and the
+        # couplings go into atoms.info (extxyz cannot store 3D per-atom arrays)
+        evaluate_excited_configs(
+            model,
+            atoms_list,
+            batch_size=args.batch_size,
+            device=args.device,
+            info_prefix=args.info_prefix,
+        )
+        ase.io.write(args.output, images=atoms_list, format="extxyz")
+        return
     if args.head is not None:
         assert args.head in model.heads
         head_name = args.head

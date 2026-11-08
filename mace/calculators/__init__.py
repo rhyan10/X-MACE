@@ -1,3 +1,4 @@
+from .excited import ExcitedMACECalculator
 from .foundations_models import (
     mace_anicc,
     mace_mdp,
@@ -11,6 +12,7 @@ from .mace import MACECalculator, MagneticMACECalculator
 
 __all__ = [
     "MACECalculator",
+    "ExcitedMACECalculator",
     "MagneticMACECalculator",
     "LAMMPS_MACE",
     "mace_mp",

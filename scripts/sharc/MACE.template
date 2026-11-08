@@ -1,0 +1,7 @@
+# SHARC 4 template for SHARC_MACE.py (X-MACE models)
+model_file     /path/to/model.model        # several files (glob pattern) -> committee
+properties     energy forces nacs           # add socs / dipoles if the model predicts them;
+                                            # smooth_nacs passes NAC*dE instead of NACs
+device         cpu                          # or cuda
+energy_unit    eV                           # units the model was trained in
+distance_unit  Ang
