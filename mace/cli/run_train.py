@@ -108,14 +108,23 @@ def _warn_about_v1_removals(parser, args) -> None:
             deprecation.warn_choice("reg", getattr(args, dest, None))
 
 
-def _pad_preprocessed(dataset, excited_specs, head_name) -> None:
+def _head_weight(args, head_name) -> float:
+    """Loss weight of every configuration of a head ("weight" in --heads), e.g. to
+    balance data sets of different sizes; pt_head uses --weight_pt_head."""
+    if head_name == "pt_head" or not isinstance(args.heads, dict):
+        return 1.0
+    return float((args.heads.get(head_name) or {}).get("weight", 1.0))
+
+
+def _pad_preprocessed(dataset, excited_specs, head_name, weight: float = 1.0) -> None:
     """Preprocessed (HDF5) data of an excited-state head: pad its labels to the shared
     layout of all heads when they are read."""
     if excited_specs is None or head_name not in excited_specs:
         return
     padded = PaddedLayout.from_specs(excited_specs.values())
     spec = excited_specs[head_name]
-    if attach_excited_padding(dataset, spec, padded) == 0 and len(excited_specs) > 1:
+    attached = attach_excited_padding(dataset, spec, padded, weight)
+    if attached == 0 and (len(excited_specs) > 1 or weight != 1.0):
         logging.warning(
             f"Head {head_name}: preprocessed data of this type cannot be padded to the "
             "layout of the other heads; its labels must already have that layout"
@@ -291,7 +300,27 @@ def run(args) -> None:
             logging.info(
                 "Using multiheads finetuning mode, setting learning rate to 0.0001 and EMA to True"
             )
-        if hasattr(model_foundation, "heads"):
+        foundation_is_excited = hasattr(model_foundation, "head_layouts")
+        if foundation_is_excited:
+            # an excited-state model (X-MACE) as the starting point: its heads are
+            # matched to this run's heads when the model is built, and its node
+            # features use its own element table
+            logging.info(
+                f"Foundation model is an excited-state model "
+                f"({model_foundation.__class__.__name__}, heads {model_foundation.heads})"
+            )
+            if excited_spec is None:
+                raise ValueError(
+                    "An excited-state foundation model needs --model=ExcitedMACE or "
+                    "AutoencoderExcitedMACE"
+                )
+            if not args.foundation_model_elements:
+                logging.info(
+                    "Using the elements of the excited-state foundation model "
+                    "(--foundation_model_elements=True)"
+                )
+                args.foundation_model_elements = True
+        if hasattr(model_foundation, "heads") and not foundation_is_excited:
             if len(model_foundation.heads) > 1:
                 logging.info(
                     f"Selecting the head {args.foundation_head} as foundation head."
@@ -457,6 +486,15 @@ def run(args) -> None:
                         f"'{head_config.head_name}' ({len(subset)} configurations): "
                         + ", ".join(f"{key}={value}" for key, value in counts.items())
                     )
+            head_weight = _head_weight(args, head_config.head_name)
+            if head_weight != 1.0:
+                for subset in (collections.train, collections.valid):
+                    for config in subset:
+                        config.weight = config.weight * head_weight
+                logging.info(
+                    f"Head {head_config.head_name}: loss weight {head_weight} on every "
+                    "configuration"
+                )
             head_config.collections = SubsetCollection(
                 train=collections.train,
                 valid=collections.valid,
@@ -720,7 +758,13 @@ def run(args) -> None:
         if args.pseudolabel_replay and args.multiheads_finetuning and head_config.head_name == "pt_head":
             logging.info("=============    Pseudolabeling for pt_head    ===========")
             if apply_pseudolabels_to_pt_head_configs(
-                foundation_model=model_foundation,
+                # an excited-state foundation labels the ground-state replay data with
+                # its ground-state backbone
+                foundation_model=(
+                    model_foundation.backbone.model
+                    if hasattr(model_foundation, "head_layouts")
+                    else model_foundation
+                ),
                 pt_head_config=head_config,
                 r_max=args.r_max,
                 device=device,
@@ -767,7 +811,12 @@ def run(args) -> None:
             head_config=head_config,
             heads=heads,
             )
-            _pad_preprocessed(dataset, excited_specs, head_config.head_name)
+            _pad_preprocessed(
+                dataset,
+                excited_specs,
+                head_config.head_name,
+                _head_weight(args, head_config.head_name),
+            )
             train_datasets.append(dataset)
             logging.debug(f"Successfully loaded dataset from non-ASE file: {file}")
 
@@ -801,7 +850,12 @@ def run(args) -> None:
                 head_config=head_config,
                 heads=heads,
             )
-                _pad_preprocessed(valid_dataset, excited_specs, head_config.head_name)
+                _pad_preprocessed(
+                    valid_dataset,
+                    excited_specs,
+                    head_config.head_name,
+                    _head_weight(args, head_config.head_name),
+                )
                 valid_datasets.append(valid_dataset)
                 logging.debug(f"Successfully loaded validation dataset from {valid_file}")
 
@@ -1006,6 +1060,9 @@ def run(args) -> None:
     ):
         model.onebody_magmombasis_coeffs.requires_grad_(False)
     param_options = get_params_options(args, model)
+    n_total = sum(p.numel() for p in model.parameters())
+    n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logging.info(f"Parameters: {n_total} in total, {n_trainable} trainable")
 
     optimizer: torch.optim.Optimizer
     optimizer = get_optimizer(args, param_options)

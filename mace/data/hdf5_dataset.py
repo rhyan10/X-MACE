@@ -69,7 +69,13 @@ class HDF5Dataset(Dataset):
             pbc=unpack_value(subgrp["pbc"][()]),
             cell=unpack_value(subgrp["cell"][()]),
         )
-        if config.head is None:
+        heads = self.kwargs.get("heads", ["Default"])
+        if config.head is None or (
+            config.head not in heads and self.kwargs.get("head") is not None
+        ):
+            # the head this data set was loaded for (mace_prepare_data stores
+            # "Default" for data prepared without heads; that name is not one of the
+            # training heads and would map the frames onto the last head)
             config.head = self.kwargs.get("head")
         padding = getattr(self, "excited_padding", None)
         if padding is not None:
@@ -80,6 +86,9 @@ class HDF5Dataset(Dataset):
             )
 
             pad_excited_configs([config], *padding)
+        scale = getattr(self, "config_weight_scale", 1.0)
+        if scale != 1.0:
+            config.weight = config.weight * scale
         atomic_data = self.atomic_dataclass.from_config(
             config,
             z_table=self.z_table,

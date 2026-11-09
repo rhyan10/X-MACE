@@ -429,6 +429,15 @@ def remove_pt_head(
     """
     if not hasattr(model, "heads") or len(model.heads) <= 1:
         raise ValueError("Model must be a multihead model with more than one head")
+    if hasattr(model, "select_heads") and hasattr(model, "head_layouts"):
+        # excited-state models (X-MACE) keep their shared readouts
+        if head_to_keep is None:
+            head_to_keep = next((h for h in model.heads if h != "pt_head"), None)
+            if head_to_keep is None:
+                raise ValueError("No non-PT head found in model")
+        if head_to_keep not in model.heads:
+            raise ValueError(f"Head {head_to_keep} not found in model")
+        return model.select_heads([head_to_keep])
 
     # Get index of head to keep
     if head_to_keep is None:

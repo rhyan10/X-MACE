@@ -571,29 +571,30 @@ class PaddedLayout:
 
 
 def attach_excited_padding(
-    dataset, spec: ExcitedStateSpec, padded: PaddedLayout
+    dataset, spec: ExcitedStateSpec, padded: PaddedLayout, weight: float = 1.0
 ) -> int:
     """Make preprocessed (HDF5) datasets pad their frames' labels to the shared layout
-    of all heads as they are read. Returns the number of datasets that will pad; other
-    dataset types are left unchanged (their labels must already have the layout)."""
-    from torch.utils.data import (
-        ConcatDataset,
-    )  # pylint: disable=import-outside-toplevel
+    of all heads as they are read (and scale their configuration weights by weight).
+    Returns the number of datasets that will do so; other dataset types are left
+    unchanged (their labels must already have the layout)."""
+    # pylint: disable=import-outside-toplevel
+    from torch.utils.data import ConcatDataset
 
-    from mace.data.hdf5_dataset import (  # pylint: disable=import-outside-toplevel
-        HDF5Dataset,
-    )
+    from mace.data.hdf5_dataset import HDF5Dataset
 
     if isinstance(dataset, ConcatDataset):
-        return sum(attach_excited_padding(d, spec, padded) for d in dataset.datasets)
+        return sum(
+            attach_excited_padding(d, spec, padded, weight) for d in dataset.datasets
+        )
     if (
         isinstance(dataset, (list, tuple))
         and dataset
         and not hasattr(dataset[0], "positions")
     ):
-        return sum(attach_excited_padding(d, spec, padded) for d in dataset)
+        return sum(attach_excited_padding(d, spec, padded, weight) for d in dataset)
     if isinstance(dataset, HDF5Dataset):
         dataset.excited_padding = (spec, padded)
+        dataset.config_weight_scale = float(weight)
         return 1
     return 0
 
