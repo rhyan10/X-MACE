@@ -75,9 +75,21 @@ class ChebychevBasis(torch.nn.Module):
         self.r_max = r_max
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:  # [..., 1]
-        x = x.repeat(1, self.num_basis)
-        n = self.n.repeat(len(x), 1)
-        return torch.special.chebyshev_polynomial_t(x, n)
+        # Chebyshev polynomials are bounded on [-1, 1]: map r in [0, r_max] onto it.
+        # Evaluated at r itself (in Angstrom), T_n(r) grows like (2r)^n and the
+        # features of an untrained model reached ~1e18.
+        # The recurrence T_{n+1} = 2x T_n - T_{n-1} is differentiable;
+        # torch.special.chebyshev_polynomial_t has no gradient, so forces (and
+        # anything else differentiated with respect to the positions) missed the
+        # radial part.
+        x = torch.clamp(2.0 * x / self.r_max - 1.0, min=-1.0, max=1.0)
+        previous = torch.ones_like(x)
+        current = x
+        values = [current]
+        for _ in range(self.num_basis - 1):
+            previous, current = current, 2.0 * x * current - previous
+            values.append(current)
+        return torch.cat(values, dim=-1)  # T_1 ... T_num_basis
 
     def __repr__(self):
         return (

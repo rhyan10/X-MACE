@@ -1,7 +1,8 @@
 # X-MACE tutorials
 
-Six Jupyter notebooks that take you from the physics of excited states to
-surface-hopping dynamics with SHARC driven by an X-MACE model. They are written for
+Seven Jupyter notebooks that take you from the physics of excited states to
+surface-hopping dynamics with SHARC driven by an X-MACE model, and to fine-tuning
+foundation models. They are written for
 new users who know some Python and quantum chemistry but have not used MACE or SHARC
 before. Every notebook was run end to end; the outputs you see are real.
 
@@ -18,10 +19,11 @@ SHARC: energies, gradients, NACs, spin–orbit couplings and dipoles.
 | [04 Using a trained model](04_using_a_trained_model.ipynb) | the ASE calculator; potential-energy and coupling scans against the reference; symmetry checks; `SharcCalculator`; ASE dynamics; `mace_eval_configs` | 03, SHARC | 3 min |
 | [05 Surface hopping with SHARC](05_surface_hopping_with_sharc.ipynb) | how SHARC calls X-MACE; `MACE.template`; single points; pysharc and `sharc.x` trajectories; energy conservation; populations compared with the reference | 03, SHARC | 15 min |
 | [06 More models and data](06_more_models_and_data.ipynb) | committees and uncertainty; the autoencoder model; missing labels and weights; HDF5 for large data; free SOCs and X-MACE data; doublets and quartets; backbones, foundation models (MP, OFF, OMOL, MH-1, POLAR-1), multi-head fine-tuning and LoRA; the Python API | 03 | 15 min |
+| [07 Foundation models and fine-tuning](07_foundation_models_and_finetuning.ipynb) | how a model is built on a foundation (and starts on its surface); MACE-OFF, MACE-MP, MACE-POLAR-1 and MACE-MH-1 compared with training from scratch; strategies: full fine-tuning, frozen layers, backbone learning rates, LoRA, multi-head replay with pseudolabels, extra ground-state heads, autoencoder, state-specific electrostatics; fine-tuning a trained model further on additional data, and transferring it to new states | 02, internet | 60 min |
 
 ## Setup
 
-1. Install this MACE branch (from the repository root):
+1. Install X-MACE (from the repository root):
 
    ```bash
    pip install -e .

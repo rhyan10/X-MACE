@@ -810,6 +810,14 @@ class ExcitedMACE(torch.nn.Module):
             num_elements=num_elements,
             use_sc=True,
         )
+        # to rebuild the same adapter when the model is a foundation for another one
+        self.adapter_config: Dict[str, Any] = {
+            "adapter_irreps": str(adapter_irreps),
+            "adapter_max_ell": int(adapter_max_ell),
+            "adapter_correlation": int(adapter_correlation),
+            "adapter_num_bessel": int(adapter_num_bessel),
+            "adapter_num_polynomial_cutoff": int(adapter_num_polynomial_cutoff),
+        }
         feature_irreps = backbone_irreps + [adapter_irreps]
 
         # readouts (outputs of all heads concatenated)
@@ -860,6 +868,22 @@ class ExcitedMACE(torch.nn.Module):
         if self._zero_init_energy_readouts():
             # every state starts from the backbone's energy (plus its shift)
             self._zero_last_layers(self.readouts)
+
+    # the ground-state model's parts that MACE's fine-tuning and E0 code look up on a
+    # foundation model; properties, so that they are not registered twice
+    __jit_unused_properties__ = ["atomic_energies_fn", "interactions", "products"]
+
+    @property
+    def atomic_energies_fn(self) -> torch.nn.Module:
+        return self.backbone.model.atomic_energies_fn
+
+    @property
+    def interactions(self) -> torch.nn.ModuleList:
+        return self.backbone.model.interactions
+
+    @property
+    def products(self) -> torch.nn.ModuleList:
+        return self.backbone.model.products
 
     def _zero_init_energy_readouts(self) -> bool:
         return True
@@ -1002,6 +1026,78 @@ class ExcitedMACE(torch.nn.Module):
         return readouts
 
     # ----------------------------------------------------------------------------------
+    @torch.jit.unused
+    def select_heads(self, names: Sequence[str]) -> "ExcitedMACE":
+        """A copy of the model with only the given heads (e.g. without pt_head after
+        multi-head fine-tuning, or one head for deployment).
+
+        The readouts are shared by all heads (each head reads its own output columns),
+        so the copy keeps them and only narrows the index tables, shifts and scales
+        to the selected heads: its predictions are exactly those of the original
+        model for those heads."""
+        import copy  # pylint: disable=import-outside-toplevel
+
+        names = list(names)
+        missing = [name for name in names if name not in self.heads]
+        if missing or not names:
+            raise ValueError(
+                f"Heads {missing or names} not in the model's heads {self.heads}"
+            )
+        keep = [self.heads.index(name) for name in names]
+        model = copy.deepcopy(self)
+        layouts = [dict(self.head_layouts[h]) for h in keep]
+        n_states = [layout["n_states"] for layout in layouts]
+
+        def rows(table: torch.Tensor, sizes: List[int]) -> torch.Tensor:
+            width = max(max(sizes), 1)
+            return table[keep][:, :width].clone()
+
+        model.heads = names
+        model.head_layouts = layouts
+        model.head_n_states = n_states
+        model.head_states = [list(layout["states"]) for layout in layouts]
+        model.n_energies = max(n_states)
+        model.nac_num = max(layout["nac_num"] for layout in layouts)
+        model.soc_num = max(layout["soc_num"] for layout in layouts)
+        model.soc_vector_num = max(layout["soc_vector_num"] for layout in layouts)
+        model.dipole_num = max(layout["dipole_num"] for layout in layouts)
+        model.compute_nacs = model.nac_num > 0
+        model.compute_socs = model.soc_num > 0
+        model.compute_soc_vectors = model.soc_vector_num > 0
+        model.compute_dipoles = model.dipole_num > 0
+        model.energy_index = rows(self.energy_index, n_states)
+        model.nac_index = rows(self.nac_index, [l["nac_num"] for l in layouts])
+        model.soc_index = rows(self.soc_index, [l["soc_num"] for l in layouts])
+        model.soc_vector_index = rows(
+            self.soc_vector_index, [l["soc_vector_num"] for l in layouts]
+        )
+        model.dipole_index = rows(self.dipole_index, [l["dipole_num"] for l in layouts])
+        model.transition_index = rows(
+            self.transition_index, [l["dipole_num"] for l in layouts]
+        )
+        model.delta_scale = self.delta_scale[keep].clone()
+        model.delta_shift = self.delta_shift[keep][:, : model.n_energies].clone()
+        backbone_heads = self.backbone.head_map[keep].tolist()
+        model.backbone.head_map = torch.tensor(
+            backbone_heads, dtype=torch.long, device=self.backbone.head_map.device
+        )
+        model.backbone.identity_heads = backbone_heads == list(
+            range(len(getattr(self.backbone.model, "heads", ["Default"])))
+        )
+        default = next((i for i, name in enumerate(names) if name != "pt_head"), 0)
+        model.default_head = default
+        model.multiplicity_states = list(layouts[default]["states"])
+        model.soc_mode = (
+            "spin_orbit" if layouts[default]["soc_vector_num"] > 0 else "free"
+        )
+        model.n_permanent_dipoles = layouts[default]["n_permanent_dipoles"]
+        model._select_extra_heads(self, keep)  # pylint: disable=protected-access
+        return model
+
+    @torch.jit.unused
+    def _select_extra_heads(self, source: "ExcitedMACE", keep: List[int]) -> None:
+        """Hook for subclasses with more per-head state."""
+
     def mask_tables(self) -> Dict[str, torch.Tensor]:
         """Which padded entries are real for every head ([H, X] masks)."""
         return mask_tables_from_layouts(self.head_layouts)
@@ -1062,7 +1158,7 @@ class ExcitedMACE(torch.nn.Module):
         socs: Optional[torch.Tensor] = None
         dipoles: Optional[torch.Tensor] = None
         soc_vectors: Optional[torch.Tensor] = None
-        if len(self.soc_vectors_readouts) > 0:
+        if len(self.soc_vectors_readouts) > 0 and self.soc_vector_num > 0:
             node_soc = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
             for i, soc_readout in enumerate(self.soc_vectors_readouts):
                 value = soc_readout(features[i])
@@ -1071,7 +1167,7 @@ class ExcitedMACE(torch.nn.Module):
             soc_vectors = gather_heads(
                 graph_soc.view(num_graphs, -1, 3), self.soc_vector_index, graph_heads
             )
-        if len(self.nacs_readouts) > 0:
+        if len(self.nacs_readouts) > 0 and self.nac_num > 0:
             node_nacs = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
             for i, nac_readout in enumerate(self.nacs_readouts):
                 value = nac_readout(features[i])
@@ -1081,7 +1177,7 @@ class ExcitedMACE(torch.nn.Module):
             nacs = gather_heads(
                 node_nacs.view(num_nodes, -1, 3), self.nac_index, node_heads
             )
-        if len(self.socs_readouts) > 0:
+        if len(self.socs_readouts) > 0 and self.soc_num > 0:
             node_socs = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
             for i, free_soc_readout in enumerate(self.socs_readouts):
                 value = free_soc_readout(features[i])
@@ -1090,7 +1186,7 @@ class ExcitedMACE(torch.nn.Module):
                 node_socs, data["batch"], dim=0, dim_size=num_graphs
             )
             socs = gather_heads(graph_socs, self.soc_index, graph_heads)
-        if len(self.dipoles_readouts) > 0:
+        if len(self.dipoles_readouts) > 0 and self.dipole_num > 0:
             node_dip = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
             for i, dipole_readout in enumerate(self.dipoles_readouts):
                 value = dipole_readout(features[i])
@@ -1297,6 +1393,15 @@ class AutoencoderExcitedMACE(ExcitedMACE):
 
     def _energy_readout_total(self) -> int:
         return self.num_permutational_invariant * len(self.head_n_states)
+
+    @torch.jit.unused
+    def _select_extra_heads(self, source: "ExcitedMACE", keep: List[int]) -> None:
+        self.latent_index = source.latent_index[keep].clone()
+        self.perm_encoders = torch.nn.ModuleList([self.perm_encoders[h] for h in keep])
+        self.perm_decoders = torch.nn.ModuleList([self.perm_decoders[h] for h in keep])
+        self.shift_average = source.shift_average[keep][
+            :, : self.n_energies, : self.n_energies
+        ].clone()
 
     def _zero_init_energy_readouts(self) -> bool:
         return False

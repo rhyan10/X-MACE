@@ -208,6 +208,24 @@ def run(args: argparse.Namespace) -> None:
     atoms_list = ase.io.read(args.configs, index=":")
 
     if is_excited_model(model):
+        unsupported = [
+            flag
+            for flag, value in (
+                ("--compute_stress", args.compute_stress),
+                ("--compute_bec", getattr(args, "compute_bec", False)),
+                ("--return_contributions", args.return_contributions),
+                ("--return_descriptors", args.return_descriptors),
+                ("--return_node_energies", args.return_node_energies),
+                ("--return_magforces", args.return_magforces),
+            )
+            if value
+        ]
+        if unsupported:
+            raise ValueError(
+                f"{', '.join(unsupported)} not supported for excited-state models "
+                f"({model.__class__.__name__}); they write energies, forces and "
+                "couplings of all states"
+            )
         # several electronic states: energies [S], forces [n_atoms, S, 3] and the
         # couplings go into atoms.info (extxyz cannot store 3D per-atom arrays)
         evaluate_excited_configs(

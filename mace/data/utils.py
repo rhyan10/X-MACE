@@ -443,7 +443,11 @@ def estimate_e0s_from_foundation(
     # Filter configs with valid energy
     valid_configs = []
     for config in collections_train:
-        if "energy" in config.properties and config.properties["energy"] is not None:
+        if (
+            "energy" in config.properties
+            and config.properties["energy"] is not None
+            and config.property_weights.get("energy", 1.0) != 0.0
+        ):
             valid_configs.append(config)
 
     if not valid_configs:
@@ -508,20 +512,18 @@ def estimate_e0s_from_foundation(
                 compute_virials=False,
                 compute_stress=False,
             )
-            predicted_energy = output["energy"]
-
-            # Handle different tensor shapes (batched or unbatched)
-            if predicted_energy.dim() == 0:
-                predicted_energy = predicted_energy.item()
+            # Reference and prediction of every electronic state (one value for a
+            # ground-state model): the E0 correction is state independent, so it is
+            # fitted to the mean over the states
+            ref_states = np.atleast_1d(
+                np.asarray(config.properties["energy"], dtype=float)
+            ).reshape(-1)
+            predicted = output["energy"].detach().cpu().numpy().reshape(-1)
+            if predicted.size > 1:
+                predicted_energy = float(np.mean(predicted[: ref_states.size]))
             else:
-                predicted_energy = (
-                    predicted_energy.item()
-                    if predicted_energy.numel() == 1
-                    else predicted_energy[0].item()
-                )
-
-            # Get reference energy
-            ref_energy = config.properties["energy"]
+                predicted_energy = float(predicted[0])
+            ref_energy = float(np.mean(ref_states))
 
             # Compute error
             error = ref_energy - predicted_energy

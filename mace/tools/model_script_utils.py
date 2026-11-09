@@ -32,6 +32,13 @@ def configure_excited_state_args(args, excited_spec) -> None:
         args.loss = "excited"
     if args.error_table not in EXCITED_ERROR_TABLES:
         args.error_table = "EnergyNacsDipoleMAE"
+    if getattr(args, "compute_stress", False) or getattr(
+        args, "compute_virials", False
+    ):
+        logging.warning(
+            f"{args.model} does not predict stress or virials (molecules in several "
+            "electronic states); --compute_stress/--compute_virials are ignored"
+        )
     args.compute_stress = False
     args.compute_virials = False
     args.compute_forces = True
@@ -416,20 +423,182 @@ def excited_head_statistics(train_loader, atomic_energies, heads, specs, scaling
             e_sum[h, :n_states] / count.clamp(min=1.0),
             torch.zeros_like(count),
         )
-        if scaling == "std_scaling":
-            n = float(count.sum())
-            if n > 1:
-                mean = float(e_sum[h, :n_states].sum()) / n
-                variance = (float(e_sq[h, :n_states].sum()) - n * mean**2) / (n - 1)
-                scale = float(np.sqrt(max(variance, 0.0)))
-            else:
-                scale = 1.0
+        n = float(count.sum())
+        if n > 1:
+            mean = float(e_sum[h, :n_states].sum()) / n
+            variance = (float(e_sq[h, :n_states].sum()) - n * mean**2) / (n - 1)
+            energy_std = float(np.sqrt(max(variance, 0.0)))
         else:
-            scale = float(torch.sqrt(f_sq[h] / f_count[h])) if f_count[h] > 0 else 1.0
+            energy_std = 1.0
+        if scaling == "std_scaling":
+            scale = energy_std
+        elif f_count[h] > 0:
+            scale = float(torch.sqrt(f_sq[h] / f_count[h]))
+        else:
+            # no forces in this head's data (e.g. energies only): the spread of the
+            # interaction energies per atom instead
+            scale = energy_std
+            logging.info(f"Head {name}: no forces in the data, scale from the energies")
         if not np.isfinite(scale) or scale < 1e-8:
             scale = 1.0
         stats.append((scale, shift.tolist()))
     return stats
+
+
+EXCITED_OUTPUT_ARGS = {
+    "energy": True,
+    "forces": True,
+    "virials": False,
+    "stress": False,
+    "dipoles": False,
+    "polarizabilities": False,
+    "magforces": False,
+}
+
+
+def _layout_key(layout) -> tuple:
+    return tuple(
+        (key, tuple(value) if isinstance(value, (list, tuple)) else value)
+        for key, value in sorted(dict(layout).items())
+    )
+
+
+def _foundation_source_heads(args, model_foundation, heads):
+    """The head of the excited-state foundation model each head of this run starts
+    from: the head of the same name, else --foundation_head, else the foundation's
+    default head (pt_head only from a pt_head)."""
+    names = list(model_foundation.heads)
+    chosen = getattr(args, "foundation_head", None)
+    if chosen is not None and chosen not in names:
+        raise ValueError(
+            f"--foundation_head {chosen} not in the foundation's heads {names}"
+        )
+    default = chosen or names[int(getattr(model_foundation, "default_head", 0))]
+    sources = []
+    for name in heads:
+        if name in names:
+            sources.append(name)
+        elif name == "pt_head":
+            sources.append(None)
+        else:
+            sources.append(default)
+    return sources
+
+
+def _from_excited_foundation(
+    args, train_loader, model_foundation, heads, layouts, stats, z_table
+):
+    """A model starting from a trained excited-state model.
+
+    continue  every head of this run has the layout (states and couplings) of its
+              source head in the foundation, and the classes agree: the model is the
+              foundation with those heads, all weights kept (e.g. more training on
+              additional data);
+    transfer  otherwise: a new model on the foundation's backbone and adapter layer
+              (all weights kept) with new readouts for this run's heads, whose
+              per-state shifts are fitted to the data."""
+    import copy  # pylint: disable=import-outside-toplevel
+
+    foundation_zs = [int(z) for z in model_foundation.atomic_numbers]
+    if list(z_table.zs) != foundation_zs:
+        raise ValueError(
+            f"The excited-state foundation model uses the elements {foundation_zs}, the "
+            f"run {list(z_table.zs)}; use --foundation_model_elements=True"
+        )
+    sources = _foundation_source_heads(args, model_foundation, heads)
+    source_layouts = {
+        name: model_foundation.head_layouts[i]
+        for i, name in enumerate(model_foundation.heads)
+    }
+    same_class = model_foundation.__class__.__name__ == args.model
+    can_continue = (
+        same_class
+        and all(source is not None for source in sources)
+        and len(set(sources)) == len(sources)
+        and all(
+            _layout_key(layout) == _layout_key(source_layouts[source])
+            for layout, source in zip(layouts, sources)
+        )
+    )
+    args.r_max = float(model_foundation.r_max)
+    args.avg_num_neighbors = float(model_foundation.interactions[0].avg_num_neighbors)
+    if can_continue:
+        model = model_foundation.select_heads(sources)
+        model.heads = list(heads)
+        logging.info(
+            "Continuing from the excited-state foundation model: every head keeps all "
+            "weights of its source head ("
+            + ", ".join(f"{h} <- {s}" for h, s in zip(heads, sources))
+            + "), shifts and scales included"
+        )
+        return model, dict(EXCITED_OUTPUT_ARGS)
+
+    reason = (
+        f"the model class changes ({model_foundation.__class__.__name__} -> {args.model})"
+        if not same_class
+        else "the heads differ from the foundation's (states, couplings or names)"
+    )
+    backbone = copy.deepcopy(model_foundation.backbone.model)
+    head_map = model_foundation.backbone.head_map.tolist()
+    default_index = model_foundation.heads.index(
+        _foundation_source_heads(args, model_foundation, ["__default__"])[0]
+    )
+    backbone_heads = [
+        (
+            head_map[model_foundation.heads.index(source)]
+            if source is not None
+            else head_map[default_index]
+        )
+        for source in sources
+    ]
+    adapter = dict(
+        getattr(model_foundation, "adapter_config", None)
+        or {
+            "adapter_irreps": str(model_foundation.adapter_product.linear.irreps_out),
+        }
+    )
+    kwargs = dict(
+        backbone=backbone,
+        heads=list(heads),
+        backbone_heads=backbone_heads,
+        head_layouts=layouts,
+        MLP_irreps=o3.Irreps(
+            getattr(args, "excited_MLP_irreps", None) or args.MLP_irreps
+        ),
+        gate=modules.gate_dict[args.gate],
+        long_range_mode=getattr(args, "excited_long_range", "shared"),
+        charge_smearing=getattr(args, "excited_charge_smearing", 1.0),
+        coupling_parity=getattr(args, "coupling_parity", "both"),
+        delta_scale=[float(scale) for scale, _ in stats],
+        adapter_irreps=o3.Irreps(adapter.pop("adapter_irreps")),
+        **adapter,
+    )
+    if args.model == "AutoencoderExcitedMACE":
+        model = modules.AutoencoderExcitedMACE(
+            **kwargs, num_permutational_invariant=args.num_permutational_invariant
+        )
+    else:
+        model = modules.ExcitedMACE(**kwargs)
+    for name in (
+        "adapter_in",
+        "adapter_radial",
+        "adapter_sh",
+        "adapter_interaction",
+        "adapter_product",
+    ):
+        getattr(model, name).load_state_dict(
+            getattr(model_foundation, name).state_dict()
+        )
+    device = torch.device(args.device)
+    model.to(device)
+    modules.fit_excited_shifts(model, train_loader, device=device)
+    logging.info(
+        f"Transfer from the excited-state foundation model ({reason}): backbone and "
+        "adapter layer keep their weights, the readouts of the heads "
+        + ", ".join(heads)
+        + " are new, every state starts from the backbone energy"
+    )
+    return model, dict(EXCITED_OUTPUT_ARGS)
 
 
 def configure_excited_model(
@@ -450,6 +619,11 @@ def configure_excited_model(
             f"Head {name}: {specs[name].describe()}; interaction energy scale "
             f"{scale:.4f}, shift per state "
             + ", ".join(f"{x:.4f}" for x in np.atleast_1d(shift))
+        )
+
+    if model_foundation is not None and hasattr(model_foundation, "head_layouts"):
+        return _from_excited_foundation(
+            args, train_loader, model_foundation, heads, layouts, stats, z_table
         )
 
     backbone_args = copy.copy(args)

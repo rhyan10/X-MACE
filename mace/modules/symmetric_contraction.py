@@ -267,7 +267,10 @@ class Contraction(torch.nn.Module):
 
 
 class EmptyParam(torch.nn.Parameter):
-    def __new__(cls, data):  # pylint: disable=signature-differs
+    def __new__(cls, data, requires_grad=False):  # pylint: disable=signature-differs
+        # torch.nn.Parameter.__deepcopy__ (copy.deepcopy, used e.g. when a model is
+        # copied for fine-tuning, EMA or SWA) calls type(self)(data, requires_grad)
+        del requires_grad
         zero = torch.zeros_like(data)
         return super().__new__(cls, zero, requires_grad=False)
 

@@ -1,0 +1,75 @@
+# Training settings of an excited-state foundation model (X-MACE).
+# prepare_datasets.py adds `heads`, `atomic_numbers` and `r_max` and writes
+# <work_dir>/train_config.yaml. Every option is a mace_run_train flag; see XMACE.md.
+
+name: xmace_foundation
+model: ExcitedMACE                 # or AutoencoderExcitedMACE
+seed: 1
+default_dtype: float32             # float64 for the final Stage Two, if wanted
+device: cuda
+
+# ---- architecture --------------------------------------------------------------
+excited_backbone: ScaleShiftMACE   # MACELES / PolarMACE for long-range electrostatics
+hidden_irreps: 128x0e + 128x1o
+MLP_irreps: 64x0e
+num_interactions: 2
+correlation: 3
+max_ell: 3
+num_radial_basis: 10
+pair_repulsion: true               # ZBL core repulsion, the same for every state
+distance_transform: Agnesi
+excited_adapter_irreps: 64x0e + 64x1o
+coupling_parity: both
+excited_long_range: shared         # `state` with MACELES/PolarMACE: per-state charges
+# charge and spin multiplicity of the molecule (atoms.info total_charge, total_spin):
+embedding_specs:
+  total_charge:
+    type: categorical
+    per: graph
+    in_dim: 1
+    emb_dim: 32
+    num_classes: 11
+    offset: 5                      # charges -5 ... +5
+  total_spin:
+    type: categorical
+    per: graph
+    in_dim: 1
+    emb_dim: 32
+    num_classes: 11
+
+# ---- loss ---------------------------------------------------------------------
+energy_weight: 1.0
+forces_weight: 10.0
+nacs_weight: 10.0
+socs_weight: 1.0
+dipoles_weight: 1.0
+scaling: rms_forces_scaling
+error_table: EnergyNacsDipoleRMSE
+
+# ---- optimisation -------------------------------------------------------------
+batch_size: 32                     # per GPU
+valid_batch_size: 64
+lr: 0.005
+optimizer: adam
+amsgrad: true
+scheduler: ReduceLROnPlateau
+scheduler_patience: 5
+lr_factor: 0.8
+clip_grad: 100.0
+ema: true
+ema_decay: 0.995
+max_num_epochs: 200
+patience: 30
+eval_interval: 1
+swa: true                          # Stage Two: higher energy weight, lower lr
+start_swa: 150
+swa_lr: 0.001
+swa_energy_weight: 100.0
+swa_forces_weight: 10.0
+
+# ---- data loading and checkpoints ------------------------------------------------
+num_workers: 4
+pin_memory: true
+keep_checkpoints: false
+restart_latest: true               # a resubmitted job continues from its checkpoint
+save_cpu: true
