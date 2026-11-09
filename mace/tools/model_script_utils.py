@@ -130,6 +130,10 @@ def configure_model(
         logging.info("Loading FOUNDATION model")
         model_config_foundation = extract_config_mace_model(model_foundation)
         model_config_foundation["atomic_energies"] = atomic_energies
+        if args.pair_repulsion and not model_config_foundation["pair_repulsion"]:
+            # the foundation was trained without ZBL: add it on request
+            logging.info("Adding ZBL pair repulsion to the foundation backbone")
+            model_config_foundation["pair_repulsion"] = True
 
         if args.embedding_specs:
             model_config_foundation["embedding_specs"] = args.embedding_specs
