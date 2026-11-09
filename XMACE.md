@@ -26,7 +26,7 @@ Both live in `mace/modules/excited.py` and work with the rest of MACE: the CLI, 
 
 The energy readouts start at zero, so before training every state lies on the backbone's surface (a foundation model's ground state, exactly). An *adapter* layer (one MACE interaction and product block with l = 1 features) on top of the backbone's last features feeds the coupling readouts, so NACs, dipoles and SOC vectors also work with scalar-only foundation models (MACE-MP small, MACE-OFF, MACE-POLAR-1, ...). The readouts read the features of every backbone layer and of the adapter. See [Backbones, heads, foundation models and LoRA](#backbones-heads-foundation-models-and-lora).
 
-**Tutorials.** `tutorials/xmace/` has six Jupyter notebooks for new users, from the physics (smooth NACs, phases, multiplicities, Wigner–Eckart SOCs, equivariance) through building a data set with SHARC, training and validation, to surface-hopping dynamics with SHARC. They use SO2 with SHARC's LVC model as the reference.
+**Tutorials.** `tutorials/xmace/` has seven Jupyter notebooks for new users, from the physics (smooth NACs, phases, multiplicities, Wigner–Eckart SOCs, equivariance) through building a data set with SHARC, training and validation, to surface-hopping dynamics with SHARC, and to foundation models and fine-tuning strategies (tutorial 7). They use SO2 with SHARC's LVC model as the reference.
 
 ## Data
 
@@ -180,6 +180,15 @@ mace_run_train --model=ExcitedMACE --foundation_model=small_off --multiheads_fin
 
 **LoRA.** `--lora=True --lora_rank=4 --lora_alpha=1` freezes the backbone and trains low-rank adapters in it; the excited-state readouts and the adapter layer stay fully trainable. It works with single-head and multi-head fine-tuning, and the LoRA weights are merged into the backbone at the end.
 
+**Head weights.** `weight` in a head's dictionary multiplies the loss weight of every configuration of that head (also for HDF5 data), e.g. to balance data sets of different sizes.
+
+**A trained X-MACE model as the foundation.** `--foundation_model` also accepts an excited-state model (its element table is used, `--foundation_model_elements=True`):
+
+* *continue* — every head of the run has the layout of a foundation head (same name, or `--foundation_head`) and the model class is the same: all weights, shifts and scales are kept and training continues on the new data (e.g. more data of the same kind, with a smaller `--lr`);
+* *transfer* — otherwise: the backbone and the adapter layer keep their weights, the readouts of the run's heads are new and their shifts are fitted to the data. Combine with `--lora`, `--freeze` or `--lr_params_factors`.
+
+The log says which of the two was done. With `--pseudolabel_replay`, the replay data are labelled by the foundation's ground-state backbone. Tutorial 7 shows both cases; [`foundation/README.md`](foundation/README.md) is the recipe for training an excited-state foundation model on many data sets.
+
 **Using a head.** `ExcitedMACECalculator(model, head="ground")`, `SharcCalculator(..., head=...)`, `head <name>` in `MACE.template` and `mace_eval_configs --head=...` select a head; the default is the first head that is not `pt_head`. The calculator returns only that head's states and couplings. `model.heads`, `model.head_layouts` and `model.mask_tables()` describe what each head predicts.
 
 **Large data sets.** `mace_prepare_data` stores the excited-state labels in HDF5 when given `--n_energies` (or `--states`) and the property options. With `--compute_statistics` it writes one shift per state:
@@ -249,7 +258,7 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 
 **Tested with SHARC 4.1** (sharc-md/sharc4, main): single points, and `sharc.x` and pysharc trajectories with 2 singlets, 2 triplets and 1 quintet (13 M_S states), NACs, SOCs, dipoles and gradient correction. The total energy is conserved to < 0.3 meV over 10 fs, and the pysharc and `sharc.x` trajectories are identical. Doublets and quartets were checked in single points.
 
-**pysharc input bug in SHARC 4.1.** In `source/input_list.f90`, `next_keyword` never sets its `stat` argument when it reads a line (`! stat = 0` is commented out). With optimisation, whether SHARC reads its `input` file then depends on leftover stack contents. When it fails, pysharc stops with `Keyword CHARGE not found.` and an empty input echo in `output.log`. Importing packages such as numpy's linear algebra or scipy (and so PyTorch models) is enough to trigger it, even with the LVC interface. The fix is to uncomment that line (`stat = 0`) and rebuild SHARC; `tests/excited/test_sharc_real.py` detects the problem and says so.
+**pysharc input bug in SHARC 4.1.** In `source/input_list.f90`, `next_keyword` never sets its `stat` argument when it reads a line (`! stat = 0` is commented out). With optimisation, whether SHARC reads its `input` file then depends on leftover stack contents. When it fails, pysharc stops with `Keyword CHARGE not found.` and an empty input echo in `output.log`. Importing packages such as numpy's linear algebra or scipy (and so PyTorch models) is enough to trigger it, even with the LVC interface. The fix is to uncomment that line (`stat = 0`) and rebuild SHARC; `tests/test_sharc_real.py` detects the problem and says so.
 
 ## What changed compared with X-MACE
 
@@ -281,6 +290,8 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 **Known limitations**
 
 * **Multi-head LMDB data.** Labels of heads with different layouts are padded for extended XYZ and HDF5 data, not for LMDB (`.aselmdb`) data.
+* **Mixed continue/transfer.** Fine-tuning from an X-MACE model keeps all readouts only if every head of the run matches a foundation head; with one new head, all readouts are new (backbone and adapter are kept).
+* **Evaluation options.** `mace_eval_configs` writes energies, forces and couplings of all states for excited-state models; `--compute_stress`, `--return_descriptors`, `--return_contributions` and `--return_node_energies` are refused for them.
 * **TorchScript with PolarMACE.** PolarMACE models cannot be compiled to TorchScript (an upstream limitation); the `.model` file works in Python, the ASE calculator and SHARC.
 
 * **Couplings at symmetric geometries.** At a geometry with a rotation axis (e.g. a C2v molecule), an exactly equivariant model can only produce coupling vectors that are unchanged by that rotation. Couplings between states of different symmetry species change sign under it, because the phase of the states absorbs the sign. So the model gives zero for them exactly at the symmetric geometry and is accurate again a little way off it. For SO2 the dip is about 0.01 Å wide along the antisymmetric stretch (tutorial 4). Mirror planes are handled by `--coupling_parity=both`. Sign-free outputs such as **v v**ᵀ would remove the restriction; that is not implemented.
@@ -292,7 +303,7 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 
 ## Tests
 
-`tests/excited` covers the data pipeline, the models, the losses and metrics, the calculators, SHARC and CLI training:
+`tests/` covers the data pipeline, the models, the losses and metrics, the calculators, SHARC and CLI training:
 
 * **Data pipeline.** Layouts, smooth NACs and missing labels.
 * **Models.** Invariance and equivariance under rotation, translation, inversion and atom permutation. Finite-difference forces for every state. State-independent ZBL repulsion. Batching, TorchScript, float32. Foundation backbones (with and without l = 1 features), which must reproduce the ground state exactly, and the fit of the per-state shifts. Mixed ground- and excited-state heads (padding, masks, a frame alone equals the frame in a mixed batch). LoRA on the backbone. State-specific charges (charge conservation, invariance, finite-difference forces).
@@ -302,12 +313,14 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 * **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer. Mixed ground/excited heads for both models (also from HDF5), ScaleShiftMACE/MACE/MagneticScaleShiftMACE foundation backbones, multi-head fine-tuning with `pt_head` replay with and without LoRA, and MACE/MACELES/PolarMACE backbones from scratch with shared and state-specific electrostatics.
 * **Data-parallel training** (`test_excited_distributed.py`, two CPU processes with gloo). The gradient averaged by DDP over the ranks equals the gradient of the whole batch on one device, for every loss term, both models, mixed heads (one rank with ground-state frames only), state-specific charges and fixed parity; the ranks stay identical over optimizer steps. Through the CLI (torchrun, two processes), mixed-head training starts from the same statistics as a single-process run.
 * **Heads** (`test_excited_heads.py`). Per-head specs and padding, padded entries ignored by the loss and the metrics, head selection in the calculators and `evaluate_excited_configs`, several heads on one backbone head, per-head statistics.
+* **Core MACE components with excited-state models** (`test_core_components.py`). Every backbone option — Bessel, Gaussian and Chebyshev radial bases, Agnesi and Soft distance transforms, residual, density, non-linear and attention interaction blocks, gates, correlation orders 1–3, scalar-only and l = 2 features, reduced CG, agnostic products, last-readout-only, no cutoff, three layers — for both models: invariance, equivariance, finite-difference forces, copies and serialisation, TorchScript. Charge and spin embeddings. Head selection (`select_heads`, `remove_pt_head`), E0 estimation from multi-state energies, optimiser groups with freezing and learning-rate factors, HDF5 head assignment, padding and head weights.
+* **Core MACE training features** (`test_core_training.py`). EMA and Stage Two, restarts, checkpoint retention, LBFGS / AdamW / schedule-free optimisers and schedulers with gradient clipping, freezing and learning-rate factors on a foundation, config files, several files per head with validation, test files, config-type and head weights, every E0 option, data-loader workers, scaling and error tables, foundation elements and readouts, multi-head replay with FPS, pseudolabels and filtering, LoRA with Stage Two and EMA, continuing and transferring from a trained X-MACE model, `mace_select_head`, `mace_convert_device`, `mace_plot_train`, `mace_eval_configs`, and the foundation pipeline dry run (`foundation/dry_run.sh`).
 * **Parity and autoencoder.** Polar and axial parts of couplings under inversion. Planar geometries: `fixed` gives no out-of-plane transition dipoles and no in-plane SOC vectors, `both` does. Autoencoder states ordered within each multiplicity, and its encoder distinguishes multiplicities.
 * **SHARC labels.** `labels_from_sharc` applied to the SHARC layer's own output gives back the model's predictions, and it rejects non-degenerate multiplets.
 * **Real SHARC** (`test_sharc_real.py`, skipped without `$SHARC`). A `SHARC_MACE.py` single point against `SharcCalculator`, read with SHARC's own `QM.out` parser. A `sharc.x` trajectory with energy conservation. A pysharc trajectory that must match `sharc.x`.
 
 ```bash
-pytest tests/excited            # about 15 minutes on a CPU
-pytest tests/excited -m "not slow"
-source $SHARC/sharcvars.sh && pytest tests/excited/test_sharc_real.py
+pytest tests                    # about 20 minutes on a CPU
+pytest tests -m "not slow"
+source $SHARC/sharcvars.sh && pytest tests/test_sharc_real.py
 ```

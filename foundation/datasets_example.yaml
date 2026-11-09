@@ -1,0 +1,49 @@
+# The data sets of an excited-state foundation model: one head per data set.
+# Copy this file, list your data sets, and run
+#   python foundation/prepare_datasets.py --datasets datasets.yaml \
+#       --template foundation/train_template.yaml --work_dir /scratch/$USER/xmace_fm
+#
+# Everything a head needs to know about its labels goes here (see XMACE.md, "Data"
+# and "Spin multiplicities"). Data sets computed at different levels of theory, or
+# with different numbers of states or multiplicities, are separate heads: each gets
+# its own E0s, per-state shifts and readouts, all sharing one backbone.
+
+elements: [1, 6, 7, 8, 9, 15, 16, 17]   # union of the elements of all data sets
+r_max: 5.0
+valid_fraction: 0.05
+num_process: 8                          # HDF5 shards (and processes) per data set
+seed: 1
+
+datasets:
+  # SHARC data: 3 singlets + 2 triplets, NACs, spin-orbit couplings (Wigner-Eckart
+  # SOC vectors from the M_S-resolved matrices), permanent and transition dipoles
+  sharc_casscf:
+    train_file: /data/sharc_casscf/train.xyz
+    test_file: /data/sharc_casscf/test.xyz
+    states: [3, 0, 2]
+    compute_nacs: true
+    compute_socs: true
+    compute_dipoles: true
+    socs_key: REF_socs                  # SOCs in cm-1 here; keep one unit per head
+    weight: 1.0
+
+  # a TDDFT data set: 5 singlets, NACs and transition dipoles
+  tddft_singlets:
+    train_file: /data/tddft/train.xyz
+    n_energies: 5
+    compute_nacs: true
+    compute_dipoles: true
+    weight: 1.0
+
+  # a public data set with energies (and forces) of 4 states, no couplings
+  public_energies:
+    train_file: /data/public/train.xyz
+    n_energies: 4
+    weight: 0.5                         # down-weight a large, noisier data set
+
+  # a radical data set: 2 doublets + 1 quartet
+  radicals:
+    train_file: /data/radicals/train.xyz
+    states: [0, 2, 0, 1]
+    compute_nacs: true
+    compute_socs: true
