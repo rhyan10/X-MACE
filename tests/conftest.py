@@ -1,14 +1,30 @@
+"""Shared test setup for X-MACE.
+
+* Capabilities: optional requirements (a GPU, an optional dependency, network
+  access) are pytest markers; a test whose capability is unavailable is skipped,
+  unless MACE_REQUIRE_CAPS names it (then it fails: CI promised it).
+* Builders of small excited-state models, batches and label specs used across the
+  test files.
+"""
+
 import importlib.util
 import os
-import resource
-import shutil
 import sys
 import tempfile
 from pathlib import Path
 
 import numpy as np
 import pytest
-from ase.atoms import Atoms
+import torch
+from e3nn import o3
+
+from mace import data, modules, tools
+from mace.data.excited import ExcitedStateSpec, standardise_excited_configs
+from mace.modules.excited import AutoencoderExcitedMACE, ExcitedMACE
+from mace.tools import torch_geometric
+
+sys.path.insert(0, str(Path(__file__).parent))
+from excited_data import make_excited_configs  # noqa: E402  pylint: disable=wrong-import-position
 
 # ---------------------------------------------------------------------------
 # Capability model
@@ -115,51 +131,6 @@ def pytest_runtest_setup(item):
     pytest.skip(f"requires capabilities {sorted(missing)}")
 
 
-# Directory-derived markers: a test file inherits the capability/cost markers
-# of the directory it lives in, so a new file can never land in the wrong CI
-# job by omission. Hardware (`gpu`) and per-test capabilities stay explicit
-# in-file because they are transversal, not directory-shaped.
-_TESTS_DIR = Path(__file__).parent
-_DIR_MARKERS = {
-    ("workflows",): ("slow",),
-    ("foundations",): ("network",),
-    ("benchmarks",): ("benchmark", "slow"),
-    ("extensions", "polar"): ("polar",),
-    ("extensions", "les"): ("les",),
-    ("extensions", "magnetic"): ("magnetic",),
-    ("extensions", "torchsim"): ("torchsim",),
-    ("extensions", "schedulefree"): ("schedulefree",),
-}
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_collection_modifyitems(config, items):  # pylint: disable=unused-argument
-    # tryfirst for two reasons, both silent when wrong: the directory-derived
-    # markers below must exist before the builtin mark plugin applies `-m`,
-    # and the zero-collection guard at the end must see the WHOLE collection,
-    # before pytest-split deselects the other shards' tests -- otherwise a
-    # sharded job fails on whichever capability did not land in its group.
-    for item in items:
-        try:
-            rel = Path(item.path).relative_to(_TESTS_DIR).parts[:-1]
-        except ValueError:
-            continue
-        for prefix, marker_names in _DIR_MARKERS.items():
-            if rel[: len(prefix)] == prefix:
-                for name in marker_names:
-                    item.add_marker(getattr(pytest.mark, name))
-
-    # A guaranteed capability with zero collected tests is the other silent
-    # failure mode (module-level skips, empty parametrizations): the job would
-    # pass while testing nothing. Runs after auto-marking so directory-derived
-    # markers count.
-    for cap in required_caps():
-        if not any(item.get_closest_marker(cap) for item in items):
-            raise pytest.UsageError(
-                f"MACE_REQUIRE_CAPS guarantees '{cap}' but no collected test "
-                f"carries that marker — nothing would exercise it."
-            )
-
 
 def pytest_configure(config):
     """Validate MACE_REQUIRE_CAPS, isolate cache per xdist worker, and guard
@@ -191,185 +162,124 @@ def pytest_configure(config):
         print(f"[XDIST] Worker {worker} using cache {cache_root}")
 
 
+
+
 # ---------------------------------------------------------------------------
-# Shared data fixtures
-#
-# Canonical copies of the fitting/pretraining configuration fixtures that used
-# to be duplicated verbatim across test files. Files whose data differs (extra
-# keys, different seeds/sizes) keep their own local fixture, which shadows
-# these by name.
+# X-MACE builders
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(name="fitting_configs")
-def fixture_fitting_configs():
-    from tests.helpers import make_fitting_configs
-
-    return make_fitting_configs()
+Z_TABLE = tools.AtomicNumberTable([1, 6, 8])
+R_MAX = 4.0
 
 
-@pytest.fixture(scope="session", name="trained_tiny_model_path")
-def fixture_trained_tiny_model_path(tmp_path_factory):
-    """Train a minimal MACE ONCE per session and return the .model path.
-
-    For tests whose subject is not training itself (export paths, integration
-    contracts, smoke tests): they share this artifact instead of each training
-    their own model.
-    """
-    import ase.io
-
-    from tests.helpers import base_mace_params, make_fitting_configs, run_mace_train
-
-    tmp = tmp_path_factory.mktemp("tiny_model")
-    ase.io.write(tmp / "fit.xyz", make_fitting_configs())
-    params = base_mace_params()
-    params.update(
-        {
-            "name": "tiny",
-            "hidden_irreps": "16x0e + 16x1o",
-            "checkpoints_dir": str(tmp),
-            "model_dir": str(tmp),
-            "train_file": str(tmp / "fit.xyz"),
-            "max_num_epochs": 6,
-            "start_swa": 4,
-        }
+def model_config(**overrides):
+    config = dict(
+        r_max=R_MAX,
+        num_bessel=8,
+        num_polynomial_cutoff=5,
+        max_ell=2,
+        interaction_cls=modules.interaction_classes["RealAgnosticResidualInteractionBlock"],
+        interaction_cls_first=modules.interaction_classes["RealAgnosticInteractionBlock"],
+        num_interactions=2,
+        num_elements=len(Z_TABLE),
+        hidden_irreps=o3.Irreps("8x0e + 8x1o"),
+        MLP_irreps=o3.Irreps("8x0e"),
+        atomic_energies=np.array([-1.0, -3.0, -5.0]),
+        avg_num_neighbors=3.0,
+        atomic_numbers=Z_TABLE.zs,
+        correlation=2,
+        gate=torch.nn.functional.silu,
     )
-    run_mace_train(params)
-    model_path = tmp / "tiny.model"
-    assert model_path.exists()
-    return model_path
+    config.update(overrides)
+    return config
 
 
-@pytest.fixture(scope="session", name="trained_tiny_1layer_model_path")
-def fixture_trained_tiny_1layer_model_path(tmp_path_factory):
-    """`trained_tiny_model_path` with a single interaction layer.
-
-    Same purpose and cost, one message-passing layer instead of two, so the
-    forward never asks LAMMPS to exchange ghost node features. That is what
-    makes the real-tier ML-IAP test runnable against a stock (non-KOKKOS)
-    LAMMPS build -- see `mace.calculators.lammps_mliap_mace`.
-    """
-    import ase.io
-
-    from tests.helpers import base_mace_params, make_fitting_configs, run_mace_train
-
-    tmp = tmp_path_factory.mktemp("tiny_1layer_model")
-    ase.io.write(tmp / "fit.xyz", make_fitting_configs())
-    params = base_mace_params()
-    params.update(
-        {
-            "name": "tiny1l",
-            "hidden_irreps": "16x0e + 16x1o",
-            "num_interactions": 1,
-            "checkpoints_dir": str(tmp),
-            "model_dir": str(tmp),
-            "train_file": str(tmp / "fit.xyz"),
-            "max_num_epochs": 6,
-            "start_swa": 4,
-        }
+def build_excited(
+    n_states=3, nacs=True, socs=True, dipoles=True, autoencoder=False, **kwargs
+):
+    cls = AutoencoderExcitedMACE if autoencoder else ExcitedMACE
+    extra = {"num_permutational_invariant": 6} if autoencoder else {}
+    extra.update(kwargs)
+    perturb = extra.pop("perturb", True)
+    model = cls(
+        **model_config(),
+        n_energies=n_states,
+        compute_nacs=nacs,
+        compute_socs=socs,
+        compute_dipoles=dipoles,
+        **extra,
     )
-    run_mace_train(params)
-    model_path = tmp / "tiny1l.model"
-    assert model_path.exists()
-    return model_path
+    if perturb:
+        perturb_energy_readouts(model)
+    return model
 
 
-@pytest.fixture(name="pretraining_configs")
-def fixture_pretraining_configs():
-    configs = []
-    for _ in range(10):
-        atoms = Atoms(
-            numbers=[8, 1, 1],
-            positions=np.random.rand(3, 3) * 3,
-            cell=[5, 5, 5],
-            pbc=[True] * 3,
-        )
-        atoms.info["REF_energy"] = np.random.normal(0, 1)
-        atoms.arrays["REF_forces"] = np.random.normal(0, 1, size=(3, 3))
-        atoms.info["REF_stress"] = np.random.normal(0, 1, size=6)
-        configs.append(atoms)
-    configs.append(
-        Atoms(numbers=[8], positions=[[0, 0, 0]], cell=[6] * 3, pbc=[True] * 3),
+def perturb_energy_readouts(model, size=0.3):
+    """Energy readouts start at zero (every state on the backbone's surface); give
+    them random weights so that the states of a test model differ, as after training."""
+    generator = torch.Generator().manual_seed(123)
+    with torch.no_grad():
+        for readout in model.readouts:
+            last = getattr(readout, "linear_2", None) or getattr(readout, "linear", None)
+            if last is not None and float(last.weight.abs().max()) == 0.0:
+                last.weight.copy_(
+                    size * torch.randn(last.weight.shape, generator=generator)
+                )
+
+
+KEYSPEC = data.KeySpecification(
+    info_keys={
+        "energy": "REF_energy",
+        "socs": "REF_socs",
+        "dipoles": "REF_dipoles",
+    },
+    arrays_keys={"forces": "REF_forces", "nacs": "REF_nacs"},
+)
+
+
+def atoms_to_batch(atoms_list, spec=None, keyspec=KEYSPEC):
+    configs = [data.config_from_atoms(a, key_specification=keyspec) for a in atoms_list]
+    if spec is not None:
+        standardise_excited_configs(configs, spec)
+    dataset = [data.AtomicData.from_config(c, z_table=Z_TABLE, cutoff=R_MAX) for c in configs]
+    loader = torch_geometric.dataloader.DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+    return next(iter(loader))
+
+
+def full_spec(n_states=3, **kwargs):
+    n_pairs = n_states * (n_states - 1) // 2
+    values = dict(
+        n_states=n_states,
+        n_nacs=n_pairs,
+        n_socs=max(n_pairs, 1),
+        n_dipoles=n_states + n_pairs,
+        nacs_format="raw",
     )
-    configs.append(
-        Atoms(numbers=[1], positions=[[0, 0, 0]], cell=[6] * 3, pbc=[True] * 3)
-    )
-    configs[-2].info["REF_energy"] = -2.0
-    configs[-2].info["config_type"] = "IsolatedAtom"
-    configs[-1].info["REF_energy"] = -4.0
-    configs[-1].info["config_type"] = "IsolatedAtom"
-    return configs
+    values.update(kwargs)
+    return ExcitedStateSpec(**values)
 
 
-# ru_maxrss is in bytes on macOS and in kilobytes on Linux.
-_MAXRSS_TO_BYTES = 1 if sys.platform == "darwin" else 2**10
+@pytest.fixture(autouse=True)
+def _float64():
+    previous = torch.get_default_dtype()
+    torch.set_default_dtype(torch.float64)
+    torch.manual_seed(0)
+    yield
+    torch.set_default_dtype(previous)
 
 
-def _peak_rss_gb():
-    """High-water mark of this process plus its reaped children, in GiB.
-
-    Children count because the workflow tests do their real work in
-    ``run_mace_train`` subprocesses.
-    """
-    return (
-        _MAXRSS_TO_BYTES
-        * (
-            resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-            + resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
-        )
-        / (2**30)
-    )
+@pytest.fixture(name="molecules")
+def fixture_molecules():
+    return make_excited_configs(4, n_states=3, seed=3)
 
 
-def _mem_available_gb():
-    """System-wide free memory, or None where /proc/meminfo does not exist.
-
-    The counterpart of the disc figure below: a CI runner that is killed
-    outright ("the runner has received a shutdown signal") leaves no other
-    trace of having run out of memory, and per-test peak RSS alone cannot
-    tell a big-but-fine test from the one that crossed the line.
-    """
-    try:
-        with open("/proc/meminfo", encoding="utf-8") as f:
-            for line in f:
-                if line.startswith("MemAvailable:"):
-                    return int(line.split()[1]) / (2**20)
-    except OSError:
-        pass
-    return None
+def flip_nac_readouts(model):
+    """Change the sign of a model's NACs (all its polar and axial NAC readouts)."""
+    readouts = list(model.nacs_readouts) + list(getattr(model, "nacs_axial_readouts", []))
+    for readout in readouts:
+        readout.register_forward_hook(_negate)
 
 
-@pytest.hookimpl(tryfirst=True)
-def pytest_runtest_logreport(report):
-    """Print disc, memory and duration after each test.
-
-    Under xdist this hook fires in two processes: the worker that ran the
-    test, whose stdout never reaches the log, and then the controller, which
-    is the line you actually see. Only the worker's rusage describes the
-    test — a still-live child does not count towards the controller's
-    RUSAGE_CHILDREN, so measuring on the controller reports its own idle
-    footprint and the figure stays flat no matter what the test allocates.
-    So the worker stashes the numbers on the report (tryfirst, ahead of the
-    xdist hook that serialises it — `TestReport` round-trips unknown
-    attributes through its `**extra`) and the controller prints them.
-    """
-    if report.when != "call":
-        return
-    if os.environ.get("PYTEST_XDIST_WORKER"):
-        report.mace_peak_rss_gb = _peak_rss_gb()
-        report.mace_mem_available_gb = _mem_available_gb()
-        return
-    if hasattr(report, "mace_peak_rss_gb"):
-        peak, mem_available = report.mace_peak_rss_gb, report.mace_mem_available_gb
-    else:  # no xdist: this process is the one that ran the test
-        peak, mem_available = _peak_rss_gb(), _mem_available_gb()
-    _total, _used, free = shutil.disk_usage("/")
-    mem = "" if mem_available is None else f"mem: {mem_available:.3f}GB free, "
-    print(
-        f"\n[METRICS] "
-        f"{report.nodeid}: "
-        f"disc: {free / (2**30):.3f}GB free, "
-        f"{mem}"
-        f"peak rss: {peak:.3f}GB, "
-        f"time: {report.duration:.2f}s"
-    )
+def _negate(_module, _inputs, output):
+    return -output
