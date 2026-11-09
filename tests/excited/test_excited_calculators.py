@@ -5,7 +5,6 @@ import sys
 import types
 from pathlib import Path
 
-import ase
 import numpy as np
 import pytest
 import torch

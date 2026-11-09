@@ -15,7 +15,6 @@ from mace.modules.spin_states import (
     n_mstates,
     same_multiplicity_pairs,
     soc_vectors_from_matrix,
-    spatial_multiplicities,
     spin_orbit_pairs,
     state_pairs,
 )
@@ -511,7 +510,9 @@ def spec_layout(spec: ExcitedStateSpec) -> Dict:
     }
 
 
-def excited_specs_for_heads(args, heads: Dict[str, Dict]) -> Dict[str, ExcitedStateSpec]:
+def excited_specs_for_heads(
+    args, heads: Dict[str, Dict]
+) -> Dict[str, ExcitedStateSpec]:
     """The ExcitedStateSpec of every head.
 
     pt_head (replay data of a foundation model) and heads with ``ground_state: True``
@@ -567,6 +568,34 @@ class PaddedLayout:
             n_soc_vectors=max(s.n_soc_vectors for s in specs),
             n_dipoles=max(s.n_dipoles for s in specs),
         )
+
+
+def attach_excited_padding(
+    dataset, spec: ExcitedStateSpec, padded: PaddedLayout
+) -> int:
+    """Make preprocessed (HDF5) datasets pad their frames' labels to the shared layout
+    of all heads as they are read. Returns the number of datasets that will pad; other
+    dataset types are left unchanged (their labels must already have the layout)."""
+    from torch.utils.data import (
+        ConcatDataset,
+    )  # pylint: disable=import-outside-toplevel
+
+    from mace.data.hdf5_dataset import (  # pylint: disable=import-outside-toplevel
+        HDF5Dataset,
+    )
+
+    if isinstance(dataset, ConcatDataset):
+        return sum(attach_excited_padding(d, spec, padded) for d in dataset.datasets)
+    if (
+        isinstance(dataset, (list, tuple))
+        and dataset
+        and not hasattr(dataset[0], "positions")
+    ):
+        return sum(attach_excited_padding(d, spec, padded) for d in dataset)
+    if isinstance(dataset, HDF5Dataset):
+        dataset.excited_padding = (spec, padded)
+        return 1
+    return 0
 
 
 def _pad(array: np.ndarray, axis: int, size: int) -> np.ndarray:

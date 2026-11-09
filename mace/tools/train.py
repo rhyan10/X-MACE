@@ -844,7 +844,9 @@ class MACELoss(Metric):
             heads = (
                 batch.head.view(-1).to(torch.long)
                 if "head" in batch and batch.head is not None
-                else torch.zeros(batch.num_graphs, dtype=torch.long)
+                else torch.zeros(
+                    batch.num_graphs, dtype=torch.long, device=ref.device
+                )
             )
             labelled = (batch.weight * batch.soc_vectors_weight) > 0
             for h in torch.unique(heads).tolist():

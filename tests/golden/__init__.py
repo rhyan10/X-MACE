@@ -13,4 +13,5 @@ no registration is ever missed.
 
 from tests.golden import calculator_keys as _calculator_keys  # noqa: F401
 from tests.golden import eval_keys as _eval_keys  # noqa: F401
+from tests.golden import excited_keys as _excited_keys  # noqa: F401
 from tests.golden import model_keys as _model_keys  # noqa: F401

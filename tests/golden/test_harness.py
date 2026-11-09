@@ -959,8 +959,13 @@ def test_the_scans_still_find_the_families_they_are_meant_to():
     calculator = surface_scan.scan_calculator_surface()
     assert len(calculator.all_keys) >= 30, sorted(calculator.all_keys)
     assert {"energy", "forces", "stresses", "virials"} <= calculator.all_keys
-    # both calculators, not just the first one in the file
-    assert len(calculator.keys) == 2, sorted(calculator.keys)
+    # every calculator, not just the first one in a file: the two in
+    # calculators/mace.py and the excited-state one in calculators/excited.py
+    assert set(calculator.keys) == {
+        "mace/calculators/mace.py::MACECalculator",
+        "mace/calculators/mace.py::MagneticMACECalculator",
+        "mace/calculators/excited.py::ExcitedMACECalculator",
+    }, sorted(calculator.keys)
     # the committee keys, derived from `results_store_ensemble` rather than
     # restated: all four bases, both suffixes
     assert {
@@ -986,6 +991,7 @@ def test_the_scans_still_find_the_families_they_are_meant_to():
     assert files == {
         "mace/modules/models.py",
         "mace/modules/extensions.py",
+        "mace/modules/excited.py",
         "mace/calculators/lammps_mace.py",
         "mace/calculators/mace_torchsim.py",
     }, sorted(files)

@@ -49,7 +49,9 @@ def head_mask(
     configuration's head; all ones for a single-head model without masks."""
     n = ref.positions.shape[0] if per_atom else ref.num_graphs
     if masks is None or name not in masks:
-        return torch.ones(n, width, dtype=ref.positions.dtype, device=ref.positions.device)
+        return torch.ones(
+            n, width, dtype=ref.positions.dtype, device=ref.positions.device
+        )
     heads = _graph_heads(ref)
     if per_atom:
         heads = heads[ref.batch]
@@ -57,7 +59,9 @@ def head_mask(
     return table[heads][:, :width]
 
 
-def masked_mean(values: torch.Tensor, mask: torch.Tensor, ddp: Optional[bool]) -> torch.Tensor:
+def masked_mean(
+    values: torch.Tensor, mask: torch.Tensor, ddp: Optional[bool]
+) -> torch.Tensor:
     """sum(values) / number of unmasked entries (values already multiplied by mask)."""
     count = mask.sum() * (values.numel() / max(mask.numel(), 1))
     total = values.sum()
@@ -67,6 +71,31 @@ def masked_mean(values: torch.Tensor, mask: torch.Tensor, ddp: Optional[bool]) -
         dist.all_reduce(count, op=dist.ReduceOp.SUM)
         return total * dist.get_world_size() / count.clamp(min=1.0)
     return total / count.clamp(min=1.0)
+
+
+def masked_rmse(
+    values: torch.Tensor, mask: torch.Tensor, ddp: Optional[bool]
+) -> torch.Tensor:
+    """sqrt(masked_mean(values) + eps), the RMSE of the coupling losses.
+
+    Under DDP every rank only sees its share of the batch, and DDP averages the
+    gradients of the ranks. A square root of each rank's own mean would give the
+    gradient of the average of per-rank RMSEs, not of the RMSE of the whole batch.
+    So every rank returns R + W (s_r - S / W) / (2 N R): R the RMSE of the whole batch
+    (from all-reduced sums, no gradient), s_r its own sum, S the sum over all ranks,
+    N the number of entries over all ranks, W the number of ranks. The average over
+    the ranks is R, and the averaged gradient is that of R, as on one device."""
+    ddp = is_ddp_enabled() if ddp is None else ddp
+    if not (ddp and dist.is_initialized()):
+        return torch.sqrt(masked_mean(values, mask, False) + _SQRT_EPS)
+    count = mask.sum() * (values.numel() / max(mask.numel(), 1))
+    local = values.sum()
+    totals = torch.stack([local.detach(), count.detach().to(local.dtype)])
+    dist.all_reduce(totals, op=dist.ReduceOp.SUM)
+    world = dist.get_world_size()
+    total, n = totals[0], totals[1].clamp(min=1.0)
+    rmse = torch.sqrt(total / n + _SQRT_EPS)
+    return rmse + world * (local - total / world) / (2.0 * n * rmse)
 
 
 def excited_energy_loss(
@@ -122,7 +151,7 @@ def phase_free_nacs_loss(
     err2 = torch.sum(torch.square(target - aligned), dim=-1)  # [n_atoms, P]
     mask = head_mask(masks, "nacs", ref, err2.shape[1], per_atom=True)
     weights = _atom_weights(ref, "nacs").unsqueeze(-1) * mask
-    return torch.sqrt(masked_mean(weights * err2, mask, ddp) + _SQRT_EPS)
+    return masked_rmse(weights * err2, mask, ddp)
 
 
 def phase_free_socs_loss(
@@ -137,9 +166,7 @@ def phase_free_socs_loss(
     mask = head_mask(masks, "socs", ref, target.shape[1])
     aligned = align_socs(target * mask, prediction * mask)
     weights = _graph_weights(ref, "socs").unsqueeze(-1) * mask
-    return torch.sqrt(
-        masked_mean(weights * torch.square(target - aligned), mask, ddp) + _SQRT_EPS
-    )
+    return masked_rmse(weights * torch.square(target - aligned), mask, ddp)
 
 
 def phase_free_soc_vectors_loss(
@@ -159,14 +186,14 @@ def phase_free_soc_vectors_loss(
     aligned = prediction * signs.unsqueeze(-1)
     err2 = torch.sum(torch.square(target - aligned), dim=-1)  # [n_graphs, Q]
     if pair_weights is not None:
-        pair_weights = pair_weights.to(err2.dtype)
+        pair_weights = pair_weights.to(err2.device, err2.dtype)
         if pair_weights.dim() == 2:
             err2 = err2 * pair_weights[_graph_heads(ref)][:, : err2.shape[1]]
         else:
             err2 = err2 * pair_weights.unsqueeze(0)
     mask = head_mask(masks, "soc_vectors", ref, err2.shape[1])
     weights = _graph_weights(ref, "soc_vectors").unsqueeze(-1) * mask
-    return torch.sqrt(masked_mean(weights * err2, mask, ddp) + _SQRT_EPS)
+    return masked_rmse(weights * err2, mask, ddp)
 
 
 def align_dipoles_masked(
@@ -200,7 +227,8 @@ def phase_free_dipoles_loss(
     masks: Optional[Dict[str, torch.Tensor]] = None,
 ) -> torch.Tensor:
     """MSE per atom of the dipoles [n_graphs, D, 3]; transition dipoles (after the
-    first n_permanent, or per head from the masks) with the best sign per configuration."""
+    first n_permanent, or per head from the masks) with the best sign per configuration.
+    """
     target = ref["dipoles"]
     prediction = pred["dipoles"].view(target.shape)
     transition = transition_table(masks, ref, target.shape[1], n_permanent)

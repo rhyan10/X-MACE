@@ -535,3 +535,108 @@ def test_backbones_from_scratch(tmp_path, backbone, long_range):
     assert trained.long_range_mode == long_range
     losses = _valid_losses(tmp_path)
     assert np.all(np.isfinite(losses))
+
+
+# ------------------------------------------------------------------------------------
+# data-parallel training (torchrun, two CPU processes with gloo)
+# ------------------------------------------------------------------------------------
+
+
+def _torchrun(params, extra_argv, nproc=2):
+    import os  # pylint: disable=import-outside-toplevel
+    import subprocess  # pylint: disable=import-outside-toplevel
+    import sys  # pylint: disable=import-outside-toplevel
+
+    repo = Path(__file__).resolve().parents[2]
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(repo) + os.pathsep + env.get("PYTHONPATH", "")
+    env["OMP_NUM_THREADS"] = "1"
+    argv = [
+        sys.executable,
+        "-m",
+        "torch.distributed.run",
+        "--standalone",
+        f"--nproc_per_node={nproc}",
+        str(repo / "mace" / "cli" / "run_train.py"),
+    ]
+    argv += [f"--{k}={v}" if v is not None else f"--{k}" for k, v in params.items()]
+    argv += list(extra_argv) + ["--distributed", "--launcher=torchrun"]
+    subprocess.run(argv, check=True, env=env, cwd=params["work_dir"])
+
+
+@pytest.mark.parametrize("model", ["ExcitedMACE", "AutoencoderExcitedMACE"])
+def test_distributed_training_with_mixed_heads(tmp_path, model):
+    """Two processes share each batch; the statistics are taken over all ranks, so the
+    model starts exactly as in a single-process run, and training completes."""
+    _write_data(tmp_path, with_socs=False)
+    _ground_state_data(tmp_path / "ground.xyz", 20, seed=5)
+    extra = ["--compute_nacs", "--compute_dipoles"]
+    if model == "AutoencoderExcitedMACE":
+        extra.append("--num_permutational_invariant=4")
+    logs = {}
+    for name, runner in (("single", run_mace_train), ("ddp", _torchrun)):
+        work = tmp_path / name
+        work.mkdir()
+        params = _params(tmp_path, model=model, max_num_epochs=2, work_dir=str(work))
+        params.pop("train_file")
+        params.pop("valid_fraction")
+        params["heads"] = repr(_heads(tmp_path))
+        runner(params, extra)
+        logs[name] = _log(work)
+        trained = torch.load(work / "xmace.model", weights_only=False)
+        assert trained.heads == ["excited", "ground"]
+    assert "Processes: 2" in logs["ddp"]
+
+    def statistics(log):
+        return sorted(  # (the log and the debug log have the same lines)
+            {
+                line.split("INFO: ")[1]
+                for line in log.splitlines()
+                if "interaction energy scale" in line and "INFO: " in line
+            }
+        )
+
+    assert statistics(logs["ddp"]) == statistics(logs["single"])
+    assert len(statistics(logs["single"])) == 2
+
+
+def test_mixed_heads_from_hdf5(tmp_path):
+    """Preprocessed data of heads with different layouts share batches: the labels of
+    each head are padded to the largest head as they are read."""
+    _write_data(tmp_path, with_socs=False, with_dipoles=False)
+    _ground_state_data(tmp_path / "ground.xyz", 16, seed=5)
+    script = Path(__file__).resolve().parents[2] / "mace" / "cli" / "preprocess_data.py"
+    common = {"valid_fraction": 0.2, "r_max": 4.0, "E0s": "average", "seed": 1,
+              "num_process": 1}
+    run_mace_train(
+        {**common, "train_file": str(tmp_path / "train.xyz"),
+         "h5_prefix": str(tmp_path / "ex") + "/", "n_energies": 3,
+         "compute_nacs": None},
+        script=script,
+    )
+    run_mace_train(
+        {**common, "train_file": str(tmp_path / "ground.xyz"),
+         "h5_prefix": str(tmp_path / "gs") + "/"},
+        script=script,
+    )
+    heads = {
+        name: {
+            "train_file": str(tmp_path / prefix / "train" / "train_0.h5"),
+            "valid_file": str(tmp_path / prefix / "val" / "val_0.h5"),
+            "E0s": "{1: -1.0, 6: -3.0, 8: -5.0}",
+            **extra,
+        }
+        for name, prefix, extra in (
+            ("excited", "ex", {}),
+            ("ground", "gs", {"ground_state": True}),
+        )
+    }
+    params = _params(tmp_path, max_num_epochs=2)
+    for key in ("train_file", "valid_fraction", "E0s"):
+        params.pop(key)
+    params["heads"] = repr(heads)
+    params["atomic_numbers"] = "[1, 6, 8]"
+    run_mace_train(params, extra_argv=["--compute_nacs"])
+    trained = torch.load(tmp_path / "xmace.model", weights_only=False)
+    assert trained.heads == ["excited", "ground"] and trained.head_n_states == [3, 1]
+    assert np.all(np.isfinite(_valid_losses(tmp_path)))

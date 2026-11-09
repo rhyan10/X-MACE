@@ -339,55 +339,92 @@ def _foundation_as_backbone(args, model_foundation, heads, z_table):
 def excited_head_statistics(train_loader, atomic_energies, heads, specs, scaling):
     """(scale, shifts[S]) of every head from its own training frames: shifts are the
     mean (E_s - sum E0)/n_atoms per state, scale the rms of the forces ("std_scaling":
-    the std of the interaction energies per atom; "no_scaling": 1 and 0)."""
+    the std of the interaction energies per atom; "no_scaling": 1 and 0). In a
+    distributed run the sums are taken over the frames of all ranks."""
     from mace.tools.scatter import (  # pylint: disable=import-outside-toplevel
         scatter_sum,
     )
 
+    n_heads = len(heads)
+    s_max = max(specs[name].n_states for name in heads)
+    dtype = torch.float64
+    # per head and state: count, sum, sum of squares of the interaction energies per
+    # atom; per head: count and sum of squares of the force components
+    e_count = torch.zeros(n_heads, s_max, dtype=dtype)
+    e_sum = torch.zeros(n_heads, s_max, dtype=dtype)
+    e_sq = torch.zeros(n_heads, s_max, dtype=dtype)
+    f_count = torch.zeros(n_heads, dtype=dtype)
+    f_sq = torch.zeros(n_heads, dtype=dtype)
     energies = torch.as_tensor(np.atleast_2d(atomic_energies))
-    inter = {h: [] for h in range(len(heads))}
-    forces = {h: [] for h in range(len(heads))}
     for batch in train_loader:
-        graph_heads = batch.head.view(-1).to(torch.long)
-        num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).to(batch.positions.dtype)
-        element = torch.argmax(batch.node_attrs, dim=1)
-        node_heads = graph_heads[batch.batch]
-        table = energies.to(batch.positions.dtype)
+        graph_heads = batch.head.view(-1).to(torch.long).cpu()
+        num_atoms = (batch.ptr[1:] - batch.ptr[:-1]).to(dtype).cpu()
+        element = torch.argmax(batch.node_attrs, dim=1).cpu()
+        node_heads = graph_heads[batch.batch.cpu()]
+        table = energies.to(dtype)
         node_e0 = table[torch.clamp(node_heads, max=table.shape[0] - 1), element]
-        graph_e0 = scatter_sum(node_e0, batch.batch, dim=0, dim_size=batch.num_graphs)
-        energy = batch.energy.view(batch.num_graphs, -1)
-        per_atom = (energy - graph_e0.unsqueeze(-1)) / num_atoms.unsqueeze(-1)
-        labelled = (batch.weight * batch.energy_weight) > 0
-        atom_labelled = torch.repeat_interleave(
-            (batch.weight * batch.forces_weight) > 0, batch.ptr[1:] - batch.ptr[:-1]
+        graph_e0 = scatter_sum(
+            node_e0, batch.batch.cpu(), dim=0, dim_size=batch.num_graphs
         )
-        batch_forces = batch.forces.view(batch.forces.shape[0], -1, 3)
+        energy = batch.energy.view(batch.num_graphs, -1).to(dtype).cpu()
+        per_atom = (energy - graph_e0.unsqueeze(-1)) / num_atoms.unsqueeze(-1)
+        labelled = ((batch.weight * batch.energy_weight) > 0).cpu()
+        atom_labelled = torch.repeat_interleave(
+            ((batch.weight * batch.forces_weight) > 0).cpu(),
+            (batch.ptr[1:] - batch.ptr[:-1]).cpu(),
+        )
+        forces = batch.forces.view(batch.forces.shape[0], -1, 3).to(dtype).cpu()
         for h, name in enumerate(heads):
             n_states = specs[name].n_states
-            rows = (graph_heads == h) & labelled
-            inter[h].append(per_atom[rows, :n_states])
-            atoms = (node_heads == h) & atom_labelled
-            forces[h].append(batch_forces[atoms, :n_states])
+            values = per_atom[(graph_heads == h) & labelled, :n_states]
+            e_count[h, :n_states] += values.shape[0]
+            e_sum[h, :n_states] += values.sum(dim=0)
+            e_sq[h, :n_states] += torch.square(values).sum(dim=0)
+            head_forces = forces[(node_heads == h) & atom_labelled, :n_states]
+            f_count[h] += head_forces.numel()
+            f_sq[h] += torch.square(head_forces).sum()
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        packed = torch.cat(
+            [e_count.view(-1), e_sum.view(-1), e_sq.view(-1), f_count, f_sq]
+        )
+        backend = torch.distributed.get_backend()
+        device = (
+            torch.device("cuda", torch.cuda.current_device())
+            if backend == "nccl"
+            else torch.device("cpu")
+        )
+        packed = packed.to(device)
+        torch.distributed.all_reduce(packed)
+        packed = packed.cpu()
+        sizes = [n_heads * s_max] * 3 + [n_heads, n_heads]
+        parts = torch.split(packed, sizes)
+        e_count, e_sum, e_sq = (part.view(n_heads, s_max) for part in parts[:3])
+        f_count, f_sq = parts[3], parts[4]
     stats = []
     for h, name in enumerate(heads):
         n_states = specs[name].n_states
-        values = torch.cat(inter[h], dim=0)
-        head_forces = torch.cat(forces[h], dim=0)
         if scaling == "no_scaling":
             stats.append((1.0, [0.0] * n_states))
             continue
-        shift = values.mean(dim=0).tolist() if values.shape[0] else [0.0] * n_states
+        count = e_count[h, :n_states]
+        shift = torch.where(
+            count > 0,
+            e_sum[h, :n_states] / count.clamp(min=1.0),
+            torch.zeros_like(count),
+        )
         if scaling == "std_scaling":
-            scale = float(torch.std(values)) if values.numel() > 1 else 1.0
+            n = float(count.sum())
+            if n > 1:
+                mean = float(e_sum[h, :n_states].sum()) / n
+                variance = (float(e_sq[h, :n_states].sum()) - n * mean**2) / (n - 1)
+                scale = float(np.sqrt(max(variance, 0.0)))
+            else:
+                scale = 1.0
         else:
-            scale = (
-                float(torch.sqrt(torch.mean(torch.square(head_forces))))
-                if head_forces.numel()
-                else 1.0
-            )
+            scale = float(torch.sqrt(f_sq[h] / f_count[h])) if f_count[h] > 0 else 1.0
         if not np.isfinite(scale) or scale < 1e-8:
             scale = 1.0
-        stats.append((scale, shift))
+        stats.append((scale, shift.tolist()))
     return stats
 
 

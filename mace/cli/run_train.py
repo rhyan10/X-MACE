@@ -38,6 +38,7 @@ from mace.cli.visualise_train import TrainingPlotter
 from mace.data import KeySpecification, update_keyspec_from_kwargs
 from mace.data.excited import (
     PaddedLayout,
+    attach_excited_padding,
     excited_spec_from_args,
     excited_specs_for_heads,
     ground_state_spec,
@@ -105,6 +106,20 @@ def _warn_about_v1_removals(parser, args) -> None:
     for dest in ("interaction", "interaction_first"):
         if dest in passed:
             deprecation.warn_choice("reg", getattr(args, dest, None))
+
+
+def _pad_preprocessed(dataset, excited_specs, head_name) -> None:
+    """Preprocessed (HDF5) data of an excited-state head: pad its labels to the shared
+    layout of all heads when they are read."""
+    if excited_specs is None or head_name not in excited_specs:
+        return
+    padded = PaddedLayout.from_specs(excited_specs.values())
+    spec = excited_specs[head_name]
+    if attach_excited_padding(dataset, spec, padded) == 0 and len(excited_specs) > 1:
+        logging.warning(
+            f"Head {head_name}: preprocessed data of this type cannot be padded to the "
+            "layout of the other heads; its labels must already have that layout"
+        )
 
 
 def run(args) -> None:
@@ -752,6 +767,7 @@ def run(args) -> None:
             head_config=head_config,
             heads=heads,
             )
+            _pad_preprocessed(dataset, excited_specs, head_config.head_name)
             train_datasets.append(dataset)
             logging.debug(f"Successfully loaded dataset from non-ASE file: {file}")
 
@@ -785,6 +801,7 @@ def run(args) -> None:
                 head_config=head_config,
                 heads=heads,
             )
+                _pad_preprocessed(valid_dataset, excited_specs, head_config.head_name)
                 valid_datasets.append(valid_dataset)
                 logging.debug(f"Successfully loaded validation dataset from {valid_file}")
 
@@ -1179,6 +1196,11 @@ def run(args) -> None:
                     test_sets[head_config.head_name + "_" + name] = data.HDF5Dataset(
                         test_file, r_max=args.r_max, z_table=z_table, heads=heads, head=head_config.head_name
                     )
+                    _pad_preprocessed(
+                        test_sets[head_config.head_name + "_" + name],
+                        excited_specs,
+                        head_config.head_name,
+                    )
             else:
                 test_folders = glob(head_config.test_dir + "/*")
                 for folder in test_folders:
@@ -1187,6 +1209,11 @@ def run(args) -> None:
                         data.dataset_from_sharded_hdf5(
                             folder, r_max=args.r_max, z_table=z_table, heads=heads, head=head_config.head_name
                         )
+                    )
+                    _pad_preprocessed(
+                        test_sets[head_config.head_name + "_" + name],
+                        excited_specs,
+                        head_config.head_name,
                     )
         for test_name, test_set in test_sets.items():
             test_sampler = None

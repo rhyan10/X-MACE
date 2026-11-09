@@ -263,8 +263,8 @@ def create_error_table(
         elif table_type in ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE"):
             kind = "mae" if table_type.endswith("MAE") else "rmse"
 
-            def _fmt(key, factor=1000.0, digits=1):
-                value = metrics.get(key)
+            def _fmt(key, factor=1000.0, digits=1, values=metrics):
+                value = values.get(key)
                 if value is None or isinstance(value, str):
                     return "N/A"
                 try:

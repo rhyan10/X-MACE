@@ -374,7 +374,14 @@ class ExcitedMACECalculator(Calculator):
                         key: torch_tools.to_numpy(value).copy()
                         for key, value in out.items()
                         if key
-                        in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
+                        in (
+                            "energy",
+                            "forces",
+                            "nacs",
+                            "socs",
+                            "dipoles",
+                            "soc_vectors",
+                        )
                         and value is not None
                     }
                 )

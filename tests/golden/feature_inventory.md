@@ -123,7 +123,7 @@ inventoried in §5 and they go when `mace_e3nn_cueq` goes.
 | `ep.mace_cueq_to_e3nn` | `mace.cli.convert_cueq_e3nn:main` | `setup.cfg` | DROP — idem, the reverse direction | `tests/backends/backend_parity.py::test_bidirectional_conversion` |
 | `ep.mace_active_learning_md` | `mace.cli.active_learning_md:main` | `setup.cfg` | DROP — out of v1.0 scope: an ASE MD loop a user writes in ~30 lines over the calculator, at the cost of MACE owning thermostat, timestep and trajectory I/O. The committee variance it consumes stays in `calculate` (§16); the release notes document the recipe | — |
 
-## 2. `--model` choices (10)
+## 2. `--model` choices (12)
 
 The CLI-selectable model names. A separate set from the model classes of §6 on purpose: **two of the
 ten name a class that exists nowhere in the tree.** `BOTNet` and `ScaleShiftBOTNet` reach only
@@ -143,8 +143,10 @@ instead of a hand-written runtime raise.
 | `choice.AtomicDielectricMACE` | `--model AtomicDielectricMACE` | `mace/tools/arg_parser.py:145` | MERGE — idem, dipole + polarizability observables | `tests/golden/test_mdp_foundation.py::test_mdp_foundation_reproduces_its_reference` |
 | `choice.EnergyDipolesMACE` | `--model EnergyDipolesMACE` | `mace/tools/arg_parser.py:146` | MERGE — idem, energy + dipole observables | `tests/unit/test_models.py::test_energy_dipole_mace` |
 | `choice.MagneticScaleShiftMACE` | `--model MagneticScaleShiftMACE` | `mace/tools/arg_parser.py:147` | MERGE — idem; the only magnetic entry in the choices | `tests/extensions/magnetic` + `tests/golden/test_tiny_magnetic.py::test_anchor_reproduces_its_reference` |
+| `choice.ExcitedMACE` | `--model ExcitedMACE` | `mace/tools/arg_parser.py:150` | KEEP — X-MACE excited-state model (several electronic states, couplings) on any ground-state backbone | `tests/excited/test_excited_models.py` + `tests/excited/test_excited_train.py::test_excited_mace_all_properties` |
+| `choice.AutoencoderExcitedMACE` | `--model AutoencoderExcitedMACE` | `mace/tools/arg_parser.py:151` | KEEP — X-MACE with the permutation-invariant autoencoder of the state energies | `tests/excited/test_excited_models.py::test_autoencoder_reconstruction_path` + `tests/excited/test_excited_train.py::test_autoencoder_with_stage_two` |
 
-## 3. `mace_run_train` flags — 184 dests
+## 3. `mace_run_train` flags — 190 dests
 
 One row per **dest** of `build_default_arg_parser` (`mace/tools/arg_parser.py`), which is what a
 knob is; the option strings that spell it are in the feature cell. 184 dests carry 194 option
@@ -252,7 +254,7 @@ Group default: MERGE into the declarative observable specification — an observ
 | `train.compute_atomic_dipole` | `--compute_atomic_dipole` | `mace/tools/arg_parser.py:438` | MERGE — idem | `tests/golden/test_tiny_dipoles.py::test_anchor_reproduces_its_reference` |
 | `train.compute_magforces` | `--compute_magforces` | `mace/tools/arg_parser.py:444` | MERGE — idem: `dE/dm` is a declared derivative exactly like forces and stress | `tests/golden/test_tiny_magnetic.py::test_compute_magforces_is_only_honoured_alongside_the_forces` |
 
-### 3.5 Data, files and property keys (29)
+### 3.5 Data, files and property keys (32)
 
 Group default: the `*_key` flags MERGE into the property-key convention; the file/loading flags KEEP as the `data` config section.
 
@@ -279,6 +281,9 @@ Group default: the `*_key` flags MERGE into the property-key convention; the fil
 | `train.virials_key` | `--virials_key` | `mace/tools/arg_parser.py:684` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
 | `train.stress_key` | `--stress_key` | `mace/tools/arg_parser.py:690` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
 | `train.dipole_key` | `--dipole_key` | `mace/tools/arg_parser.py:696` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
+| `train.nacs_key` | `--nacs_key` | `mace/tools/arg_parser.py:701` | KEEP — excited-state label key (non-adiabatic couplings) | `tests/excited/test_excited_train.py::test_smooth_nacs_key_and_missing_labels` |
+| `train.socs_key` | `--socs_key` | `mace/tools/arg_parser.py:707` | KEEP — excited-state label key (spin-orbit couplings) | `tests/excited/test_excited_train.py::test_excited_mace_all_properties` |
+| `train.dipoles_key` | `--dipoles_key` | `mace/tools/arg_parser.py:713` | KEEP — excited-state label key (permanent and transition dipoles) | `tests/excited/test_excited_train.py::test_excited_mace_all_properties` |
 | `train.polarizability_key` | `--polarizability_key` | `mace/tools/arg_parser.py:702` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
 | `train.charges_key` | `--charges_key` | `mace/tools/arg_parser.py:726` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
 | `train.head_key` | `--head_key` | `mace/tools/arg_parser.py:720` | MERGE — idem | `tests/unit/test_data_utils.py::test_custom_property_keys_round_trip` + `tests/unit/test_data_utils.py::test_keydict_derives_one_cli_argument_per_member` |
@@ -318,7 +323,7 @@ Group default: KEEP.
 | `train.freeze` | `--freeze` | `mace/tools/arg_parser.py:949` | KEEP | `tests/workflows/test_freeze.py` (port cases) |
 | `train.finetune_dipoles_polarizabilities` | `--finetune_dipoles_polarizabilities` | `mace/tools/arg_parser.py:1037` | KEEP — the MDP fine-tuning path | `tests/workflows/test_mdp_finetune.py::test_mdp_finetune_updates_params` + `tests/workflows/test_mdp_finetune.py::test_mdp_finetune_wrong_model_type_raises` |
 
-### 3.7 Loss (16)
+### 3.7 Loss (19)
 
 Group default: MERGE into composable per-stage losses; the numerics are pinned by the hand-computed loss cases. **The per-dest re-key changes what the `swa_*_weight` rows say.** `--swa_energy_weight` and `--stage_two_energy_weight` are two spellings of one dest, so there is one row and one disposition: MERGE. The legacy `swa` *spelling* dies with the flag namespace, but that is not a separate disposition — an option-string-keyed inventory that said 'DROP the `--swa_*` aliases' was describing a spelling, not a knob.
 
@@ -330,6 +335,9 @@ Group default: MERGE into composable per-stage losses; the numerics are pinned b
 | `train.virials_weight` | `--virials_weight` | `mace/tools/arg_parser.py:835` | KEEP — idem | `tests/unit/test_loss.py::test_weighted_energy_forces_virials_loss` |
 | `train.stress_weight` | `--stress_weight` | `mace/tools/arg_parser.py:846` | KEEP — idem | `tests/unit/test_loss.py::test_weighted_energy_forces_stress_loss_zero_and_hand_value` |
 | `train.dipole_weight` | `--dipole_weight` | `mace/tools/arg_parser.py:857` | KEEP — idem | `tests/unit/test_loss.py::test_weighted_energy_forces_dipole_loss` |
+| `train.nacs_weight` | `--nacs_weight` | `mace/tools/arg_parser.py:900` | KEEP — weight of the phase-free NAC loss of excited-state models | `tests/excited/test_excited_loss.py` |
+| `train.socs_weight` | `--socs_weight` | `mace/tools/arg_parser.py:903` | KEEP — weight of the phase-free SOC loss | `tests/excited/test_excited_loss.py` |
+| `train.dipoles_weight` | `--dipoles_weight` | `mace/tools/arg_parser.py:906` | KEEP — weight of the excited-state dipole loss | `tests/excited/test_excited_loss.py` |
 | `train.polarizability_weight` | `--polarizability_weight` | `mace/tools/arg_parser.py:876` | KEEP — idem | `tests/unit/test_loss.py::test_weighted_mean_squared_error_polarizability_reshapes_only_the_reference` |
 | `train.magforces_weight` | `--magforces_weight` | `mace/tools/arg_parser.py:810` | KEEP — idem | `tests/unit/test_loss.py::test_universal_loss_magforces_hand_value` + `tests/unit/test_loss.py::test_universal_loss_magforces_per_config_weight_multiplies_the_arguments` |
 | `train.swa_energy_weight` | `--swa_energy_weight` `--stage_two_energy_weight` | `mace/tools/arg_parser.py:827` | MERGE — per-stage schedules; arbitrary stages replace the two-stage special case, and the `swa` spelling dies with the namespace | `tests/unit/test_stage_two_weights.py::test_the_energy_and_forces_weights_reach_the_stage_two_loss` |
@@ -426,7 +434,7 @@ Group default: KEEP as the `magnetic`-extra config. Grouped like §3.3, but the 
 | `train.data_aug_magmom` | `--data_aug_magmom` | `mace/tools/arg_parser.py:1197` | MERGE — a training-data transform (`Random3DRotation`), not a model flag | `tests/extensions/magnetic` (rotation equivariance) |
 | `train.data_aug_magmom_mode` | `--data_aug_magmom_mode` | `mace/tools/arg_parser.py:1203` | MERGE — selects which spin symmetry the transform draws from (`non-soc` the full O(3), `soc` the sign flip alone), so it travels with `data_aug_magmom` | `tests/extensions/magnetic/test_magmom_augmentation.py::test_non_soc_mode_samples_the_full_o3` |
 
-## 4. `mace_prepare_data` flags — 26 dests
+## 4. `mace_prepare_data` flags — 29 dests
 
 One row per dest of `build_preprocess_arg_parser`. **22 of the 26 are also declared by the
 training parser** and get a row in each section: the defaults and the help text differ per parser,
@@ -447,6 +455,9 @@ so the same spelling is two knobs needing two dispositions.
 | `prep.virials_key` | `--virials_key` | `mace/tools/arg_parser.py:1292` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess_keys.py::test_a_property_key_is_read_under_the_name_it_is_given` |
 | `prep.stress_key` | `--stress_key` | `mace/tools/arg_parser.py:1298` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess.py::test_preprocess_data` |
 | `prep.dipole_key` | `--dipole_key` | `mace/tools/arg_parser.py:1304` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess_keys.py::test_a_property_key_is_read_under_the_name_it_is_given` |
+| `prep.nacs_key` | `--nacs_key` | `mace/tools/arg_parser.py:1386` | KEEP — excited-state labels in HDF5 | `tests/excited/test_excited_train.py::test_hdf5_preprocessing_and_training` |
+| `prep.socs_key` | `--socs_key` | `mace/tools/arg_parser.py:1392` | KEEP — idem | `tests/excited/test_excited_train.py::test_hdf5_preprocessing_and_training` |
+| `prep.dipoles_key` | `--dipoles_key` | `mace/tools/arg_parser.py:1398` | KEEP — idem | `tests/excited/test_excited_train.py::test_multiplicities_hdf5` |
 | `prep.polarizability_key` | `--polarizability_key` | `mace/tools/arg_parser.py:1310` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess_keys.py::test_a_property_key_is_read_under_the_name_it_is_given` |
 | `prep.charges_key` | `--charges_key` | `mace/tools/arg_parser.py:1316` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess_keys.py::test_a_property_key_is_read_under_the_name_it_is_given` |
 | `prep.head_key` | `--head_key` | `mace/tools/arg_parser.py:1368` | MERGE — `mace data prepare` reads the same config section as `mace train` instead of redeclaring the flag | `tests/workflows/test_preprocess.py` |
@@ -823,6 +834,7 @@ only the bag spells.
 |---|---|---|---|---|
 | `calc.export.MACECalculator` | `MACECalculator` | `mace/calculators/__init__.py:12` | KEEP — the one ASE calculator | `tests/workflows/test_calculator.py::test_calculator_forces` |
 | `calc.export.MagneticMACECalculator` | `MagneticMACECalculator` | `mace/calculators/__init__.py:12` | KEEP — a separate `Calculator` subclass (~530 lines), not a mode of `MACECalculator`. The open v1 question is whether it stays a second class or collapses into the one calculator once magmom is just another input feature | `tests/extensions/magnetic` (eval path) |
+| `calc.export.ExcitedMACECalculator` | `ExcitedMACECalculator` | `mace/calculators/__init__.py:1` | KEEP — ASE calculator of excited-state models (all states, couplings, committees, head selection) | `tests/excited/test_excited_calculators.py::test_ase_calculator_matches_model` |
 | `calc.export.LAMMPS_MACE` | `LAMMPS_MACE` | `mace/calculators/__init__.py:12` | DROP — the TorchScript wrapper dies with the TorchScript export format; the MLIAP path replaces it | `tests/integrations/lammps/test_export_golden.py::test_the_exported_artifact_reproduces_the_committed_numbers` |
 | `calc.export.mace_mp` | `mace_mp` | `mace/calculators/__init__.py:12` | KEEP | `tests/golden/test_foundation_goldens.py::test_an_unqualified_mace_mp_is_mpa0_medium_and_reads_no_url` |
 | `calc.export.mace_off` | `mace_off` | `mace/calculators/__init__.py:12` | KEEP | `tests/golden/test_foundation_goldens.py::test_foundation_model_reproduces_its_reference` |

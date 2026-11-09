@@ -45,7 +45,6 @@ from conftest import (  # noqa: E402  pylint: disable=wrong-import-position
 )
 from excited_data import (  # noqa: E402  pylint: disable=wrong-import-position
     make_multiplicity_configs,
-    multiplicity_labels,
 )
 
 SINGLET_TRIPLET_QUINTET = [2, 0, 2, 0, 1]

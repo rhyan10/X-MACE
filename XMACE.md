@@ -191,6 +191,17 @@ mace_run_train --model=ExcitedMACE --n_energies=3 --compute_nacs --compute_socs 
   --train_file=h5/train/train_0.h5 --valid_file=h5/val/val_0.h5 --statistics_file=h5/statistics.json ...
 ```
 
+Heads with different layouts can also come from separate HDF5 files: give each head its own `train_file`/`valid_file` (`.h5`) and `E0s` in `--heads`, and `--atomic_numbers`. Each head's labels are padded to the largest head as they are read.
+
+**Several GPUs.** Training is data parallel, as for any MACE model: every GPU gets its share of each batch, and DDP averages the gradients, so all GPUs take the same optimizer step. Start one process per GPU with torchrun (or `--launcher=slurm` / `mpi` on a cluster):
+
+```bash
+torchrun --standalone --nproc_per_node=4 -m mace.cli.run_train \
+  --distributed --launcher=torchrun --device=cuda --batch_size=8 ... # 8 frames per GPU
+```
+
+`--batch_size` is per process, so the effective batch is batch_size × number of GPUs. The loss is that of the whole effective batch on one device: the means in the energy, force and dipole terms run over the frames of all GPUs, and the RMSE-type coupling terms (NACs, SOCs) are differentiated through the RMSE of the whole batch, not averaged over per-GPU RMSEs. The training statistics (per-state shifts and scales, and the fitted shifts on a foundation backbone) are summed over all GPUs. Mixed heads, the autoencoder, foundation backbones, multi-head fine-tuning and LoRA all work this way.
+
 ## Evaluation and dynamics
 
 ```bash
@@ -269,7 +280,7 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 
 **Known limitations**
 
-* **Multi-head HDF5 data.** `mace_prepare_data` writes each head's labels with its own layout, so frames of heads with different numbers of states or couplings cannot share preprocessed HDF5 batches; use extended XYZ for such heads.
+* **Multi-head LMDB data.** Labels of heads with different layouts are padded for extended XYZ and HDF5 data, not for LMDB (`.aselmdb`) data.
 * **TorchScript with PolarMACE.** PolarMACE models cannot be compiled to TorchScript (an upstream limitation); the `.model` file works in Python, the ASE calculator and SHARC.
 
 * **Couplings at symmetric geometries.** At a geometry with a rotation axis (e.g. a C2v molecule), an exactly equivariant model can only produce coupling vectors that are unchanged by that rotation. Couplings between states of different symmetry species change sign under it, because the phase of the states absorbs the sign. So the model gives zero for them exactly at the symmetric geometry and is accurate again a little way off it. For SO2 the dip is about 0.01 Å wide along the antisymmetric stretch (tutorial 4). Mirror planes are handled by `--coupling_parity=both`. Sign-free outputs such as **v v**ᵀ would remove the restriction; that is not implemented.
@@ -288,7 +299,9 @@ The interface works both ways SHARC runs it. With `sharc.x`, `QM/runQM.sh` calls
 * **Losses and metrics.** Phase invariance, per-frame weights, autoencoder terms, and optimizer coverage.
 * **Calculators.** ASE, committees, MD energy conservation, and the SHARC layer in all state modes and units, including phase continuity.
 * **Spin states** (`test_spin_states.py`, `test_multiplicities.py`). Clebsch–Gordan coefficients against sympy. The same-spin SOC block against **a**·i**S** for doublets to quintets. Hermiticity, selection rules and rotation covariance H(R**a**) = U(R) H(**a**) U(R)† for six state layouts. SOC label layouts and the Wigner–Eckart residual warning. Axial SOC vectors (rotation, inversion) and TorchScript. The phase-free SOC loss and matrix-element metrics, and that a model learns the couplings. The SHARC layer with singlets/triplets/quintets and doublets/quartets: M_S degeneracy, NAC/dipole selection rules, the SOC matrix, rotation covariance, finite-difference gradients, fewer states than the model, and phase continuity.
-* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer. Mixed ground/excited heads for both models, ScaleShiftMACE/MACE/MagneticScaleShiftMACE foundation backbones, multi-head fine-tuning with `pt_head` replay with and without LoRA, and MACE/MACELES/PolarMACE backbones from scratch with shared and state-specific electrostatics.
+* **CLI training.** All properties, the autoencoder with Stage Two, smooth NACs with missing labels, foundation models, float32, HDF5 preprocessing (also with `--states`) and `mace_eval_configs`. Also `--states="1 0 2"` with spin–orbit couplings, evaluated and passed to the SHARC layer. Mixed ground/excited heads for both models (also from HDF5), ScaleShiftMACE/MACE/MagneticScaleShiftMACE foundation backbones, multi-head fine-tuning with `pt_head` replay with and without LoRA, and MACE/MACELES/PolarMACE backbones from scratch with shared and state-specific electrostatics.
+* **Data-parallel training** (`test_excited_distributed.py`, two CPU processes with gloo). The gradient averaged by DDP over the ranks equals the gradient of the whole batch on one device, for every loss term, both models, mixed heads (one rank with ground-state frames only), state-specific charges and fixed parity; the ranks stay identical over optimizer steps. Through the CLI (torchrun, two processes), mixed-head training starts from the same statistics as a single-process run.
+* **Heads** (`test_excited_heads.py`). Per-head specs and padding, padded entries ignored by the loss and the metrics, head selection in the calculators and `evaluate_excited_configs`, several heads on one backbone head, per-head statistics.
 * **Parity and autoencoder.** Polar and axial parts of couplings under inversion. Planar geometries: `fixed` gives no out-of-plane transition dipoles and no in-plane SOC vectors, `both` does. Autoencoder states ordered within each multiplicity, and its encoder distinguishes multiplicities.
 * **SHARC labels.** `labels_from_sharc` applied to the SHARC layer's own output gives back the model's predictions, and it rejects non-degenerate multiplets.
 * **Real SHARC** (`test_sharc_real.py`, skipped without `$SHARC`). A `SHARC_MACE.py` single point against `SharcCalculator`, read with SHARC's own `QM.out` parser. A `sharc.x` trajectory with energy conservation. A pysharc trajectory that must match `sharc.x`.

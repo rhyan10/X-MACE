@@ -512,7 +512,9 @@ class BackboneCall(torch.nn.Module):
         if head_map is None:
             head_map = list(range(num_heads))
         if any(h < 0 or h >= num_heads for h in head_map):
-            raise ValueError(f"head_map {head_map} for a backbone with {num_heads} heads")
+            raise ValueError(
+                f"head_map {head_map} for a backbone with {num_heads} heads"
+            )
         self.register_buffer("head_map", torch.tensor(head_map, dtype=torch.long))
         self.identity_heads = list(head_map) == list(range(num_heads))
 
@@ -1490,7 +1492,7 @@ def fit_excited_shifts(
     Used when the backbone comes from a foundation model."""
     sums = torch.zeros_like(model.delta_shift, dtype=torch.float64)
     counts = torch.zeros_like(model.delta_shift, dtype=torch.float64)
-    masks = model.mask_tables()["energy"].to(torch.float64)
+    masks = model.mask_tables()["energy"].to(sums.device, torch.float64)
     for batch in data_loader:
         batch = batch.to(device)
         data = batch.to_dict()
@@ -1506,6 +1508,10 @@ def fit_excited_shifts(
         weight = labelled.unsqueeze(-1) * masks[heads]
         sums.index_add_(0, heads, values * weight)
         counts.index_add_(0, heads, weight)
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        # distributed run: every rank has its share of the training data
+        torch.distributed.all_reduce(sums)
+        torch.distributed.all_reduce(counts)
     shift = torch.where(
         counts > 0, sums / counts.clamp(min=1.0), torch.zeros_like(sums)
     )

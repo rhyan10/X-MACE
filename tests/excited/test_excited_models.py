@@ -35,7 +35,8 @@ from excited_data import make_excited_configs  # pylint: disable=import-error
 BOTH = [False, True]  # autoencoder
 
 
-def _rotated(atoms_list, rotation, shift=np.zeros(3), permute=None):
+def _rotated(atoms_list, rotation, shift=None, permute=None):
+    shift = np.zeros(3) if shift is None else shift
     out = []
     for atoms in atoms_list:
         new = atoms.copy()

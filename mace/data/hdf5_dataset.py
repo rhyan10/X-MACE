@@ -71,6 +71,15 @@ class HDF5Dataset(Dataset):
         )
         if config.head is None:
             config.head = self.kwargs.get("head")
+        padding = getattr(self, "excited_padding", None)
+        if padding is not None:
+            # excited-state heads with different numbers of states share batches:
+            # pad this head's labels to the largest head (mace.data.excited)
+            from mace.data.excited import (  # pylint: disable=import-outside-toplevel
+                pad_excited_configs,
+            )
+
+            pad_excited_configs([config], *padding)
         atomic_data = self.atomic_dataclass.from_config(
             config,
             z_table=self.z_table,
