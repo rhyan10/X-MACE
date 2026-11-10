@@ -113,7 +113,25 @@ MACE.
 
 ## References
 
-If you use X-MACE, please cite the X-MACE paper and MACE:
+If you use X-MACE, please cite the X-MACE papers:
+
+```bibtex
+@article{barrett2025transferable,
+  title={Transferable machine learning potential X-MACE for excited states using integrated DeepSets},
+  author={Barrett, Rhyan and Ortner, Christoph and Westermayr, Julia},
+  journal={arXiv preprint arXiv:2502.12870},
+  year={2025}
+}
+
+@article{barrett2026transferable,
+  title={Transferable excited-state dynamics enable screening of fluorescent protein chromophores},
+  author={Barrett, Rhyan and Wesely, Sophia and Westermayr, Julia},
+  journal={arXiv preprint arXiv:2604.12699},
+  year={2026}
+}
+```
+
+and MACE:
 
 ```bibtex
 @inproceedings{Batatia2022mace,

@@ -1,0 +1,49 @@
+cff-version: 1.2.0
+message: "If you use X-MACE, please cite the X-MACE papers below, and MACE."
+title: "X-MACE: machine-learned potentials for excited states"
+repository-code: "https://github.com/rhyan10/X-MACE"
+license: MIT
+authors:
+  - family-names: Barrett
+    given-names: Rhyan
+  - family-names: Westermayr
+    given-names: Julia
+preferred-citation:
+  type: article
+  title: "Transferable machine learning potential X-MACE for excited states using integrated DeepSets"
+  authors:
+    - family-names: Barrett
+      given-names: Rhyan
+    - family-names: Ortner
+      given-names: Christoph
+    - family-names: Westermayr
+      given-names: Julia
+  journal: "arXiv preprint arXiv:2502.12870"
+  year: 2025
+references:
+  - type: article
+    title: "Transferable excited-state dynamics enable screening of fluorescent protein chromophores"
+    authors:
+      - family-names: Barrett
+        given-names: Rhyan
+      - family-names: Wesely
+        given-names: Sophia
+      - family-names: Westermayr
+        given-names: Julia
+    journal: "arXiv preprint arXiv:2604.12699"
+    year: 2026
+  - type: conference-paper
+    title: "MACE: Higher Order Equivariant Message Passing Neural Networks for Fast and Accurate Force Fields"
+    authors:
+      - family-names: Batatia
+        given-names: Ilyes
+      - family-names: Kovács
+        given-names: Dávid Péter
+      - family-names: Simm
+        given-names: Gregor N. C.
+      - family-names: Ortner
+        given-names: Christoph
+      - family-names: Csányi
+        given-names: Gábor
+    collection-title: "Advances in Neural Information Processing Systems"
+    year: 2022
