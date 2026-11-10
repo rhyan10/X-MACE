@@ -1,8 +1,9 @@
 # X-MACE tutorials
 
-Eight Jupyter notebooks that take you from the physics of excited states to
-surface-hopping dynamics with SHARC driven by an X-MACE model, to fine-tuning
-foundation models, and to oscillator strengths. They are written for
+Nine Jupyter notebooks in four parts: the physics of excited states (Part 1); building
+a data set, training from scratch and fine-tuning foundation models (Part 2); using a
+trained model, up to surface-hopping dynamics with SHARC (Part 3); and more data,
+oscillator strengths and more models (Part 4). They are written for
 new users who know some Python and quantum chemistry but have not used MACE or SHARC
 before. Every notebook was run end to end; the outputs you see are real.
 
@@ -11,16 +12,23 @@ vibronic coupling (LVC) model standing in for the quantum chemistry. It is cheap
 the whole series runs on a laptop CPU, yet it has everything an ab initio method gives
 SHARC: energies, gradients, NACs, spin–orbit couplings and dipoles.
 
-| notebook | what you learn | needs | time (2 CPU cores) |
-|---|---|---|---|
-| [01 Excited states and symmetry](01_excited_states_and_symmetry.ipynb) | what X-MACE predicts; smooth NACs; arbitrary phases; multiplicities and M_S states; SOC selection rules; Wigner–Eckart coupling vectors; rotation equivariance; polar and axial couplings in planar molecules | — | 1 min |
-| [02 Building a dataset](02_building_a_dataset.ipynb) | checking SOC data; Wigner sampling; snapshots from dynamics; SHARC's `QM.out` quantities and units; converting them to X-MACE labels; inspecting the data | SHARC | 5 min |
-| [03 Training](03_training.ipynb) | every training option; reading the log; learning curves; error tables; phase-consistent parity plots; choosing loss weights | 02 | 30 min |
-| [04 Using a trained model](04_using_a_trained_model.ipynb) | the ASE calculator; potential-energy and coupling scans against the reference; symmetry checks; `SharcCalculator`; ASE dynamics; `mace_eval_configs` | 03, SHARC | 3 min |
-| [05 Surface hopping with SHARC](05_surface_hopping_with_sharc.ipynb) | how SHARC calls X-MACE; `MACE.template`; single points; pysharc and `sharc.x` trajectories; energy conservation; populations compared with the reference | 03, SHARC | 15 min |
-| [06 More models and data](06_more_models_and_data.ipynb) | committees and uncertainty; the autoencoder model; missing labels and weights; HDF5 for large data; free SOCs and X-MACE data; doublets and quartets; backbones, foundation models (MP, OFF, OMOL, MH-1, POLAR-1), multi-head fine-tuning and LoRA; the Python API | 03 | 15 min |
-| [07 Foundation models and fine-tuning](07_foundation_models_and_finetuning.ipynb) | how a model is built on a foundation (and starts on its surface); MACE-OFF, MACE-MP, MACE-POLAR-1 and MACE-MH-1 compared with training from scratch; strategies: full fine-tuning, frozen layers, backbone learning rates, LoRA, multi-head replay with pseudolabels, extra ground-state heads, autoencoder, state-specific electrostatics; fine-tuning a trained model further on additional data, and transferring it to new states | 02, internet | 60 min |
-| [08 Oscillator strengths](08_oscillator_strengths.ipynb) | learning oscillator strengths directly; preparing and splitting data (also f stored under another key, Windows files) with `tools/prepare_osc_data.py`; models on oscillator strengths only (no forces computed) and on energies, forces and f together; an absorption spectrum; committees with uncertainties (`tools/osc_committee.py`); adding f to a trained model; a SLURM committee on MACE-POLAR-1-M (`tools/train_committee_osc.slurm`); checking the installation and troubleshooting | 02, 03 | 15 min |
+## Contents
+
+| | notebook | what you learn | needs | time (2 CPU cores) |
+|---|---|---|---|---|
+| **Part 1 — Concepts** | | | | |
+| | [01 Excited states and symmetry](01_excited_states_and_symmetry.ipynb) | what X-MACE predicts; smooth NACs; arbitrary phases; multiplicities and M_S states; SOC selection rules; Wigner–Eckart coupling vectors; rotation equivariance; polar and axial couplings in planar molecules | — | 1 min |
+| **Part 2 — Data and training** | | | | |
+| | [02 Building a dataset](02_building_a_dataset.ipynb) | checking SOC data; Wigner sampling; snapshots from dynamics; SHARC's `QM.out` quantities and units; converting them to X-MACE labels; inspecting the data | SHARC | 5 min |
+| | [03 Training](03_training.ipynb) | every training option; reading the log; learning curves; error tables; phase-consistent parity plots; choosing loss weights | 02 | 30 min |
+| | [04 Foundation models and fine-tuning](04_foundation_models_and_finetuning.ipynb) | complete `mace_run_train` commands (bash cells, also in [`04_commands.sh`](04_commands.sh)) for MACE-OFF, MACE-MP/MPA/OMAT, MACE-MH-1, MACE-POLAR-1 and MACE-OMOL compared with training from scratch; one command per strategy: full fine-tuning, frozen layers, backbone learning rates, LoRA, multi-head replay with pseudolabels, an extra ground-state head (YAML config), autoencoder, state-specific electrostatics; fine-tuning a trained model on additional data and transferring it to new states; the same on several GPUs and SLURM | 02, internet | 60 min |
+| **Part 3 — Using models** | | | | |
+| | [05 Using a trained model](05_using_a_trained_model.ipynb) | the ASE calculator; potential-energy and coupling scans against the reference; symmetry checks; `SharcCalculator`; ASE dynamics; `mace_eval_configs` | 03, SHARC | 3 min |
+| | [06 Surface hopping with SHARC](06_surface_hopping_with_sharc.ipynb) | how SHARC calls X-MACE; `MACE.template`; single points; pysharc and `sharc.x` trajectories; energy conservation; populations compared with the reference | 03, SHARC | 15 min |
+| **Part 4 — Going further** | | | | |
+| | [07 More data](07_more_data.ipynb) | missing labels and per-frame weights; HDF5 for large data sets; free SOCs and data from the original X-MACE; doublets and quartets | 02 | 3 min |
+| | [08 Oscillator strengths](08_oscillator_strengths.ipynb) | learning oscillator strengths directly; preparing and splitting data (also f stored under another key, Windows files) with `tools/prepare_osc_data.py`; models on oscillator strengths only (no forces computed) and on energies, forces and f together; an absorption spectrum; committees with uncertainties (`tools/osc_committee.py`); adding f to a trained model; a SLURM committee on MACE-POLAR-1-M (`tools/train_committee_osc.slurm`); checking the installation and troubleshooting | 02, 03 | 15 min |
+| | [09 More models](09_more_models.ipynb) | committees and uncertainty; the autoencoder model; backbones, foundation models and heads, Stage Two and restarts (overview); the Python API | 03, SHARC | 12 min |
 
 ## Setup
 
@@ -49,15 +57,19 @@ SHARC: energies, gradients, NACs, spin–orbit couplings and dipoles.
    jupyter lab
    ```
 
-Run the notebooks in order: 02 writes the data that 03 trains on, and 04–06 use the
-model from 03. Notebook 01 is independent. On a GPU, add `--device=cuda` in notebook 03
-and training takes a minute or two.
+Run Parts 2 and 3 in order: 02 writes the data that 03 and 04 train on, and 05–09 use
+the model from 03. Notebook 01 is independent, and Part 4 can be read in any order.
+On a GPU, add `--device=cuda` in notebooks 03 and 04 and training takes minutes.
 
 ## Files
 
 * `tools/so2_lvc.py` — helpers for the tutorials: the SO2 LVC model, Wigner sampling,
   reference calculations with SHARC's LVC interface, writing and running SHARC
   trajectories, reading `output.lis`.
+* `tools/prepare_osc_data.py`, `tools/osc_committee.py`, `tools/train_committee_osc.slurm`
+  — oscillator-strength data preparation, committee predictions and a SLURM committee
+  job (Tutorial 8).
+* `04_commands.sh` — all commands of Tutorial 4 as one script.
 * `work/` — everything the notebooks generate (data, models, trajectories); it is not
   part of the repository and can be deleted at any time.
 

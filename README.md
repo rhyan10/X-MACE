@@ -88,9 +88,9 @@ torchrun --standalone --nproc_per_node=4 -m mace.cli.run_train --distributed --l
 * [`XMACE.md`](XMACE.md) — the full reference: data layout, multiplicities and SOCs,
   every option, backbones, heads, foundation models, fine-tuning, multi-GPU,
   evaluation, SHARC.
-* [`tutorials/xmace/`](tutorials/xmace/README.md) — eight notebooks, from
-  excited-state physics and data generation with SHARC to training, dynamics,
-  foundation models, fine-tuning strategies and oscillator strengths.
+* [`tutorials/xmace/`](tutorials/xmace/README.md) — nine notebooks in four parts:
+  concepts; data, training and fine-tuning foundation models; using models and
+  surface hopping with SHARC; more data, oscillator strengths and more models.
 * [`foundation/`](foundation/README.md) — training an excited-state foundation
   model on many data sets (scripts, configs, SLURM, dry run).
 

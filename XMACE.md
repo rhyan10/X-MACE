@@ -27,7 +27,7 @@ Both live in `mace/modules/excited.py` and work with the rest of MACE: the CLI, 
 
 The energy readouts start at zero, so before training every state lies on the backbone's surface (a foundation model's ground state, exactly). An *adapter* layer (one MACE interaction and product block with l = 1 features) on top of the backbone's last features feeds the coupling readouts, so NACs, dipoles and SOC vectors also work with scalar-only foundation models (MACE-MP small, MACE-OFF, MACE-POLAR-1, ...). The readouts read the features of every backbone layer and of the adapter. See [Backbones, heads, foundation models and LoRA](#backbones-heads-foundation-models-and-lora).
 
-**Tutorials.** `tutorials/xmace/` has eight Jupyter notebooks for new users, from the physics (smooth NACs, phases, multiplicities, Wigner–Eckart SOCs, equivariance) through building a data set with SHARC, training and validation, to surface-hopping dynamics with SHARC, to foundation models and fine-tuning strategies (tutorial 7), and to oscillator strengths (tutorial 8). They use SO2 with SHARC's LVC model as the reference.
+**Tutorials.** `tutorials/xmace/` has nine Jupyter notebooks for new users, in four parts: concepts (1: smooth NACs, phases, multiplicities, Wigner–Eckart SOCs, equivariance); data and training (2: a data set with SHARC, 3: training, 4: foundation models and fine-tuning); using models (5: the calculators, 6: surface hopping with SHARC); going further (7: missing labels, HDF5, legacy SOCs, other multiplicities; 8: oscillator strengths; 9: committees, the autoencoder, backbones and heads, the Python API). They use SO2 with SHARC's LVC model as the reference.
 
 ## Data
 
@@ -197,7 +197,7 @@ mace_run_train --model=ExcitedMACE --foundation_model=small_off --multiheads_fin
 * *continue* — every head of the run has the layout of a foundation head (same name, or `--foundation_head`) and the model class is the same: all weights, shifts and scales are kept and training continues on the new data (e.g. more data of the same kind, with a smaller `--lr`);
 * *transfer* — otherwise: the backbone and the adapter layer keep their weights, the readouts of the run's heads are new and their shifts are fitted to the data. Combine with `--lora`, `--freeze` or `--lr_params_factors`.
 
-The log says which of the two was done. With `--pseudolabel_replay`, the replay data are labelled by the foundation's ground-state backbone. Tutorial 7 shows both cases; [`foundation/README.md`](foundation/README.md) is the recipe for training an excited-state foundation model on many data sets.
+The log says which of the two was done. With `--pseudolabel_replay`, the replay data are labelled by the foundation's ground-state backbone. Tutorial 4 shows both cases; [`foundation/README.md`](foundation/README.md) is the recipe for training an excited-state foundation model on many data sets.
 
 **Using a head.** `ExcitedMACECalculator(model, head="ground")`, `SharcCalculator(..., head=...)`, `head <name>` in `MACE.template` and `mace_eval_configs --head=...` select a head; the default is the first head that is not `pt_head`. The calculator returns only that head's states and couplings. `model.heads`, `model.head_layouts` and `model.mask_tables()` describe what each head predicts.
 
