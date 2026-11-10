@@ -1,8 +1,8 @@
 # X-MACE tutorials
 
-Seven Jupyter notebooks that take you from the physics of excited states to
-surface-hopping dynamics with SHARC driven by an X-MACE model, and to fine-tuning
-foundation models. They are written for
+Eight Jupyter notebooks that take you from the physics of excited states to
+surface-hopping dynamics with SHARC driven by an X-MACE model, to fine-tuning
+foundation models, and to oscillator strengths. They are written for
 new users who know some Python and quantum chemistry but have not used MACE or SHARC
 before. Every notebook was run end to end; the outputs you see are real.
 
@@ -20,6 +20,7 @@ SHARC: energies, gradients, NACs, spin–orbit couplings and dipoles.
 | [05 Surface hopping with SHARC](05_surface_hopping_with_sharc.ipynb) | how SHARC calls X-MACE; `MACE.template`; single points; pysharc and `sharc.x` trajectories; energy conservation; populations compared with the reference | 03, SHARC | 15 min |
 | [06 More models and data](06_more_models_and_data.ipynb) | committees and uncertainty; the autoencoder model; missing labels and weights; HDF5 for large data; free SOCs and X-MACE data; doublets and quartets; backbones, foundation models (MP, OFF, OMOL, MH-1, POLAR-1), multi-head fine-tuning and LoRA; the Python API | 03 | 15 min |
 | [07 Foundation models and fine-tuning](07_foundation_models_and_finetuning.ipynb) | how a model is built on a foundation (and starts on its surface); MACE-OFF, MACE-MP, MACE-POLAR-1 and MACE-MH-1 compared with training from scratch; strategies: full fine-tuning, frozen layers, backbone learning rates, LoRA, multi-head replay with pseudolabels, extra ground-state heads, autoencoder, state-specific electrostatics; fine-tuning a trained model further on additional data, and transferring it to new states | 02, internet | 60 min |
+| [08 Oscillator strengths](08_oscillator_strengths.ipynb) | learning oscillator strengths directly; preparing and splitting data (also f stored under another key, Windows files) with `tools/prepare_osc_data.py`; models on oscillator strengths only (no forces computed) and on energies, forces and f together; an absorption spectrum; committees with uncertainties (`tools/osc_committee.py`); adding f to a trained model; a SLURM committee on MACE-POLAR-1-M (`tools/train_committee_osc.slurm`); checking the installation and troubleshooting | 02, 03 | 15 min |
 
 ## Setup
 
