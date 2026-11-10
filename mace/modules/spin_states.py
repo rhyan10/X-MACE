@@ -95,6 +95,18 @@ def same_multiplicity_pairs(states: Sequence[int]) -> List[Tuple[int, int]]:
     return [(i, j) for i, j in state_pairs(len(mult)) if mult[i] == mult[j]]
 
 
+def default_oscillator_strength_num(states: Sequence[int]) -> int:
+    """Number of oscillator strengths from the ground state (state 0, the lowest state
+    of the first multiplicity present) to the other states of its multiplicity."""
+    first = next((int(n) for n in states if int(n) > 0), 0)
+    return max(first - 1, 0)
+
+
+def oscillator_strength_pairs(n_osc: int) -> List[Tuple[int, int]]:
+    """The transitions of the oscillator strengths: (0, 1), (0, 2), ..., (0, n_osc)."""
+    return [(0, k) for k in range(1, int(n_osc) + 1)]
+
+
 def spin_orbit_pairs(states: Sequence[int]) -> List[Tuple[int, int]]:
     """Pairs coupled by spin-orbit coupling: S_i - S_j in {-1, 0, 1}, not both singlets.
 

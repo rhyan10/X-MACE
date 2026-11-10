@@ -716,6 +716,13 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         default="REF_dipoles",
     )
     parser.add_argument(
+        "--oscillator_strengths_key",
+        help="Key of reference oscillator strengths in training xyz ([n_osc], info): "
+        "from the ground state to states 1..n_osc",
+        type=str,
+        default="REF_oscillator_strengths",
+    )
+    parser.add_argument(
         "--polarizability_key",
         help="Key of polarizability in training xyz",
         type=str,
@@ -907,6 +914,13 @@ def build_default_arg_parser() -> argparse.ArgumentParser:
         help="weight of permanent/transition dipoles loss (excited-state models)",
         type=float,
         default=1.0,
+    )
+    parser.add_argument(
+        "--oscillator_strengths_weight",
+        help="weight of the oscillator strengths loss (excited-state models): MSE of "
+        "the oscillator strengths divided by their rms in the training data",
+        type=float,
+        default=10.0,
     )
     parser.add_argument(
         "--config_type_weights",
@@ -1401,6 +1415,13 @@ def build_preprocess_arg_parser() -> argparse.ArgumentParser:
         default="REF_dipoles",
     )
     parser.add_argument(
+        "--oscillator_strengths_key",
+        help="Key of reference oscillator strengths in training xyz ([n_osc], info): "
+        "from the ground state to states 1..n_osc",
+        type=str,
+        default="REF_oscillator_strengths",
+    )
+    parser.add_argument(
         "--polarizability_key",
         help="Key of polarizability in training xyz",
         type=str,
@@ -1598,6 +1619,15 @@ def add_excited_state_arguments(parser) -> None:
         default=False,
     )
     parser.add_argument(
+        "--compute_oscillator_strengths",
+        help="Predict oscillator strengths from the ground state to the other states of "
+        "its multiplicity (excited-state models; labels: --oscillator_strengths_key)",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
         "--nac_num",
         help="Number of NAC vectors per atom (default: S(S-1)/2, one per state pair)",
         type=int,
@@ -1612,6 +1642,13 @@ def add_excited_state_arguments(parser) -> None:
     parser.add_argument(
         "--dipole_num",
         help="Number of dipole vectors per configuration (default: S permanent + S(S-1)/2 transition)",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--osc_num",
+        help="Number of oscillator strengths per configuration, S0 -> S1 .. S_osc_num "
+        "(default: the states of the ground state's multiplicity minus one)",
         type=int,
         default=None,
     )

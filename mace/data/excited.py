@@ -1,6 +1,7 @@
 ###########################################################################################
 # Excited-state labels (X-MACE): multi-state energies and forces, non-adiabatic
-# couplings (NACs), spin-orbit couplings (SOCs) and permanent/transition dipoles.
+# couplings (NACs), spin-orbit couplings (SOCs), permanent/transition dipoles and
+# oscillator strengths.
 # This program is distributed under the MIT License (see MIT.md)
 ###########################################################################################
 
@@ -11,6 +12,7 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 
 from mace.modules.spin_states import (
+    default_oscillator_strength_num,
     describe_states,
     n_mstates,
     same_multiplicity_pairs,
@@ -49,6 +51,8 @@ class ExcitedStateSpec:
     n_nacs     number of NAC vectors per atom (0: no NACs)
     n_socs     number of SOC values per configuration ("free" SOCs, 0: none)
     n_dipoles  number of dipole vectors per configuration (0: no dipoles)
+    n_osc      number of oscillator strengths per configuration, from the ground
+               state (state 0) to states 1..n_osc (0: none)
     nacs_format  "raw": NACs in the data are converted to smooth NACs (NAC * dE)
                  "smooth": NACs in the data are already smooth
     states     states per multiplicity as in SHARC, [n_singlets, n_doublets,
@@ -68,10 +72,16 @@ class ExcitedStateSpec:
     nacs_format: str = "raw"
     states: Optional[List[int]] = None
     soc_mode: str = "free"
+    n_osc: int = 0
 
     def __post_init__(self):
         if self.n_states < 1:
             raise ValueError(f"n_states must be at least 1, got {self.n_states}")
+        if not 0 <= self.n_osc <= self.n_states - 1:
+            raise ValueError(
+                f"{self.n_osc} oscillator strengths (from the ground state) need "
+                f"n_energies >= {self.n_osc + 1}, got {self.n_states}"
+            )
         if self.nacs_format not in ("raw", "smooth"):
             raise ValueError(
                 f"nacs_format must be 'raw' or 'smooth', got {self.nacs_format!r}"
@@ -140,6 +150,7 @@ class ExcitedStateSpec:
             and self.n_socs == 0
             and self.n_soc_vectors == 0
             and self.n_dipoles == 0
+            and self.n_osc == 0
         ):
             return "ground state (energy and forces)"
         text = f"{self.n_states} states"
@@ -150,10 +161,13 @@ class ExcitedStateSpec:
             if self.soc_mode == "spin_orbit"
             else f"SOCs={self.n_socs}"
         )
-        return (
+        text = (
             f"{text}, NACs={self.n_nacs} ({self.nacs_format}), {socs}, "
             f"dipoles={self.n_dipoles}"
         )
+        if self.n_osc:
+            text += f", oscillator strengths={self.n_osc} (S0 -> S1..S{self.n_osc})"
+        return text
 
 
 def resolve_nacs_format(nacs_format: str, nacs_key: str) -> str:
@@ -292,6 +306,18 @@ def _as_dipoles(value, spec: ExcitedStateSpec, index: int) -> np.ndarray:
     return dipoles.reshape(n_dipoles, 3)
 
 
+def _as_oscillator_strengths(value, n_osc: int, index: int) -> np.ndarray:
+    strengths = np.asarray(value, dtype=float).reshape(-1)
+    if strengths.size == n_osc + 1 and abs(strengths[0]) < 1e-12:
+        strengths = strengths[1:]  # given with the ground state's own (zero) entry
+    if strengths.size != n_osc:
+        raise ValueError(
+            f"Configuration {index}: expected {n_osc} oscillator strengths (from the "
+            f"ground state to states 1..{n_osc}), found {strengths.size}"
+        )
+    return strengths
+
+
 def standardise_excited_configs(
     configs: List[Configuration], spec: ExcitedStateSpec
 ) -> Dict[str, int]:  # pylint: disable=too-many-branches
@@ -299,6 +325,7 @@ def standardise_excited_configs(
 
     energy  [S]          forces  [n_atoms, S, 3]
     nacs    [n_atoms, n_nacs, 3] (smooth)   socs [n_socs]   dipoles [n_dipoles, 3]
+    oscillator_strengths [n_osc]
     soc_vectors [n_pairs, 3]  (soc_mode="spin_orbit", fitted to the SOC matrix)
 
     Missing labels are filled with zeros and get weight 0, so that frame is
@@ -308,7 +335,14 @@ def standardise_excited_configs(
     property. Works in place.
     """
     n_states = spec.n_states
-    counts = {"energy": 0, "forces": 0, "nacs": 0, "socs": 0, "dipoles": 0}
+    counts = {
+        "energy": 0,
+        "forces": 0,
+        "nacs": 0,
+        "socs": 0,
+        "dipoles": 0,
+        "oscillator_strengths": 0,
+    }
     worst_residual = 0.0
     for index, config in enumerate(configs):
         props, weights = config.properties, config.property_weights
@@ -332,6 +366,7 @@ def standardise_excited_configs(
             ("nacs", spec.n_nacs),
             ("socs", spec.n_socs or spec.n_soc_vectors),
             ("dipoles", spec.n_dipoles),
+            ("oscillator_strengths", spec.n_osc),
         ):
             if not enabled:
                 props.pop(name, None)
@@ -392,6 +427,17 @@ def standardise_excited_configs(
                 props["dipoles"] = _as_dipoles(props["dipoles"], spec, index)
                 weights.setdefault("dipoles", 1.0)
                 counts["dipoles"] += 1
+
+        if spec.n_osc:
+            if props.get("oscillator_strengths") is None:
+                props["oscillator_strengths"] = np.zeros(spec.n_osc)
+                weights["oscillator_strengths"] = 0.0
+            else:
+                props["oscillator_strengths"] = _as_oscillator_strengths(
+                    props["oscillator_strengths"], spec.n_osc, index
+                )
+                weights.setdefault("oscillator_strengths", 1.0)
+                counts["oscillator_strengths"] += 1
     if worst_residual > 1e-3:
         logging.warning(
             f"The SOC matrices deviate from the Wigner-Eckart form by up to "
@@ -453,6 +499,19 @@ def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
         n_dipoles = (
             args.dipole_num if args.dipole_num is not None else n_states + n_pairs
         )
+    n_osc = 0
+    if getattr(args, "compute_oscillator_strengths", False):
+        osc_num = getattr(args, "osc_num", None)
+        n_osc = (
+            osc_num
+            if osc_num is not None
+            else default_oscillator_strength_num(states or [n_states])
+        )
+        if n_osc < 1:
+            raise ValueError(
+                "--compute_oscillator_strengths needs at least two states of the ground "
+                "state's multiplicity (or --osc_num)"
+            )
     return ExcitedStateSpec(
         n_states=n_states,
         n_nacs=n_nacs,
@@ -461,13 +520,21 @@ def excited_spec_from_args(args) -> Optional[ExcitedStateSpec]:
         nacs_format=resolve_nacs_format(args.nacs_format, args.nacs_key),
         states=states,
         soc_mode=soc_mode,
+        n_osc=n_osc,
     )
 
 
 def add_excited_state_keys(key_specification, args) -> None:
-    """Read NACs (per atom), SOCs and dipoles with the keys given on the command line."""
+    """Read NACs (per atom), SOCs, dipoles and oscillator strengths with the keys given
+    on the command line."""
     key_specification.update(
-        info_keys={"socs": args.socs_key, "dipoles": args.dipoles_key},
+        info_keys={
+            "socs": args.socs_key,
+            "dipoles": args.dipoles_key,
+            "oscillator_strengths": getattr(
+                args, "oscillator_strengths_key", "REF_oscillator_strengths"
+            ),
+        },
         arrays_keys={"nacs": args.nacs_key},
     )
 
@@ -483,9 +550,11 @@ EXCITED_HEAD_KEYS = (
     "compute_nacs",
     "compute_socs",
     "compute_dipoles",
+    "compute_oscillator_strengths",
     "nac_num",
     "soc_num",
     "dipole_num",
+    "osc_num",
     "soc_mode",
     "nacs_format",
     "ground_state",
@@ -507,6 +576,7 @@ def spec_layout(spec: ExcitedStateSpec) -> Dict:
         "soc_vector_num": spec.n_soc_vectors,
         "dipole_num": spec.n_dipoles,
         "n_permanent_dipoles": spec.n_permanent_dipoles if spec.n_dipoles else 0,
+        "osc_num": spec.n_osc,
     }
 
 
@@ -536,7 +606,7 @@ def excited_specs_for_heads(
             specs[name] = ground_state_spec()
             continue
         values = dict(vars(args))
-        for key in ("nacs_key", "socs_key", "dipoles_key"):
+        for key in ("nacs_key", "socs_key", "dipoles_key", "oscillator_strengths_key"):
             if key in head:
                 values[key] = head[key]
         values.update({k: v for k, v in own.items() if k != "ground_state"})
@@ -557,6 +627,7 @@ class PaddedLayout:
     n_socs: int
     n_soc_vectors: int
     n_dipoles: int
+    n_osc: int = 0
 
     @classmethod
     def from_specs(cls, specs) -> "PaddedLayout":
@@ -567,6 +638,7 @@ class PaddedLayout:
             n_socs=max(s.n_socs for s in specs),
             n_soc_vectors=max(s.n_soc_vectors for s in specs),
             n_dipoles=max(s.n_dipoles for s in specs),
+            n_osc=max(s.n_osc for s in specs),
         )
 
 
@@ -628,6 +700,7 @@ def pad_excited_configs(
             ("socs", padded.n_socs, (0,)),
             ("soc_vectors", padded.n_soc_vectors, (0, 3)),
             ("dipoles", padded.n_dipoles, (0, 3)),
+            ("oscillator_strengths", padded.n_osc, (0,)),
         ):
             if size == 0:
                 props.pop(name, None)

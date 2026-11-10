@@ -30,19 +30,27 @@ LABEL_OPTIONS = (
     "compute_nacs",
     "compute_socs",
     "compute_dipoles",
+    "compute_oscillator_strengths",
     "nac_num",
     "soc_num",
     "dipole_num",
+    "osc_num",
     "nacs_format",
     "energy_key",
     "forces_key",
     "nacs_key",
     "socs_key",
     "dipoles_key",
+    "oscillator_strengths_key",
 )
 # options that only concern the head in training
 HEAD_OPTIONS = ("weight", "config_type_weights")
-FLAGS = ("compute_nacs", "compute_socs", "compute_dipoles")
+FLAGS = (
+    "compute_nacs",
+    "compute_socs",
+    "compute_dipoles",
+    "compute_oscillator_strengths",
+)
 
 
 def _cli_value(value) -> str:

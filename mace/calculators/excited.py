@@ -3,7 +3,7 @@
 # This program is distributed under the MIT License (see MIT.md)
 ###########################################################################################
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from glob import glob
 from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple, Union
@@ -15,6 +15,7 @@ from ase.calculators.calculator import Calculator, all_changes
 
 from mace import data
 from mace.modules.spin_states import (
+    oscillator_strength_pairs,
     same_multiplicity_pairs,
     soc_matrix_from_vectors,
     spin_orbit_pairs,
@@ -74,6 +75,7 @@ class HeadView:
     soc_vector_num: int
     compute_dipoles: bool
     dipole_num: int
+    osc_num: int = 0
 
     @classmethod
     def from_model(
@@ -110,6 +112,7 @@ class HeadView:
                 soc_vector_num=int(getattr(model, "soc_vector_num", 0)),
                 compute_dipoles=bool(model.compute_dipoles),
                 dipole_num=int(model.dipole_num) if bool(model.compute_dipoles) else 0,
+                osc_num=int(getattr(model, "osc_num", 0)),
             )
         layout = layouts[index]
         soc_vectors = int(layout["soc_vector_num"])
@@ -126,6 +129,7 @@ class HeadView:
             soc_vector_num=soc_vectors,
             compute_dipoles=int(layout["dipole_num"]) > 0,
             dipole_num=int(layout["dipole_num"]),
+            osc_num=int(layout.get("osc_num", 0)),
         )
 
     def select(self, out: Dict[str, np.ndarray]) -> Dict[str, np.ndarray]:
@@ -137,6 +141,7 @@ class HeadView:
             "socs": (1, self.soc_num),
             "soc_vectors": (1, self.soc_vector_num),
             "dipoles": (1, self.dipole_num),
+            "oscillator_strengths": (1, self.osc_num),
         }
         selected = {}
         for key, value in out.items():
@@ -160,6 +165,7 @@ class ExcitedModelLayout:
     dipole_pairs state pair of every transition dipole
     soc_mode     "free" (soc_num numbers) or "spin_orbit" (coupling vectors)
     soc_pairs    spatial state pair of every SOC vector (spin_orbit)
+    osc_pairs    transition of every oscillator strength: (0, 1), (0, 2), ...
     """
 
     states: List[int]
@@ -168,6 +174,7 @@ class ExcitedModelLayout:
     dipole_pairs: List[Tuple[int, int]]
     soc_mode: str
     soc_pairs: List[Tuple[int, int]]
+    osc_pairs: List[Tuple[int, int]] = field(default_factory=list)
 
     @classmethod
     def from_model(
@@ -196,7 +203,10 @@ class ExcitedModelLayout:
             n_permanent, dipole_pairs = n_states, every
         soc_mode = str(getattr(model, "soc_mode", "free"))
         soc_pairs = spin_orbit_pairs(states) if soc_mode == "spin_orbit" else []
-        return cls(states, nac_pairs, n_permanent, dipole_pairs, soc_mode, soc_pairs)
+        osc_pairs = oscillator_strength_pairs(int(getattr(model, "osc_num", 0)))
+        return cls(
+            states, nac_pairs, n_permanent, dipole_pairs, soc_mode, soc_pairs, osc_pairs
+        )
 
 
 def coupling_signs(
@@ -237,6 +247,7 @@ class ExcitedMACECalculator(Calculator):
       soc_vectors           [Q, 3]           (soc_mode="spin_orbit")
       soc_matrix            [nm, nm] complex M_S-resolved SOC matrix (spin_orbit)
       dipoles               [D, 3]
+      oscillator_strengths  [O]  from the ground state to states 1..O (>= 0)
       energies_var, forces_states_var   committee variances (several models)
 
     self.layout (ExcitedModelLayout) says which states the couplings belong to.
@@ -257,6 +268,7 @@ class ExcitedMACECalculator(Calculator):
         "soc_vectors",
         "soc_matrix",
         "dipoles",
+        "oscillator_strengths",
     ]
 
     def __init__(
@@ -381,6 +393,7 @@ class ExcitedMACECalculator(Calculator):
                             "socs",
                             "dipoles",
                             "soc_vectors",
+                            "oscillator_strengths",
                         )
                         and value is not None
                     }
@@ -442,6 +455,11 @@ class ExcitedMACECalculator(Calculator):
                     )
                 dipoles.append(value)
             results["dipoles"] = np.mean(dipoles, axis=0)
+        if "oscillator_strengths" in first:
+            strengths = np.stack([p["oscillator_strengths"][0] for p in per_model])
+            results["oscillator_strengths"] = strengths.mean(axis=0)
+            if self.num_models > 1:
+                results["oscillator_strengths_var"] = strengths.var(axis=0)
         return results
 
     def calculate(self, atoms=None, properties=None, system_changes=all_changes):
@@ -467,7 +485,8 @@ def evaluate_excited_configs(
     and if predicted <prefix>smooth_nacs, <prefix>nacs [n_atoms, P, 3],
     <prefix>socs [L] (free) or <prefix>soc_vectors [Q, 3] and <prefix>socs, the upper
     triangle of the M_S-resolved SOC matrix as (re, im) pairs [nm (nm - 1)]
-    (spin_orbit; the layout --socs_key reads back), <prefix>dipoles [D, 3].
+    (spin_orbit; the layout --socs_key reads back), <prefix>dipoles [D, 3],
+    <prefix>oscillator_strengths [O].
     head selects the head of a multi-head model (default: the first excited head)."""
     calc = ExcitedMACECalculator(
         model_paths=None, models=[model], device=device, head=head
@@ -502,7 +521,16 @@ def evaluate_excited_configs(
             {
                 key: torch_tools.to_numpy(value)
                 for key, value in out.items()
-                if key in ("energy", "forces", "nacs", "socs", "dipoles", "soc_vectors")
+                if key
+                in (
+                    "energy",
+                    "forces",
+                    "nacs",
+                    "socs",
+                    "dipoles",
+                    "soc_vectors",
+                    "oscillator_strengths",
+                )
                 and value is not None
             }
         )
@@ -513,6 +541,7 @@ def evaluate_excited_configs(
         socs = out.get("socs")
         soc_vectors = out.get("soc_vectors")
         dipoles = out.get("dipoles")
+        strengths = out.get("oscillator_strengths")
         for g in range(len(ptr) - 1):
             atoms = atoms_list[index]
             atoms.calc = None
@@ -535,5 +564,7 @@ def evaluate_excited_configs(
                 )
             if dipoles is not None:
                 atoms.info[info_prefix + "dipoles"] = dipoles[g]
+            if strengths is not None:
+                atoms.info[info_prefix + "oscillator_strengths"] = strengths[g]
             index += 1
     return atoms_list

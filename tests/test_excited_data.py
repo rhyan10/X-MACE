@@ -104,7 +104,14 @@ def test_missing_labels_get_zero_weight(molecules):
     atoms.info = {"REF_energy": molecules[1].info["REF_energy"]}  # energy only
     configs = [_config(molecules[0]), _config(atoms)]
     counts = standardise_excited_configs(configs, full_spec())
-    assert counts == {"energy": 2, "forces": 1, "nacs": 1, "socs": 1, "dipoles": 1}
+    assert counts == {
+        "energy": 2,
+        "forces": 1,
+        "nacs": 1,
+        "socs": 1,
+        "dipoles": 1,
+        "oscillator_strengths": 0,
+    }
     weights = configs[1].property_weights
     for name in ("forces", "nacs", "socs", "dipoles"):
         assert weights[name] == 0.0

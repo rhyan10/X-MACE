@@ -30,7 +30,12 @@ from .blocks import (
     RadialEmbeddingBlock,
     RealAgnosticResidualInteractionBlock,
 )
-from .spin_states import parse_states, same_multiplicity_pairs, spin_orbit_pairs
+from .spin_states import (
+    default_oscillator_strength_num,
+    parse_states,
+    same_multiplicity_pairs,
+    spin_orbit_pairs,
+)
 from .utils import get_edge_vectors_and_lengths
 
 # --------------------------------------------------------------------------------------
@@ -373,10 +378,12 @@ def excited_head_layout(
     soc_mode: str = "free",
     compute_dipoles: bool = False,
     dipole_num: Optional[int] = None,
+    compute_oscillator_strengths: bool = False,
+    osc_num: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Output layout of one head: number of states, multiplicities, and the numbers of
-    NACs, free SOCs, SOC vectors and dipoles (0: not predicted). A ground-state head
-    is excited_head_layout(1)."""
+    NACs, free SOCs, SOC vectors, dipoles and oscillator strengths (0: not predicted).
+    A ground-state head is excited_head_layout(1)."""
     if n_states < 1:
         raise ValueError(f"n_energies must be at least 1, got {n_states}")
     if states is not None:
@@ -414,6 +421,17 @@ def excited_head_layout(
         raise ValueError("compute_socs needs n_energies >= 2 or soc_num >= 1")
     if compute_dipoles and dipole_num < 1:
         raise ValueError("compute_dipoles needs dipole_num >= 1")
+    osc_num = (
+        (osc_num if osc_num is not None else default_oscillator_strength_num(layout))
+        if compute_oscillator_strengths
+        else 0
+    )
+    if compute_oscillator_strengths and not 1 <= osc_num <= n_states - 1:
+        raise ValueError(
+            f"compute_oscillator_strengths needs 1 <= osc_num <= n_energies - 1 "
+            f"(transitions from the ground state), got osc_num={osc_num} for "
+            f"{n_states} states"
+        )
     n_permanent = n_states if dipole_num == n_states + n_pairs else dipole_num
     return {
         "n_states": int(n_states),
@@ -423,6 +441,7 @@ def excited_head_layout(
         "soc_vector_num": int(soc_vector_num),
         "dipole_num": int(dipole_num),
         "n_permanent_dipoles": int(n_permanent),
+        "osc_num": int(osc_num),
     }
 
 
@@ -495,6 +514,9 @@ def mask_tables_from_layouts(layouts: List[Dict[str, Any]]) -> Dict[str, torch.T
         "soc_vectors": _mask_table([layout["soc_vector_num"] for layout in layouts]),
         "dipoles": _mask_table(dipoles),
         "transition_dipoles": transition,
+        "oscillator_strengths": _mask_table(
+            [int(layout.get("osc_num", 0)) for layout in layouts]
+        ),
     }
 
 
@@ -567,6 +589,7 @@ class ExcitedMACE(torch.nn.Module):
 
       energy  [B, S_max]   forces [N, S_max, 3]   nacs [N, P_max, 3]
       socs    [B, L_max]   soc_vectors [B, Q_max, 3]   dipoles [B, D_max, 3]
+      oscillator_strengths [B, O_max]  (ground state -> states 1..O, >= 0)
 
     model.head_layouts says what each head predicts; mask_tables() which entries are
     real. An equivariant adapter layer (one MACE interaction and product on top of the
@@ -610,6 +633,7 @@ class ExcitedMACE(torch.nn.Module):
         coupling_parity: str = "both",
         delta_scale: Optional[Sequence[float]] = None,
         delta_shift: Optional[Sequence[Sequence[float]]] = None,
+        osc_scale: Optional[Sequence[Sequence[float]]] = None,
         backbone_cls: Optional[Type[torch.nn.Module]] = None,
         # single-head arguments (models built without head_layouts)
         n_energies: int = 1,
@@ -619,6 +643,8 @@ class ExcitedMACE(torch.nn.Module):
         soc_num: Optional[int] = None,
         compute_dipoles: bool = False,
         dipole_num: Optional[int] = None,
+        compute_oscillator_strengths: bool = False,
+        osc_num: Optional[int] = None,
         states: Optional[List[int]] = None,
         soc_mode: str = "free",
         atomic_inter_scale: Union[float, Sequence[float]] = 1.0,
@@ -649,9 +675,12 @@ class ExcitedMACE(torch.nn.Module):
                     soc_mode=soc_mode,
                     compute_dipoles=compute_dipoles,
                     dipole_num=dipole_num,
+                    compute_oscillator_strengths=compute_oscillator_strengths,
+                    osc_num=osc_num,
                 )
             ]
-        head_layouts = [dict(layout) for layout in head_layouts]
+        # layouts of models saved before oscillator strengths have no "osc_num"
+        head_layouts = [{"osc_num": 0, **dict(layout)} for layout in head_layouts]
         if MLP_irreps is None:
             MLP_irreps = backbone_kwargs.get("MLP_irreps", o3.Irreps("16x0e"))
         MLP_irreps = o3.Irreps(str(MLP_irreps))
@@ -717,6 +746,7 @@ class ExcitedMACE(torch.nn.Module):
         dipoles = [layout["dipole_num"] for layout in head_layouts]
         permanent = [layout["n_permanent_dipoles"] for layout in head_layouts]
         transitions = [d - p for d, p in zip(dipoles, permanent)]
+        oscillators = [int(layout["osc_num"]) for layout in head_layouts]
         self.head_n_states: List[int] = n_states
         self.head_states: List[List[int]] = [
             list(layout["states"]) for layout in head_layouts
@@ -726,6 +756,8 @@ class ExcitedMACE(torch.nn.Module):
         self.soc_num = max(socs)
         self.soc_vector_num = max(soc_vectors)
         self.dipole_num = max(dipoles)
+        self.osc_num = max(oscillators)
+        self.compute_oscillator_strengths = self.osc_num > 0
         self.compute_nacs = self.nac_num > 0
         self.compute_socs = self.soc_num > 0
         self.compute_soc_vectors = self.soc_vector_num > 0
@@ -743,6 +775,7 @@ class ExcitedMACE(torch.nn.Module):
         self.register_buffer("soc_index", _index_table(socs))
         self.register_buffer("soc_vector_index", _index_table(soc_vectors))
         self.register_buffer("dipole_index", _index_table(dipoles))
+        self.register_buffer("osc_index", _index_table(oscillators))
         transition_table = torch.zeros(
             len(head_layouts), max(max(dipoles), 1), dtype=torch.long
         )
@@ -765,6 +798,14 @@ class ExcitedMACE(torch.nn.Module):
             "delta_scale", torch.tensor(scale, dtype=torch.get_default_dtype())
         )
         self.register_buffer("delta_shift", shift.to(torch.get_default_dtype()))
+        # oscillator strengths: f = scale * softplus(readout), the scale per head and
+        # transition from the data (e.g. their rms), so the readouts work at O(1)
+        osc_table = torch.ones(len(head_layouts), max(max(oscillators), 1))
+        if osc_scale is not None:
+            for h, values in enumerate(osc_scale):
+                values = list(np.atleast_1d(np.asarray(values, dtype=float)))
+                osc_table[h, : len(values)] = torch.tensor(values[: osc_table.shape[1]])
+        self.register_buffer("osc_scale", osc_table.to(torch.get_default_dtype()))
 
         # adapter: one MACE layer on top of the backbone, with l = 1 features
         num_elements = len(backbone.atomic_numbers)
@@ -853,6 +894,12 @@ class ExcitedMACE(torch.nn.Module):
                 self.dipoles_axial_readouts = self._pair_readouts(
                     feature_irreps, MLP_irreps, self.n_transition_total, "1e"
                 )
+        total = int(sum(oscillators))
+        self.osc_readouts = torch.nn.ModuleList()
+        if total > 0:
+            self.osc_readouts = self._scalar_readouts(
+                feature_irreps, MLP_irreps, gate, total
+            )
         total = int(sum(soc_vectors))
         self.soc_vectors_readouts = torch.nn.ModuleList()
         if total > 0:
@@ -884,6 +931,28 @@ class ExcitedMACE(torch.nn.Module):
     @property
     def products(self) -> torch.nn.ModuleList:
         return self.backbone.model.products
+
+    def __setstate__(self, state: Dict[str, Any]) -> None:
+        """Models saved before oscillator strengths existed predict none."""
+        super().__setstate__(state)
+        if "osc_readouts" not in self._modules:
+            self._modules["osc_readouts"] = torch.nn.ModuleList()
+        if "osc_index" not in self._buffers:
+            heads = self._buffers["energy_index"].shape[0]
+            self._buffers["osc_index"] = torch.zeros(
+                heads, 1, dtype=torch.long, device=self._buffers["energy_index"].device
+            )
+        if "osc_scale" not in self._buffers:
+            reference = self._buffers["delta_scale"]
+            self._buffers["osc_scale"] = torch.ones(
+                reference.shape[0], 1, dtype=reference.dtype, device=reference.device
+            )
+        if "osc_num" not in self.__dict__:
+            self.osc_num = 0
+            self.compute_oscillator_strengths = False
+            self.head_layouts = [
+                {"osc_num": 0, **dict(layout)} for layout in self.head_layouts
+            ]
 
     def _zero_init_energy_readouts(self) -> bool:
         return True
@@ -1061,6 +1130,8 @@ class ExcitedMACE(torch.nn.Module):
         model.soc_num = max(layout["soc_num"] for layout in layouts)
         model.soc_vector_num = max(layout["soc_vector_num"] for layout in layouts)
         model.dipole_num = max(layout["dipole_num"] for layout in layouts)
+        model.osc_num = max(int(layout["osc_num"]) for layout in layouts)
+        model.compute_oscillator_strengths = model.osc_num > 0
         model.compute_nacs = model.nac_num > 0
         model.compute_socs = model.soc_num > 0
         model.compute_soc_vectors = model.soc_vector_num > 0
@@ -1072,6 +1143,8 @@ class ExcitedMACE(torch.nn.Module):
             self.soc_vector_index, [l["soc_vector_num"] for l in layouts]
         )
         model.dipole_index = rows(self.dipole_index, [l["dipole_num"] for l in layouts])
+        model.osc_index = rows(self.osc_index, [int(l["osc_num"]) for l in layouts])
+        model.osc_scale = rows(self.osc_scale, [int(l["osc_num"]) for l in layouts])
         model.transition_index = rows(
             self.transition_index, [l["dipole_num"] for l in layouts]
         )
@@ -1158,6 +1231,19 @@ class ExcitedMACE(torch.nn.Module):
         socs: Optional[torch.Tensor] = None
         dipoles: Optional[torch.Tensor] = None
         soc_vectors: Optional[torch.Tensor] = None
+        oscillator_strengths: Optional[torch.Tensor] = None
+        osc_scale: Optional[torch.Tensor] = None
+        if len(self.osc_readouts) > 0 and self.osc_num > 0:
+            node_osc = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
+            for i, osc_readout in enumerate(self.osc_readouts):
+                value = osc_readout(features[i])
+                node_osc = value if node_osc.shape[1] == 0 else node_osc + value
+            graph_osc = scatter_sum(node_osc, data["batch"], dim=0, dim_size=num_graphs)
+            # oscillator strengths are >= 0
+            osc_scale = self.osc_scale[graph_heads][:, : self.osc_index.shape[1]]
+            oscillator_strengths = osc_scale * gather_heads(
+                torch.nn.functional.softplus(graph_osc), self.osc_index, graph_heads
+            )
         if len(self.soc_vectors_readouts) > 0 and self.soc_vector_num > 0:
             node_soc = torch.zeros(num_nodes, 0, dtype=dtype, device=device)
             for i, soc_readout in enumerate(self.soc_vectors_readouts):
@@ -1211,6 +1297,8 @@ class ExcitedMACE(torch.nn.Module):
             "socs": socs,
             "dipoles": dipoles,
             "soc_vectors": soc_vectors,
+            "oscillator_strengths": oscillator_strengths,
+            "oscillator_strengths_scale": osc_scale,
         }
 
     def _state_electrostatics(
@@ -1311,6 +1399,8 @@ class ExcitedMACE(torch.nn.Module):
             "socs": couplings["socs"],
             "dipoles": couplings["dipoles"],
             "soc_vectors": couplings["soc_vectors"],
+            "oscillator_strengths": couplings["oscillator_strengths"],
+            "oscillator_strengths_scale": couplings["oscillator_strengths_scale"],
             "state_charges": state_charges,
             "state_electrostatic_energy": electrostatic,
             "edge_forces": None,
@@ -1508,6 +1598,8 @@ class AutoencoderExcitedMACE(ExcitedMACE):
             "socs": couplings["socs"],
             "dipoles": couplings["dipoles"],
             "soc_vectors": couplings["soc_vectors"],
+            "oscillator_strengths": couplings["oscillator_strengths"],
+            "oscillator_strengths_scale": couplings["oscillator_strengths_scale"],
             "state_charges": state_charges,
             "state_electrostatic_energy": electrostatic,
             "edge_forces": None,

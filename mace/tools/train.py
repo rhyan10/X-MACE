@@ -153,7 +153,12 @@ def valid_err_log(
             f"{label}_E_per_atom={eval_metrics[f'{kind}_e_per_atom'] * 1e3:8.2f} meV, "
             f"{label}_F={eval_metrics[f'{kind}_f'] * 1e3:8.2f} meV / A"
         )
-        for key, name in (("nacs", "NACs"), ("socs", "SOCs"), ("dipoles", "dipoles")):
+        for key, name in (
+            ("nacs", "NACs"),
+            ("socs", "SOCs"),
+            ("dipoles", "dipoles"),
+            ("osc", "f_osc"),
+        ):
             if eval_metrics.get(f"{kind}_{key}") is not None:
                 msg += f", {label}_{name}={eval_metrics[f'{kind}_{key}'] * 1e3:8.2f} (x1e-3)"
         logging.info(msg)
@@ -659,7 +664,7 @@ class MACELoss(Metric):
 
         # excited states: NACs, SOCs and permanent/transition dipoles, compared
         # with the phase (sign) that best matches the reference
-        for name in ("nacs", "socs", "state_dipoles"):
+        for name in ("nacs", "socs", "state_dipoles", "osc"):
             self.add_state(
                 f"{name}_computed", default=torch.tensor(0.0), dist_reduce_fx="sum"
             )
@@ -889,6 +894,16 @@ class MACELoss(Metric):
             if delta.numel():
                 self.delta_state_dipoles_per_atom.append(per_atom)
             self._append_excited("state_dipoles", delta, kept)
+        if (
+            output.get("oscillator_strengths") is not None
+            and "oscillator_strengths" in batch
+        ):
+            ref = batch.oscillator_strengths
+            pred = output["oscillator_strengths"].view(ref.shape)
+            delta, kept = self._select(
+                batch, ref - pred, ref, "oscillator_strengths", "oscillator_strengths"
+            )
+            self._append_excited("osc", delta, kept)
 
     def _append_excited(self, name: str, delta: torch.Tensor, ref: torch.Tensor):
         if delta.numel() == 0:
@@ -907,6 +922,7 @@ class MACELoss(Metric):
             ("nacs", "nacs"),
             ("socs", "socs"),
             ("state_dipoles", "dipoles"),
+            ("osc", "osc"),
         ):
             if not getattr(self, f"{name}_computed"):
                 continue

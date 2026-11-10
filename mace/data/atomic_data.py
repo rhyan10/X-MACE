@@ -28,11 +28,13 @@ from .neighborhood import get_neighborhood
 #   socs    [n_socs]                spin-orbit couplings
 #   dipoles [n_dipoles, 3]          permanent and transition dipoles
 #   soc_vectors [n_soc_pairs, 3]    spin-orbit coupling vectors (Wigner-Eckart)
+#   oscillator_strengths [n_osc]    from the ground state to states 1..n_osc
 EXCITED_STATE_PROPERTIES = {
     "nacs": False,
     "socs": True,
     "dipoles": True,
     "soc_vectors": True,
+    "oscillator_strengths": True,
 }
 
 if TYPE_CHECKING:

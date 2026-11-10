@@ -401,5 +401,6 @@ def test_ground_state_spec_layout_is_ground():
         "soc_vector_num": 0,
         "dipole_num": 0,
         "n_permanent_dipoles": 0,
+        "osc_num": 0,
     }
     assert isinstance(ase.Atoms, type)

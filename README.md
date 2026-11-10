@@ -2,8 +2,8 @@
 
 **Excited-state MACE**: machine-learned potentials for several electronic states at
 once — energies and forces of every state, non-adiabatic couplings (NACs),
-spin–orbit couplings (SOCs) and permanent and transition dipoles — for
-non-adiabatic dynamics with SHARC or ASE.
+spin–orbit couplings (SOCs), permanent and transition dipoles and oscillator
+strengths — for non-adiabatic dynamics with SHARC or ASE and absorption spectra.
 
 X-MACE is built on [MACE](https://github.com/ACEsuit/mace). Every state is the
 energy of a ground-state MACE model (the *backbone*) plus a learned per-state

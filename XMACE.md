@@ -10,6 +10,7 @@ X-MACE extends MACE to several electronic states. One network predicts, for S st
 | spin–orbit couplings | `socs` | `[n_graphs, L]` | sums of per-atom invariant scalars (`--soc_mode=free`) |
 | spin–orbit coupling vectors | `soc_vectors` | `[n_graphs, Q, 3]` | sums of per-atom axial vectors (`--soc_mode=spin_orbit`), see [Spin multiplicities](#spin-multiplicities) |
 | permanent and transition dipoles | `dipoles` | `[n_graphs, D, 3]` | sums of per-atom equivariant vectors |
+| oscillator strengths | `oscillator_strengths` | `[n_graphs, O]` | from the ground state to states 1..O: scale · softplus(sum of per-atom invariant scalars), so f ≥ 0 |
 
 P = S(S−1)/2 state pairs in the order (0,1), (0,2), …, (1,2), …. By default L = P and D = S + P (S permanent dipoles, then one transition dipole per pair). With `--states`, P counts only pairs of the same multiplicity.
 
@@ -39,6 +40,7 @@ Each frame of an extended XYZ file carries its labels in `atoms.info`, as in X-M
 | `REF_nacs` (`--nacs_key`) | `[n_atoms, P, 3]` (also `[P, n_atoms, 3]`) | raw or smooth, see below |
 | `REF_socs` (`--socs_key`) | `[L]` real | any unit |
 | `REF_dipoles` (`--dipoles_key`) | `[D, 3]` | any unit |
+| `REF_oscillator_strengths` (`--oscillator_strengths_key`) | `[O]`, f(S0→S1), …, f(S0→S_O) (also `[O + 1]` with a leading 0 for S0 itself) | dimensionless |
 
 * **Smooth NACs.** NACs diverge as 1/ΔE at conical intersections, so the model learns NAC × |E_j − E_i| instead. `--nacs_format=raw` multiplies the NACs in the data by the energy gap of their pair, using the reference energies of the same frame. `--nacs_format=smooth` uses them as they are. The default, `auto`, picks `smooth` when the NAC key contains "smooth" (e.g. `REF_smooth_nacs`) and `raw` otherwise. The log says which was used. The ASE calculator returns both the smooth NACs and the physical NACs (smooth NACs / ΔE).
 * **Missing labels.** A frame may lack any label. The missing label is filled with zeros and gets weight 0, so that frame is skipped for that term only. `config_weight` and `config_<property>_weight` in `atoms.info` set per-frame weights, as in MACE.
@@ -115,6 +117,9 @@ The X-MACE command lines keep working, apart from `python scripts/run_train.py` 
 | `--nac_num` / `--soc_num` / `--dipole_num` | P / P / S + P | sizes of the outputs (P: coupled pairs) |
 | `--nacs_format` | `auto` | `raw`, `smooth` or `auto`, see above |
 | `--nacs_weight` / `--socs_weight` / `--dipoles_weight` | 100 / 100 / 1 | loss weights |
+| `--compute_oscillator_strengths` | off | predict oscillator strengths, see below |
+| `--osc_num` | states of the ground state's multiplicity − 1 | number of oscillator strengths O (S0 → S1 … S_O) |
+| `--oscillator_strengths_weight` | 10 | loss weight |
 | `--num_permutational_invariant` | 16 | latent size of `AutoencoderExcitedMACE` |
 | `--excited_backbone` | `ScaleShiftMACE` | backbone built from scratch: `ScaleShiftMACE`, `MACE`, `MACELES`, `PolarMACE`, `MagneticScaleShiftMACE` (a foundation model sets it) |
 | `--excited_long_range` | `shared` | `shared`: the backbone's electrostatics for every state; `state`: state-specific charges, see below |
@@ -126,9 +131,11 @@ The X-MACE command lines keep working, apart from `python scripts/run_train.py` 
 
 **Loss.** The loss is
 
-  energy_weight · MSE(E) + forces_weight · MSE(F) + nacs_weight · RMSE(NACs) + socs_weight · RMSE(SOCs) + dipoles_weight · 100 · MSE(μ / n_atoms).
+  energy_weight · MSE(E) + forces_weight · MSE(F) + nacs_weight · RMSE(NACs) + socs_weight · RMSE(SOCs) + dipoles_weight · 100 · MSE(μ / n_atoms) [+ oscillator_strengths_weight · MSE(f / scale)].
 
 The energies are total energies, and the couplings are phase free. The autoencoder adds the reconstruction and latent terms to the energy term. These are X-MACE's definitions, so its weights carry over.
+
+**Oscillator strengths.** `--compute_oscillator_strengths` learns the oscillator strengths f(S0 → S_k) directly, from labels of f alone (no transition dipole vectors needed), e.g. from TDDFT outputs. They are rotation invariant, so the model predicts them as sums of per-atom invariant scalars, made non-negative by a softplus and multiplied by a scale per head and transition: the rms of that transition's labels in the training data (logged). The loss term is oscillator_strengths_weight · MSE(f / scale), so weak and bright transitions count alike. By default there is one per state of the ground state's multiplicity (S0 → S1 … S_{n−1} with n singlets; with a doublet ground state, the doublets). Heads may differ (`compute_oscillator_strengths` and `osc_num` per head); a head without them is masked. The calculators return `oscillator_strengths` `[O]`, and `mace_eval_configs` writes `MACE_oscillator_strengths`. A trained model without oscillator strengths can be the foundation of one with them: backbone and adapter are transferred, the new readouts learn f.
 
 **Core repulsion.** `--pair_repulsion` gives the backbone a ZBL pair potential, so it is the same for every state. The repulsion between nuclei does not depend on the electronic state, and it keeps dynamics stable at short distances where there is no training data.
 

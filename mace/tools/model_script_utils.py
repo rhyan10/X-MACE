@@ -445,6 +445,56 @@ def excited_head_statistics(train_loader, atomic_energies, heads, specs, scaling
     return stats
 
 
+def oscillator_strength_scales(train_loader, heads, specs):
+    """Scale of the oscillator strengths of every head and transition: the rms of the
+    training labels (1 where there are none). Summed over all ranks when distributed."""
+    n_heads = len(heads)
+    o_max = max([specs[name].n_osc for name in heads] + [0])
+    if o_max == 0:
+        return None
+    dtype = torch.float64
+    count = torch.zeros(n_heads, o_max, dtype=dtype)
+    squares = torch.zeros(n_heads, o_max, dtype=dtype)
+    for batch in train_loader:
+        if "oscillator_strengths" not in batch:
+            continue
+        graph_heads = batch.head.view(-1).to(torch.long).cpu()
+        values = batch.oscillator_strengths.view(batch.num_graphs, -1).to(dtype).cpu()
+        labelled = ((batch.weight * batch.oscillator_strengths_weight) > 0).cpu()
+        for h, name in enumerate(heads):
+            n_osc = specs[name].n_osc
+            if n_osc == 0:
+                continue
+            rows = values[(graph_heads == h) & labelled, :n_osc]
+            count[h, :n_osc] += rows.shape[0]
+            squares[h, :n_osc] += torch.square(rows).sum(dim=0)
+    if torch.distributed.is_available() and torch.distributed.is_initialized():
+        packed = torch.cat([count.view(-1), squares.view(-1)])
+        backend = torch.distributed.get_backend()
+        device = (
+            torch.device("cuda", torch.cuda.current_device())
+            if backend == "nccl"
+            else torch.device("cpu")
+        )
+        packed = packed.to(device)
+        torch.distributed.all_reduce(packed)
+        count, squares = (
+            part.view(n_heads, o_max) for part in packed.cpu().split(n_heads * o_max)
+        )
+    rms = torch.sqrt(squares / count.clamp(min=1.0))
+    scales = torch.where((count > 0) & (rms > 1e-12), rms, torch.ones_like(rms))
+    result = []
+    for h, name in enumerate(heads):
+        n_osc = specs[name].n_osc
+        result.append(scales[h, :n_osc].tolist())
+        if n_osc:
+            logging.info(
+                f"Head {name}: oscillator strength scale (rms) per transition "
+                + ", ".join(f"{x:.3g}" for x in result[-1])
+            )
+    return result
+
+
 EXCITED_OUTPUT_ARGS = {
     "energy": True,
     "forces": True,
@@ -457,9 +507,10 @@ EXCITED_OUTPUT_ARGS = {
 
 
 def _layout_key(layout) -> tuple:
+    layout = {"osc_num": 0, **dict(layout)}  # older models: no oscillator strengths
     return tuple(
         (key, tuple(value) if isinstance(value, (list, tuple)) else value)
-        for key, value in sorted(dict(layout).items())
+        for key, value in sorted(layout.items())
     )
 
 
@@ -486,7 +537,7 @@ def _foundation_source_heads(args, model_foundation, heads):
 
 
 def _from_excited_foundation(
-    args, train_loader, model_foundation, heads, layouts, stats, z_table
+    args, train_loader, model_foundation, heads, layouts, stats, z_table, osc_scale=None
 ):
     """A model starting from a trained excited-state model.
 
@@ -570,6 +621,7 @@ def _from_excited_foundation(
         charge_smearing=getattr(args, "excited_charge_smearing", 1.0),
         coupling_parity=getattr(args, "coupling_parity", "both"),
         delta_scale=[float(scale) for scale, _ in stats],
+        osc_scale=osc_scale,
         adapter_irreps=o3.Irreps(adapter.pop("adapter_irreps")),
         **adapter,
     )
@@ -621,9 +673,17 @@ def configure_excited_model(
             + ", ".join(f"{x:.4f}" for x in np.atleast_1d(shift))
         )
 
+    osc_scale = oscillator_strength_scales(train_loader, heads, specs)
     if model_foundation is not None and hasattr(model_foundation, "head_layouts"):
         return _from_excited_foundation(
-            args, train_loader, model_foundation, heads, layouts, stats, z_table
+            args,
+            train_loader,
+            model_foundation,
+            heads,
+            layouts,
+            stats,
+            z_table,
+            osc_scale=osc_scale,
         )
 
     backbone_args = copy.copy(args)
@@ -686,6 +746,7 @@ def configure_excited_model(
             [float(x) - float(np.mean(shift)) for x in np.atleast_1d(shift)]
             for _, shift in stats
         ],
+        osc_scale=osc_scale,
     )
     if backbone_heads is not None:
         kwargs.update(heads=list(heads), backbone_heads=backbone_heads)

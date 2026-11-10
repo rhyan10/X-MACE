@@ -18,7 +18,15 @@ from .loss import is_ddp_enabled
 # sqrt(x + eps) keeps the gradient of the RMSE-type coupling losses finite at zero
 _SQRT_EPS = 1e-12
 
-MASK_NAMES = ("energy", "nacs", "socs", "soc_vectors", "dipoles", "transition_dipoles")
+MASK_NAMES = (
+    "energy",
+    "nacs",
+    "socs",
+    "soc_vectors",
+    "dipoles",
+    "transition_dipoles",
+    "oscillator_strengths",
+)
 
 
 def _graph_weights(ref: Batch, name: str) -> torch.Tensor:
@@ -127,6 +135,27 @@ def excited_forces_loss(
     return masked_mean(
         weights * torch.square(target - prediction), mask.unsqueeze(-1), ddp
     )
+
+
+def oscillator_strengths_loss(
+    ref: Batch,
+    pred: TensorDict,
+    ddp: Optional[bool] = None,
+    masks: Optional[Dict[str, torch.Tensor]] = None,
+) -> torch.Tensor:
+    """Weighted MSE of the oscillator strengths [n_graphs, O] (no phase: f >= 0), in
+    units of the model's scale per head and transition (pred["oscillator_strengths_scale"],
+    e.g. the rms of the training labels), so that weak and bright transitions and
+    data sets of different magnitude count alike."""
+    target = ref["oscillator_strengths"]
+    prediction = pred["oscillator_strengths"].view(target.shape)
+    mask = head_mask(masks, "oscillator_strengths", ref, target.shape[1])
+    weights = _graph_weights(ref, "oscillator_strengths").unsqueeze(-1) * mask
+    error = target - prediction
+    scale = pred.get("oscillator_strengths_scale")
+    if scale is not None:
+        error = error / scale.view(target.shape).clamp(min=1e-12)
+    return masked_mean(weights * torch.square(error), mask, ddp)
 
 
 def latent_loss(
@@ -251,6 +280,7 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
                      spin-orbit coupling vectors, weighted per pair in proportion to the
                      M_S-resolved SOC matrix elements each vector gives
     dipoles_weight * 100 * MSE(dipoles / n_atoms, transition dipoles phase free)
+    oscillator_strengths_weight * MSE(oscillator strengths / their scale per transition)
 
     Energies are total energies of all states, as in X-MACE. Per-configuration
     weights (config_weight, config_<property>_weight) are honoured; a missing
@@ -273,6 +303,7 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
         soc_pair_weights: Optional[Sequence] = None,
         soc_states: Optional[Sequence] = None,
         masks: Optional[Dict[str, torch.Tensor]] = None,
+        oscillator_strengths_weight: float = 1.0,
     ) -> None:
         super().__init__()
         for name, value in (
@@ -281,6 +312,7 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
             ("nacs_weight", nacs_weight),
             ("socs_weight", socs_weight),
             ("dipoles_weight", dipoles_weight),
+            ("oscillator_strengths_weight", oscillator_strengths_weight),
         ):
             self.register_buffer(
                 name, torch.tensor(value, dtype=torch.get_default_dtype())
@@ -351,11 +383,20 @@ class WeightedExcitedStatesLoss(torch.nn.Module):
             loss = loss + self.dipoles_weight * 100.0 * phase_free_dipoles_loss(
                 ref, pred, self.n_permanent_dipoles, ddp, masks
             )
+        if (
+            pred.get("oscillator_strengths") is not None
+            and "oscillator_strengths" in ref
+            and self.oscillator_strengths_weight > 0
+        ):
+            loss = loss + self.oscillator_strengths_weight * oscillator_strengths_loss(
+                ref, pred, ddp, masks
+            )
         return loss
 
     def __repr__(self):
         return (
             f"{self.__class__.__name__}(energy_weight={self.energy_weight:.3f}, "
             f"forces_weight={self.forces_weight:.3f}, nacs_weight={self.nacs_weight:.3f}, "
-            f"socs_weight={self.socs_weight:.3f}, dipoles_weight={self.dipoles_weight:.3f})"
+            f"socs_weight={self.socs_weight:.3f}, dipoles_weight={self.dipoles_weight:.3f}, "
+            f"oscillator_strengths_weight={self.oscillator_strengths_weight:.3f})"
         )

@@ -88,8 +88,12 @@ def make_excited_configs(
     with_dipoles: bool = True,
     smooth_key: Optional[str] = None,
     random_phases: bool = False,
+    with_oscillator_strengths: bool = False,
 ) -> List[ase.Atoms]:
     """Molecules with excited-state labels in atoms.info (X-MACE layout).
+
+    with_oscillator_strengths adds REF_oscillator_strengths [S - 1], f_0k =
+    2/3 dE_0k |mu_0k|^2 from the energies and transition dipoles (smooth, >= 0).
 
     random_phases flips the sign of every coupling at random, as quantum
     chemistry codes do, to test the phase-free losses."""
@@ -117,8 +121,27 @@ def make_excited_configs(
             if random_phases:
                 dipoles[n_states:] *= rng.choice([-1.0, 1.0], size=(n_pairs, 1))
             atoms.info["REF_dipoles"] = dipoles
+        if with_oscillator_strengths:
+            atoms.info["REF_oscillator_strengths"] = oscillator_strengths(
+                labels, n_states
+            )
         atoms_list.append(atoms)
     return atoms_list
+
+
+def oscillator_strengths(labels, n_states: int) -> np.ndarray:
+    """f_0k = 2/3 (E_k - E_0) |mu_0k|^2 for k = 1..S-1 (pair order (0,1), (0,2), ...)."""
+    energies = np.asarray(labels["energies"])
+    transition = np.asarray(labels["dipoles"])[n_states:]
+    return np.array(
+        [
+            2.0
+            / 3.0
+            * abs(energies[k] - energies[0])
+            * float(transition[k - 1] @ transition[k - 1])
+            for k in range(1, n_states)
+        ]
+    )
 
 
 MASSES = {"C": 12.0, "H": 1.0, "O": 16.0}

@@ -100,6 +100,7 @@ def create_error_table(
         ]
     elif table_type in ("EnergyNacsDipoleMAE", "EnergyNacsDipoleRMSE"):
         label = "MAE" if table_type.endswith("MAE") else "RMSE"
+        with_osc = int(getattr(getattr(model, "module", model), "osc_num", 0)) > 0
         table.field_names = [
             "config_type",
             f"{label} E / meV",
@@ -109,7 +110,7 @@ def create_error_table(
             f"{label} NACs (x1e-3)",
             f"{label} SOCs (x1e-3)",
             f"{label} dipoles (x1e-3)",
-        ]
+        ] + ([f"{label} f_osc (x1e-3)"] if with_osc else [])
     elif table_type == "EnergyDipoleRMSE":
         table.field_names = [
             "config_type",
@@ -272,18 +273,19 @@ def create_error_table(
                 except TypeError:
                     return "N/A"
 
-            table.add_row(
-                [
-                    name,
-                    _fmt(f"{kind}_e"),
-                    _fmt(f"{kind}_e_per_atom"),
-                    _fmt(f"{kind}_f"),
-                    _fmt(f"rel_{kind}_f", factor=1.0, digits=2),
-                    _fmt(f"{kind}_nacs", digits=2),
-                    _fmt(f"{kind}_socs", digits=2),
-                    _fmt(f"{kind}_dipoles", digits=2),
-                ]
-            )
+            row = [
+                name,
+                _fmt(f"{kind}_e"),
+                _fmt(f"{kind}_e_per_atom"),
+                _fmt(f"{kind}_f"),
+                _fmt(f"rel_{kind}_f", factor=1.0, digits=2),
+                _fmt(f"{kind}_nacs", digits=2),
+                _fmt(f"{kind}_socs", digits=2),
+                _fmt(f"{kind}_dipoles", digits=2),
+            ]
+            if with_osc:
+                row.append(_fmt(f"{kind}_osc", digits=2))
+            table.add_row(row)
         elif table_type == "EnergyDipoleRMSE":
             table.add_row(
                 [

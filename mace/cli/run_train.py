@@ -362,6 +362,7 @@ def run(args) -> None:
                 ("nacs_key", "arrays_keys"),
                 ("socs_key", "info_keys"),
                 ("dipoles_key", "info_keys"),
+                ("oscillator_strengths_key", "info_keys"),
             ):
                 if key in head_dict:
                     head_dict["key_specification"].update(
