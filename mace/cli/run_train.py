@@ -1060,6 +1060,17 @@ def run(args) -> None:
         and not args.train_one_body_contribution
     ):
         model.onebody_magmombasis_coeffs.requires_grad_(False)
+    if getattr(args, "train_only_oscillator_strengths", False):
+        if int(getattr(model, "osc_num", 0)) == 0:
+            raise ValueError(
+                "--train_only_oscillator_strengths needs --compute_oscillator_strengths"
+            )
+        for name, parameter in model.named_parameters():
+            parameter.requires_grad_(name.startswith("osc_readouts."))
+        logging.info(
+            "Training only the oscillator-strength readouts; every other weight "
+            "(energies, forces, couplings) stays as it is"
+        )
     param_options = get_params_options(args, model)
     n_total = sum(p.numel() for p in model.parameters())
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -1144,7 +1155,13 @@ def run(args) -> None:
             device_ids = [xpu_device_index(local_rank)]
         else:
             device_ids = None
-        distributed_model = DDP(model, device_ids=device_ids)
+        distributed_model = DDP(
+            model,
+            device_ids=device_ids,
+            # excited-state models: outputs without a loss term (e.g. energies when only
+            # oscillator strengths are trained) leave their readouts without gradients
+            find_unused_parameters=hasattr(model, "head_layouts"),
+        )
     else:
         distributed_model = None
 
@@ -1322,7 +1339,11 @@ def run(args) -> None:
                 device_ids = [xpu_device_index(local_rank)]
             else:
                 device_ids = None
-            distributed_model = DDP(model, device_ids=device_ids)
+            distributed_model = DDP(
+                model,
+                device_ids=device_ids,
+                find_unused_parameters=hasattr(model, "head_layouts"),
+            )
         model_to_evaluate = model if not args.distributed else distributed_model
         if swa_eval:
             logging.info(f"Loaded Stage two model from epoch {epoch} for evaluation")

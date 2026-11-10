@@ -1646,6 +1646,16 @@ def add_excited_state_arguments(parser) -> None:
         default=None,
     )
     parser.add_argument(
+        "--train_only_oscillator_strengths",
+        help="Train only the oscillator-strength readouts and keep every other weight "
+        "fixed, e.g. to add oscillator strengths to a trained model "
+        "(--foundation_model) without changing its energies, forces and couplings",
+        type=str2bool,
+        nargs="?",
+        const=True,
+        default=False,
+    )
+    parser.add_argument(
         "--osc_num",
         help="Number of oscillator strengths per configuration, S0 -> S1 .. S_osc_num "
         "(default: the states of the ground state's multiplicity minus one)",

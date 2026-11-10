@@ -375,10 +375,11 @@ def test_heads_with_and_without_oscillator_strengths_from_hdf5(tmp_path):
 
 @pytest.mark.slow
 def test_adding_oscillator_strengths_to_a_trained_model(tmp_path):
-    """A trained model without oscillator strengths as foundation: backbone and adapter
-    are transferred, the new run learns them."""
+    """A trained model without oscillator strengths as foundation of the same model
+    with them: every weight, shift and scale is kept, only the oscillator-strength
+    readouts are new (the energies start where the trained model left them)."""
     _write(tmp_path)
-    run_mace_train(_params(tmp_path, name="first", max_num_epochs=2))
+    run_mace_train(_params(tmp_path, name="first", max_num_epochs=4))
     params = _params(tmp_path, foundation_model=str(tmp_path / "first.model"))
     for key in (
         "r_max",
@@ -389,9 +390,27 @@ def test_adding_oscillator_strengths_to_a_trained_model(tmp_path):
     ):
         params.pop(key)
     run_mace_train(params, extra_argv=["--compute_oscillator_strengths"])
-    assert "Transfer from the excited-state foundation model" in _log(tmp_path)
+    log = _log(tmp_path)
+    assert "Adding oscillator strengths to the excited-state foundation model" in log
     trained = torch.load(tmp_path / "osc.model", weights_only=False)
     assert trained.osc_num == 2
+
+    def initial_energy_error(name):
+        for line in _log(tmp_path, name).splitlines():
+            if "Initial:" in line and "MAE_E=" in line:
+                return float(line.split("MAE_E=")[1].split()[0])
+        raise AssertionError(f"no initial validation in the log of {name}")
+
+    def last_energy_error(name):
+        lines = [
+            l
+            for l in _log(tmp_path, name).splitlines()
+            if "Epoch" in l and "MAE_E=" in l
+        ]
+        return float(lines[-1].split("MAE_E=")[1].split()[0])
+
+    # starts from the trained energies, not from the backbone's surface
+    assert initial_energy_error("osc") < 1.5 * last_energy_error("first") + 1.0
 
 
 @pytest.mark.slow
@@ -424,3 +443,81 @@ def test_oscillator_strengths_only_data(tmp_path):
     assert errors and np.all(np.isfinite(errors))
     strengths = ExcitedMACECalculator(tmp_path / "osc.model").predict(frames[0])
     assert strengths["oscillator_strengths"].shape == (3,)
+
+
+@pytest.mark.slow
+def test_train_only_oscillator_strengths(tmp_path):
+    """--train_only_oscillator_strengths: only the new readouts change, from data with
+    oscillator strengths only; every other weight is that of the trained model."""
+    _write(tmp_path)
+    run_mace_train(_params(tmp_path, name="first", max_num_epochs=2))
+    frames = []
+    for atoms in ase.io.read(tmp_path / "train.xyz", ":"):
+        f_only = ase.Atoms(atoms.get_chemical_symbols(), positions=atoms.positions)
+        f_only.info["REF_oscillator_strengths"] = atoms.info["REF_oscillator_strengths"]
+        frames.append(f_only)
+    ase.io.write(tmp_path / "f_only.xyz", frames)
+    params = _params(
+        tmp_path,
+        train_file=str(tmp_path / "f_only.xyz"),
+        foundation_model=str(tmp_path / "first.model"),
+        E0s="{1: 0.0, 6: 0.0, 8: 0.0}",
+        energy_weight=0.0,
+        forces_weight=0.0,
+        max_num_epochs=3,
+    )
+    for key in (
+        "r_max",
+        "hidden_irreps",
+        "MLP_irreps",
+        "num_interactions",
+        "correlation",
+    ):
+        params.pop(key)
+    run_mace_train(
+        params,
+        extra_argv=[
+            "--compute_oscillator_strengths",
+            "--train_only_oscillator_strengths",
+        ],
+    )
+    assert "Training only the oscillator-strength readouts" in _log(tmp_path)
+    first = torch.load(tmp_path / "first.model", weights_only=False).state_dict()
+    trained = torch.load(tmp_path / "osc.model", weights_only=False).state_dict()
+    changed = [
+        key
+        for key, value in first.items()
+        if key in trained
+        and not key.startswith("osc_")
+        and not torch.equal(value, trained[key])
+    ]
+    assert changed == []
+    osc_first = torch.load(tmp_path / "osc.model", weights_only=False)
+    assert osc_first.osc_num == 2 and _osc_errors(tmp_path)
+
+
+@pytest.mark.slow
+def test_distributed_oscillator_strengths_only(tmp_path):
+    """Data-parallel training of oscillator strengths only: the energy readouts get no
+    gradients, which DDP must allow (find_unused_parameters)."""
+    from test_excited_train import _torchrun  # pylint: disable=import-error
+
+    frames = []
+    for atoms in make_excited_configs(24, 4, seed=1, with_oscillator_strengths=True):
+        f_only = ase.Atoms(atoms.get_chemical_symbols(), positions=atoms.positions)
+        f_only.info["REF_oscillator_strengths"] = atoms.info["REF_oscillator_strengths"]
+        frames.append(f_only)
+    ase.io.write(tmp_path / "train.xyz", frames)
+    params = _params(
+        tmp_path,
+        n_energies=4,
+        E0s="{1: 0.0, 6: 0.0, 8: 0.0}",
+        energy_weight=0.0,
+        forces_weight=0.0,
+        max_num_epochs=3,
+    )
+    params.pop("test_file")
+    _torchrun(params, ["--compute_oscillator_strengths"])
+    log = _log(tmp_path)
+    assert "Processes: 2" in log and "forces are not computed in training" in log
+    assert _osc_errors(tmp_path)

@@ -620,14 +620,19 @@ def _from_excited_foundation(
             "adapter_irreps": str(model_foundation.adapter_product.linear.irreps_out),
         }
     )
+    adds_osc = _adds_only_oscillator_strengths(
+        args, model_foundation, layouts, sources, source_layouts
+    )
+    mlp_irreps = getattr(args, "excited_MLP_irreps", None) or args.MLP_irreps
+    if adds_osc and hasattr(model_foundation.readouts[-1], "hidden_irreps"):
+        # the same readouts as the foundation, so that all their weights fit
+        mlp_irreps = str(model_foundation.readouts[-1].hidden_irreps)
     kwargs = dict(
         backbone=backbone,
         heads=list(heads),
         backbone_heads=backbone_heads,
         head_layouts=layouts,
-        MLP_irreps=o3.Irreps(
-            getattr(args, "excited_MLP_irreps", None) or args.MLP_irreps
-        ),
+        MLP_irreps=o3.Irreps(str(mlp_irreps)),
         gate=modules.gate_dict[args.gate],
         long_range_mode=getattr(args, "excited_long_range", "shared"),
         charge_smearing=getattr(args, "excited_charge_smearing", 1.0),
@@ -654,6 +659,36 @@ def _from_excited_foundation(
             getattr(model_foundation, name).state_dict()
         )
     device = torch.device(args.device)
+    if adds_osc:
+        # the same model with oscillator strengths added: keep every other weight,
+        # shift and scale; only the oscillator-strength readouts are new
+        own = model.state_dict()
+        kept = {
+            key: value
+            for key, value in model_foundation.state_dict().items()
+            if not key.startswith("osc_")
+            and key in own
+            and own[key].shape == value.shape
+        }
+        missing = [
+            key
+            for key in model_foundation.state_dict()
+            if not key.startswith("osc_") and key not in kept
+        ]
+        if missing:
+            raise ValueError(
+                "Adding oscillator strengths: the model built for this run does not fit "
+                f"the foundation's weights {missing[:5]}; use the foundation's model "
+                "options (e.g. --excited_MLP_irreps, --excited_adapter_irreps)"
+            )
+        model.load_state_dict(kept, strict=False)
+        model.to(device)
+        logging.info(
+            "Adding oscillator strengths to the excited-state foundation model: "
+            "backbone, adapter, energy and coupling readouts, shifts and scales keep "
+            "their weights; the oscillator-strength readouts are new"
+        )
+        return model, dict(EXCITED_OUTPUT_ARGS)
     model.to(device)
     modules.fit_excited_shifts(model, train_loader, device=device)
     logging.info(
@@ -663,6 +698,30 @@ def _from_excited_foundation(
         + " are new, every state starts from the backbone energy"
     )
     return model, dict(EXCITED_OUTPUT_ARGS)
+
+
+def _adds_only_oscillator_strengths(
+    args, model_foundation, layouts, sources, source_layouts
+) -> bool:
+    """True when this run's heads are the foundation's heads (same names and order,
+    same class) with oscillator strengths added and nothing else changed."""
+
+    def without_osc(layout):
+        return _layout_key({**dict(layout), "osc_num": 0})
+
+    return (
+        model_foundation.__class__.__name__ == args.model
+        and list(sources) == list(model_foundation.heads)
+        and all(
+            without_osc(layout) == without_osc(source_layouts[source])
+            for layout, source in zip(layouts, sources)
+        )
+        and any(
+            int(layout.get("osc_num", 0))
+            != int(dict(source_layouts[source]).get("osc_num", 0))
+            for layout, source in zip(layouts, sources)
+        )
+    )
 
 
 def configure_excited_model(
