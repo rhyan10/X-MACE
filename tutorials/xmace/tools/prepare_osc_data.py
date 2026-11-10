@@ -7,7 +7,10 @@ into training, validation and test sets.
 writes osc_data/train.xyz, valid.xyz, test.xyz (default 90 / 5 / 5 %, random,
 seeded) with the values under REF_oscillator_strengths and no REF_energy, and
 osc_data/e0s.txt, an --E0s dictionary with every element of the data set (all 0.0:
-energies are not trained). Reads the input twice, one frame at a time, so large
+energies are not trained). Frames with broken geometries (two atoms closer than
+--min_distance, default 0.6 A) or unusable labels (not finite, below -0.01 or above
+--max_f) are dropped and listed in osc_data/dropped.txt; slightly negative oscillator
+strengths (numerical noise, down to -0.01) are set to 0. Reads the input twice, one frame at a time, so large
 files are fine; copes with a UTF-8 byte-order mark, Windows line endings and an
 incomplete last frame (skipped).
 """
@@ -55,6 +58,29 @@ def frames(path, warn=True):
             yield number, "".join(line.rstrip("\r\n") + "\n" for line in lines)
 
 
+def problem(atoms, strengths, min_distance, max_f):
+    """Why a frame cannot be used (None if it can)."""
+    if not np.all(np.isfinite(atoms.positions)):
+        return "positions not finite"
+    if not np.all(np.isfinite(strengths)):
+        return "oscillator strengths not finite"
+    if strengths.size and strengths.max() > max_f:
+        return f"oscillator strength {strengths.max():.3g} > {max_f}"
+    if strengths.size and strengths.min() < -0.01:
+        return f"oscillator strength {strengths.min():.3g} < -0.01"
+    if len(atoms) > 1:
+        distances = atoms.get_all_distances()
+        np.fill_diagonal(distances, np.inf)
+        if distances.min() < min_distance:
+            i, j = np.unravel_index(np.argmin(distances), distances.shape)
+            symbols = atoms.get_chemical_symbols()
+            return (
+                f"atoms {i} {symbols[i]} and {j} {symbols[j]} only "
+                f"{distances.min():.3f} A apart"
+            )
+    return None
+
+
 def convert(text, number, from_key, to_key):
     atoms = ase.io.read(io.StringIO(text), format="extxyz")
     if from_key not in atoms.info:
@@ -80,12 +106,31 @@ def main():
     parser.add_argument("--seed", type=int, default=1)
     parser.add_argument("--from_key", default="REF_energy")
     parser.add_argument("--to_key", default="REF_oscillator_strengths")
+    parser.add_argument(
+        "--min_distance",
+        type=float,
+        default=0.6,
+        help="drop frames with atoms closer (A)",
+    )
+    parser.add_argument(
+        "--max_f", type=float, default=10.0, help="drop frames with larger values"
+    )
     args = parser.parse_args()
 
-    # pass 1: count the complete frames
-    n_frames = sum(1 for _ in frames(args.input, warn=False))
+    # pass 1: check every frame; the usable ones are split
+    dropped = []
+    usable = []
+    for number, text in frames(args.input, warn=False):
+        atoms, strengths = convert(text, number, args.from_key, args.to_key)
+        reason = problem(atoms, strengths, args.min_distance, args.max_f)
+        if reason is None:
+            usable.append(number)
+        else:
+            dropped.append((number, reason))
+    n_frames = len(usable)
     if n_frames == 0:
-        sys.exit("no complete frames found")
+        sys.exit("no usable frames found")
+    position = {number: k for k, number in enumerate(usable)}
     n_valid = int(round(args.valid_fraction * n_frames))
     n_test = int(round(args.test_fraction * n_frames))
     if n_valid + n_test >= n_frames:
@@ -106,8 +151,12 @@ def main():
     sums, maxima, negative = None, None, 0
     try:
         for number, text in frames(args.input):
+            if number not in position:
+                continue
             atoms, strengths = convert(text, number, args.from_key, args.to_key)
-            part = int(split[number - 1])
+            strengths = np.clip(strengths, 0.0, None)  # noise below 0
+            atoms.info[args.to_key] = strengths
+            part = int(split[position[number]])
             ase.io.write(files[part], atoms, format="extxyz")
             counts[part] += 1
             elements.update(atoms.get_chemical_symbols())
@@ -130,8 +179,15 @@ def main():
     n_osc = max(sizes)
     (out_dir / "n_osc.txt").write_text(f"{n_osc}\n")
 
+    with open(out_dir / "dropped.txt", "w", encoding="utf-8") as handle:
+        for number, reason in dropped:
+            handle.write(f"frame {number}: {reason}\n")
+    if dropped:
+        print(f"dropped {len(dropped)} frames (listed in {out_dir}/dropped.txt), e.g.:")
+        for number, reason in dropped[:5]:
+            print(f"  frame {number}: {reason}")
     print(
-        f"{n_frames} frames: "
+        f"{n_frames} usable frames: "
         + ", ".join(f"{name} {count}" for name, count in zip(names, counts))
         + f" -> {out_dir}/"
     )
