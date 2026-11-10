@@ -84,7 +84,10 @@ def problem(atoms, strengths, min_distance, max_f):
 def convert(text, number, from_key, to_key):
     atoms = ase.io.read(io.StringIO(text), format="extxyz")
     if from_key not in atoms.info:
-        sys.exit(f"frame {number}: no {from_key} in its info line")
+        if to_key in atoms.info:
+            from_key = to_key  # already under the right key: only clean and split
+        else:
+            sys.exit(f"frame {number}: neither {from_key} nor {to_key} in its info line")
     strengths = np.asarray(atoms.info.pop(from_key), dtype=float).reshape(-1)
     clean = ase.Atoms(
         atoms.get_chemical_symbols(),
