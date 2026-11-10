@@ -304,8 +304,20 @@ def load_from_xyz(
         for atoms in atoms_list
     )
     has_dipole = any(final_dipole_key in atoms.info for atoms in atoms_list)
+    # excited-state labels (e.g. data sets with oscillator strengths only)
+    excited_keys = [
+        keys[name]
+        for keys in (key_specification.info_keys, key_specification.arrays_keys)
+        for name in ("nacs", "socs", "dipoles", "oscillator_strengths")
+        if name in keys
+    ]
+    has_excited = any(
+        key in atoms.info or key in atoms.arrays
+        for key in excited_keys
+        for atoms in atoms_list
+    )
 
-    if not has_energy and not has_forces and not has_dipole:
+    if not has_energy and not has_forces and not has_dipole and not has_excited:
         msg = f"None of '{final_energy_key}', '{final_forces_key}', and '{final_dipole_key}' found in '{file_path}'."
         if no_data_ok:
             logging.warning(msg + " Continuing because no_data_ok=True was passed in.")

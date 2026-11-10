@@ -62,9 +62,21 @@ def configure_model(
     head_configs=None,
 ):
     if args.model in ("ExcitedMACE", "AutoencoderExcitedMACE"):
-        return configure_excited_model(
+        model, output_args = configure_excited_model(
             args, train_loader, atomic_energies, model_foundation, heads, z_table
         )
+        output_args = dict(output_args)
+        stage_two = bool(
+            getattr(args, "swa", False) or getattr(args, "stage_two", False)
+        )
+        forces_weights = [float(getattr(args, "forces_weight", 1.0))]
+        if stage_two:
+            forces_weights.append(float(getattr(args, "swa_forces_weight", 1.0) or 0.0))
+        if max(forces_weights) == 0.0:
+            # no force term (e.g. oscillator strengths only): skip the S backward passes
+            output_args["forces"] = False
+            logging.info("forces_weight=0: forces are not computed in training")
+        return model, output_args
     # Selecting outputs
     compute_virials = args.loss == "virials"
     compute_stress = args.loss in ("stress", "huber", "universal")

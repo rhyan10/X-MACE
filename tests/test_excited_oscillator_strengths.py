@@ -392,3 +392,35 @@ def test_adding_oscillator_strengths_to_a_trained_model(tmp_path):
     assert "Transfer from the excited-state foundation model" in _log(tmp_path)
     trained = torch.load(tmp_path / "osc.model", weights_only=False)
     assert trained.osc_num == 2
+
+
+@pytest.mark.slow
+def test_oscillator_strengths_only_data(tmp_path):
+    """Frames with oscillator strengths only (no energies or forces), stored under
+    another key: trains without computing forces."""
+    frames = []
+    for atoms in make_excited_configs(20, 4, seed=1, with_oscillator_strengths=True):
+        f_only = ase.Atoms(atoms.get_chemical_symbols(), positions=atoms.positions)
+        f_only.info["REF_f"] = np.atleast_2d(atoms.info["REF_oscillator_strengths"])
+        frames.append(f_only)
+    ase.io.write(tmp_path / "train.xyz", frames)
+    params = _params(
+        tmp_path,
+        n_energies=4,
+        oscillator_strengths_key="REF_f",
+        energy_key="REF_none",
+        forces_key="REF_none",
+        E0s="{1: 0.0, 6: 0.0, 8: 0.0}",
+        energy_weight=0.0,
+        forces_weight=0.0,
+        max_num_epochs=4,
+    )
+    params.pop("test_file")
+    run_mace_train(params, extra_argv=["--compute_oscillator_strengths"])
+    log = _log(tmp_path)
+    assert "forces are not computed in training" in log
+    assert "oscillator strengths=3 (S0 -> S1..S3)" in log
+    errors = _osc_errors(tmp_path)
+    assert errors and np.all(np.isfinite(errors))
+    strengths = ExcitedMACECalculator(tmp_path / "osc.model").predict(frames[0])
+    assert strengths["oscillator_strengths"].shape == (3,)
